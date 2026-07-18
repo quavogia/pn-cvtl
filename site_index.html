@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Danh sách học viên</title>
+<style>
+  :root{--primary:#2563eb;--bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--sidebar:#0f172a;--sidebar-hover:#1e293b;}
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+
+  /* ---------- Sidebar ---------- */
+  #sidebar{width:220px;flex-shrink:0;background:var(--sidebar);color:#fff;padding:18px 12px;}
+  #sidebar h2{font-size:15px;margin:0 0 18px 8px;font-weight:700;color:#fff;}
+  .nav-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;color:#cbd5e1;border:none;padding:10px 10px;border-radius:8px;font-size:14px;cursor:pointer;margin-bottom:4px;}
+  .nav-btn:hover{background:var(--sidebar-hover);color:#fff;}
+  .nav-btn.active{background:var(--primary);color:#fff;}
+  .nav-icon{font-size:16px;}
+
+  /* ---------- Main content ---------- */
+  #main{flex:1;padding:22px;overflow-y:auto;}
+  .panel{display:none;}
+  .panel.active{display:block;}
+  h1{font-size:20px;margin:0 0 16px;}
+  h3{margin:0 0 12px;font-size:15px;}
+  .card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.04);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+  label{font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px;}
+  input,select,textarea{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;}
+  textarea{grid-column:1/-1;min-height:60px;resize:vertical;}
+  button{background:var(--primary);color:#fff;border:none;padding:9px 18px;border-radius:6px;font-size:14px;cursor:pointer;}
+  button:disabled{opacity:.6;cursor:not-allowed;}
+  button.secondary{background:#64748b;}
+  button.danger{background:#dc2626;padding:5px 10px;font-size:12px;}
+  button.edit{background:#059669;padding:5px 10px;font-size:12px;margin-right:4px;}
+  button.icon-btn{background:transparent;padding:4px 8px;font-size:15px;border:1px solid var(--border);border-radius:6px;margin-right:4px;}
+  button.icon-btn:hover{background:#f1f5f9;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{border:1px solid var(--border);padding:6px 8px;text-align:left;}
+  th{background:#f1f5f9;}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;justify-content:space-between;}
+  .stats-num{font-weight:700;}
+  .actions{white-space:nowrap;}
+  .msg{font-size:13px;padding:8px 10px;border-radius:6px;margin-bottom:14px;display:none;}
+  .msg.ok{background:#dcfce7;color:#166534;}
+  .msg.err{background:#fee2e2;color:#991b1b;}
+  .stat-input{width:60px;padding:4px;}
+
+  /* ---------- Stat cards ---------- */
+  .stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:20px;}
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:16px;}
+  .stat-card .label{font-size:12px;color:#64748b;margin-bottom:6px;}
+  .stat-card .value{font-size:26px;font-weight:700;color:var(--primary);}
+
+  /* ---------- Khu vực pill tabs ---------- */
+  .kv-pills{display:flex;gap:6px;flex-wrap:wrap;}
+  .kv-pill{background:#e2e8f0;color:#334155;border:none;padding:7px 14px;border-radius:999px;font-size:13px;cursor:pointer;}
+  .kv-pill:hover{background:#cbd5e1;}
+  .kv-pill.active{background:var(--primary);color:#fff;}
+
+  /* ---------- Loading ---------- */
+  #loadingOverlay{position:fixed;inset:0;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:14px;color:#64748b;z-index:999;}
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 720px){
+    body{flex-direction:column;}
+    #sidebar{width:100%;display:flex;align-items:center;padding:10px;overflow-x:auto;}
+    #sidebar h2{display:none;}
+    .nav-btn{flex-shrink:0;width:auto;margin-bottom:0;margin-right:6px;white-space:nowrap;}
+    #main{padding:14px;}
+  }
+</style>
+</head>
+<body>
+
+  <div id="loadingOverlay">Đang tải dữ liệu…</div>
+
+  <div id="sidebar">
+    <h2>📋 Học viên</h2>
+    <button type="button" class="nav-btn active" data-panel="stats" onclick="showPanel('stats')"><span class="nav-icon">📊</span> Tổng quan</button>
+    <button type="button" class="nav-btn" data-panel="add" onclick="showPanel('add')"><span class="nav-icon">📝</span> Nhập học viên</button>
+    <button type="button" class="nav-btn" data-panel="goal" onclick="showPanel('goal')"><span class="nav-icon">🎯</span> Nhập mục tiêu</button>
+    <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
+  </div>
+
+  <div id="main">
+    <div id="msg" class="msg"></div>
+
+    <!-- ============ TỔNG QUAN ============ -->
+    <div id="panel-stats" class="panel active">
+      <h1>Tổng quan</h1>
+
+      <div class="card">
+        <h3>Mục tiêu tổng (tháng <span id="ov_monthLabel"></span>) — cộng dồn tất cả Khu vực</h3>
+        <table>
+          <thead><tr><th></th><th>Mục tiêu</th><th>Thực tế</th><th>% hoàn thành</th></tr></thead>
+          <tbody id="overallGoalBody"></tbody>
+        </table>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;">Tự cộng dồn ngay khi các Khu vực nhập mục tiêu (Đơn thuần/Hữu hiệu/BT) ở tab "Nhập mục tiêu". Vào "Hiện trạng khu vực" để xem riêng từng khu vực.</p>
+      </div>
+
+      <div class="card">
+        <h3>Thống kê học viên đang nghe</h3>
+        <div class="stat-cards" style="margin-bottom:0;">
+          <div class="stat-card"><div class="label">Tổng học viên</div><div class="value" id="ov_total">0</div></div>
+          <div class="stat-card" id="ov_dangnghe_card" style="cursor:pointer;" title="Bấm để xem danh sách đang nghe">
+            <div class="label">Đang nghe (bấm để xem danh sách) ▾</div><div class="value" id="ov_dangnghe">0</div>
+          </div>
+          <div class="stat-card"><div class="label">Đơn thuần tháng này</div><div class="value" id="ov_donthuan">—</div></div>
+          <div class="stat-card"><div class="label">Hữu hiệu tháng này</div><div class="value" id="ov_huuhieu">—</div></div>
+          <div class="stat-card"><div class="label">BT tháng này</div><div class="value" id="ov_bt">—</div></div>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:10px;">
+          "Tổng học viên" tính cả người Tạm nghỉ. "Đang nghe" = học viên có Tiến độ từ B1 đến BT (không tính Tạm nghỉ), lấy từ bảng học viên khi các Khu vực nhập vào tab "Nhập học viên". "Đơn thuần/Hữu hiệu/BT tháng này" là % hoàn thành mục tiêu của tháng hiện tại.
+        </p>
+
+        <div id="dangNgheTable" style="display:none;margin-top:14px;overflow-x:auto;">
+          <table>
+            <thead><tr><th>Tên</th><th>Khu vực</th><th>Tiến độ</th><th>Ngày chia sẻ cuối cùng</th></tr></thead>
+            <tbody id="dangNgheBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ NHẬP HỌC VIÊN ============ -->
+    <div id="panel-add" class="panel">
+      <h1>Nhập học viên</h1>
+
+      <div class="card">
+        <h3 id="formTitle">Thêm học viên mới</h3>
+        <form id="studentForm">
+          <input type="hidden" id="editRow" value="">
+          <div class="grid">
+            <div><label>Tên học viên *</label><input id="f_ten" required></div>
+            <div><label>Ngày chia sẻ cuối cùng</label><input id="f_ngay" type="date"></div>
+            <div><label>Địa chỉ</label><input id="f_diachi"></div>
+            <div><label>Người dẫn dắt</label><input id="f_nguoidandat"></div>
+            <div><label>Khu vực</label><select id="f_to"></select></div>
+            <div><label>Tiến độ</label><select id="f_tiendo"></select></div>
+            <div style="grid-column:1/-1"><label>Đánh giá hv (theo ngày học gần nhất)</label><textarea id="f_danhgia"></textarea></div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <button type="submit" id="submitBtn">Thêm học viên</button>
+            <button type="button" class="secondary" id="cancelEditBtn" style="display:none">Hủy sửa</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <div class="toolbar">
+          <h3 style="margin:0">Danh sách (<span id="countBadge">0</span> học viên)</h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="filterTo"><option value="">-- Lọc theo Khu vực --</option></select>
+            <select id="filterPeriodType">
+              <option value="">-- Lọc theo thời gian --</option>
+              <option value="today">Hôm nay</option>
+              <option value="week">1 tuần qua</option>
+              <option value="month">1 tháng qua</option>
+              <option value="custom">Chọn thời gian...</option>
+            </select>
+            <span id="filterCustomRange" style="display:none;gap:8px;align-items:center;">
+              <input type="date" id="filterDateFrom" style="width:auto">
+              <span style="font-size:13px;color:#64748b;">đến</span>
+              <input type="date" id="filterDateTo" style="width:auto">
+            </span>
+            <button type="button" class="secondary" onclick="loadAll()">🔄 Làm mới</button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin:6px 0 0;">Lọc theo thời gian áp dụng trên cột "Ngày chia sẻ cuối cùng" ("Hôm nay"/"1 tuần qua"/"1 tháng qua" tính lùi từ ngày hiện tại).</p>
+        <div style="overflow-x:auto">
+        <table>
+          <thead><tr><th>STT</th><th>Tên</th><th>Ngày chia sẻ</th><th>Địa chỉ</th><th>Người dẫn dắt</th><th>Khu vực</th><th>Tiến độ</th><th>Đánh giá</th><th>Thao tác</th></tr></thead>
+          <tbody id="studentsBody"></tbody>
+        </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ NHẬP MỤC TIÊU ============ -->
+    <div id="panel-goal" class="panel">
+      <h1>Nhập mục tiêu</h1>
+      <p style="font-size:12px;color:#64748b;margin-top:-8px;">Mục tiêu luôn áp dụng cho tháng hiện tại (<b id="goalCurMonthLabel"></b>).</p>
+
+      <div class="card">
+        <h3 id="goalFormTitle">Nhập mục tiêu Khu vực</h3>
+        <form id="goalKVForm">
+          <div class="grid">
+            <div><label>Khu vực *</label><select id="gkv_to" required></select></div>
+            <div><label>Mục tiêu Đơn thuần</label><input type="number" id="gkv_donthuan" min="0" value="0"></div>
+            <div><label>Mục tiêu Hữu hiệu</label><input type="number" id="gkv_huuhieu" min="0" value="0"></div>
+            <div><label>Mục tiêu BT (Báp-têm)</label><input type="number" id="gkv_bt" min="0" value="0"></div>
+          </div>
+          <div style="margin-top:10px;">
+            <button type="submit">Lưu mục tiêu</button>
+          </div>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:16px;">
+        <table>
+          <thead>
+            <tr><th rowspan="2">Khu vực</th><th colspan="3">Đơn thuần</th><th colspan="3">Hữu hiệu</th><th colspan="3">BT</th><th rowspan="2">Thao tác</th></tr>
+            <tr><th>MT</th><th>TT</th><th>%</th><th>MT</th><th>TT</th><th>%</th><th>MT</th><th>TT</th><th>%</th></tr>
+          </thead>
+          <tbody id="goalKVListBody"></tbody>
+        </table>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;">
+          MT = Mục tiêu · TT = Thực tế (tự tính từ Nhập học viên + nhật ký Đơn thuần bên dưới) · % = TT ÷ MT.
+          Bấm ✏️ để nạp lại vào form phía trên sửa, 🗑️ để đưa mục tiêu Khu vực đó về 0.
+        </p>
+      </div>
+
+      <div class="card">
+        <h3>Nhập Đơn thuần thực tế</h3>
+        <form id="logForm">
+          <div class="grid">
+            <div><label>Ngày *</label><input type="date" id="log_ngay" required></div>
+            <div><label>Khu vực *</label><select id="log_khuvuc" required></select></div>
+            <div><label>Số lượng Đơn thuần</label><input type="number" id="log_soluong" min="0" value="0"></div>
+            <div><label>Ghi chú</label><input id="log_ghichu"></div>
+          </div>
+          <div style="margin-top:10px;">
+            <button type="submit">Thêm</button>
+          </div>
+        </form>
+
+        <div style="overflow-x:auto;margin-top:12px;">
+          <table>
+            <thead><tr><th>Ngày</th><th>Khu vực</th><th>Số lượng</th><th>Ghi chú</th><th>Thao tác</th></tr></thead>
+            <tbody id="logsBody"></tbody>
+          </table>
+        </div>
+        <p style="font-size:12px;color:#64748b;margin-top:8px;">Chỉ hiện các dòng của tháng hiện tại (<b id="goalCurMonthLabel2"></b>).</p>
+      </div>
+    </div>
+
+    <!-- ============ HIỆN TRẠNG KHU VỰC ============ -->
+    <div id="panel-kv" class="panel">
+      <h1>Hiện trạng các khu vực</h1>
+
+      <div class="card">
+        <div class="toolbar">
+          <div class="kv-pills" id="kvPills"></div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <label style="margin:0;font-weight:400;">Xem tháng:</label>
+            <input type="month" id="kvMonth">
+          </div>
+        </div>
+      </div>
+
+      <div class="stat-cards">
+        <div class="stat-card"><div class="label">Khu vực</div><div class="value" id="kv_name" style="font-size:18px;">—</div></div>
+        <div class="stat-card"><div class="label">Tổng học viên (toàn bộ)</div><div class="value" id="kv_total">0</div></div>
+      </div>
+
+      <div class="card">
+        <h3>Mục tiêu &amp; Thực tế tháng đang xem</h3>
+        <table>
+          <thead><tr><th></th><th>Mục tiêu</th><th>Thực tế</th><th>% hoàn thành</th></tr></thead>
+          <tbody id="kvGoalBody"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Học viên theo Buổi (tháng đang xem)</h3>
+        <table>
+          <thead><tr><th>Tiến độ</th><th>Số học viên</th></tr></thead>
+          <tbody id="kvBuoiBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+/** =========================================================
+ *  KẾT NỐI BACKEND — Google Apps Script Web App (đóng vai trò REST API).
+ *  Dữ liệu vẫn lưu trong Google Sheet "2. VT2 - DS học viên" như cũ; trang
+ *  web này (host trên GitHub Pages) chỉ gọi qua fetch() tới đúng URL đã
+ *  deploy, dùng interface giống hệt "google.script.run" để tái sử dụng
+ *  toàn bộ phần logic phía dưới mà không cần viết lại.
+ * ========================================================= */
+const API_BASE = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
+const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
+  'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getDonThuanLogs']);
+
+function createRunner(){
+  let onSuccess = null;
+  let onFailure = null;
+  let proxy;
+  const runner = {
+    withSuccessHandler: function(fn){ onSuccess = fn; return proxy; },
+    withFailureHandler: function(fn){ onFailure = fn; return proxy; }
+  };
+  proxy = new Proxy(runner, {
+    get: function(target, prop){
+      if (prop in target) return target[prop];
+      return function(){
+        const args = Array.prototype.slice.call(arguments);
+        const isRead = API_READ_FNS.has(prop);
+        const req = isRead
+          ? fetch(API_BASE + '?fn=' + encodeURIComponent(prop) + '&args=' + encodeURIComponent(JSON.stringify(args)))
+          : fetch(API_BASE, { method: 'POST', body: JSON.stringify({ fn: prop, args: args }) });
+        req.then(function(r){ return r.json(); })
+          .then(function(data){
+            if (data.error) throw new Error(data.error);
+            if (onSuccess) onSuccess(data.result);
+          })
+          .catch(function(err){
+            if (onFailure) onFailure(err); else console.error(err);
+          });
+        return proxy;
+      };
+    }
+  });
+  return proxy;
+}
+window.google = window.google || {};
+window.google.script = window.google.script || {};
+Object.defineProperty(window.google.script, 'run', { get: createRunner, configurable: true });
+
+let allStudents = [];
+let khuVucList = [];
+let selectedKV = '';
+
+/** ---------- Điều hướng sidebar ---------- */
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelector('.nav-btn[data-panel="' + name + '"]').classList.add('active');
+}
+
+function showMsg(text, ok){
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+  el.style.display = 'block';
+  clearTimeout(window._msgTimer);
+  window._msgTimer = setTimeout(()=>{ el.style.display='none'; }, 3000);
+}
+
+function fillSelect(sel, list, placeholder, keepValue){
+  const current = keepValue ? sel.value : '';
+  sel.innerHTML = (placeholder ? '<option value="">' + placeholder + '</option>' : '') +
+    list.map(v => '<option value="' + v + '">' + v + '</option>').join('');
+  if (current) sel.value = current;
+}
+
+function esc(s){
+  return (s === undefined || s === null) ? '' : String(s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+
+function pctText(p){
+  return (p === null || p === undefined) ? '—' : p + '%';
+}
+
+function currentMonthKey(){
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+function loadDropdowns(){
+  google.script.run.withSuccessHandler(function(d){
+    khuVucList = d.toList;
+    fillSelect(document.getElementById('f_to'), d.toList, '-- Chọn Khu vực --');
+    fillSelect(document.getElementById('f_tiendo'), d.tienDoList, '-- Chọn Tiến độ --');
+    fillSelect(document.getElementById('filterTo'), d.toList, '-- Lọc theo Khu vực --', true);
+    fillSelect(document.getElementById('gkv_to'), d.toList, '-- Chọn Khu vực --');
+    fillSelect(document.getElementById('log_khuvuc'), d.toList, '-- Chọn Khu vực --', true);
+    renderKVPills();
+    loadKVOverview();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải danh sách Khu vực/Tiến độ: ' + err.message, false);
+  }).getDropdownOptions();
+}
+
+/** ---------- Bộ lọc / tiện ích ngày ---------- */
+function parseVNDate(s){
+  if (!s) return null;
+  const parts = String(s).split('/');
+  if (parts.length !== 3) return null;
+  const d = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+  return isNaN(d.getTime()) ? null : d;
+}
+function formatYMD(d){
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/** ---------- NHẬP HỌC VIÊN ---------- */
+function renderStudents(list){
+  const body = document.getElementById('studentsBody');
+  document.getElementById('countBadge').textContent = list.length;
+  body.innerHTML = list.map(function(s){
+    return '<tr>' +
+      '<td>' + esc(s.stt) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.diaChi) + '</td>' +
+      '<td>' + esc(s.nguoiDanDat) + '</td><td>' + esc(s.to) + '</td><td>' + esc(s.tienDo) + '</td><td>' + esc(s.danhGia) + '</td>' +
+      '<td class="actions">' +
+        '<button class="edit" onclick="editStudent(' + s.row + ')">Sửa</button>' +
+        '<button class="danger" onclick="removeStudent(' + s.row + ')">Xóa</button>' +
+      '</td></tr>';
+  }).join('');
+}
+
+function isTamNghi(tienDo){
+  return String(tienDo || '').trim() === 'Tạm nghỉ';
+}
+
+function loadStudents(){
+  google.script.run.withSuccessHandler(function(list){
+    allStudents = list;
+    document.getElementById('ov_total').textContent = list.length;
+    document.getElementById('ov_dangnghe').textContent = list.filter(function(s){ return !isTamNghi(s.tienDo); }).length;
+    renderDangNgheTable();
+    applyFilter();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải danh sách học viên: ' + err.message, false);
+  }).getStudents();
+}
+
+function applyFilter(){
+  const toVal = document.getElementById('filterTo').value;
+  const periodType = document.getElementById('filterPeriodType').value;
+  let list = allStudents;
+
+  if (toVal) list = list.filter(function(s){ return s.to === toVal; });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (periodType === 'today') {
+    list = list.filter(function(s){ const d = parseVNDate(s.ngay); return d && formatYMD(d) === formatYMD(today); });
+  } else if (periodType === 'week') {
+    const start = new Date(today);
+    start.setDate(start.getDate() - 6);
+    list = list.filter(function(s){ const d = parseVNDate(s.ngay); return d && d >= start && d <= today; });
+  } else if (periodType === 'month') {
+    const start = new Date(today);
+    start.setMonth(start.getMonth() - 1);
+    list = list.filter(function(s){ const d = parseVNDate(s.ngay); return d && d >= start && d <= today; });
+  } else if (periodType === 'custom') {
+    const fromVal = document.getElementById('filterDateFrom').value;
+    const toValRange = document.getElementById('filterDateTo').value;
+    const fromD = fromVal ? new Date(fromVal) : null;
+    const toD = toValRange ? new Date(toValRange) : null;
+    if (fromD) fromD.setHours(0, 0, 0, 0);
+    if (toD) toD.setHours(23, 59, 59, 999);
+    list = list.filter(function(s){
+      const d = parseVNDate(s.ngay);
+      if (!d) return false;
+      if (fromD && d < fromD) return false;
+      if (toD && d > toD) return false;
+      return true;
+    });
+  }
+
+  renderStudents(list);
+}
+document.getElementById('filterTo').addEventListener('change', applyFilter);
+document.getElementById('filterPeriodType').addEventListener('change', function(){
+  const t = this.value;
+  document.getElementById('filterCustomRange').style.display = t === 'custom' ? 'inline-flex' : 'none';
+  applyFilter();
+});
+['filterDateFrom', 'filterDateTo'].forEach(function(id){
+  document.getElementById(id).addEventListener('change', applyFilter);
+});
+
+function editStudent(row){
+  const s = allStudents.find(function(x){ return x.row === row; });
+  if (!s) return;
+  showPanel('add');
+  document.getElementById('editRow').value = row;
+  document.getElementById('f_ten').value = s.ten || '';
+  document.getElementById('f_diachi').value = s.diaChi || '';
+  document.getElementById('f_nguoidandat').value = s.nguoiDanDat || '';
+  document.getElementById('f_to').value = s.to || '';
+  document.getElementById('f_tiendo').value = s.tienDo || '';
+  document.getElementById('f_danhgia').value = s.danhGia || '';
+  document.getElementById('formTitle').textContent = 'Sửa thông tin học viên: ' + s.ten;
+  document.getElementById('submitBtn').textContent = 'Lưu thay đổi';
+  document.getElementById('cancelEditBtn').style.display = 'inline-block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
+function resetForm(){
+  document.getElementById('studentForm').reset();
+  document.getElementById('editRow').value = '';
+  document.getElementById('formTitle').textContent = 'Thêm học viên mới';
+  document.getElementById('submitBtn').textContent = 'Thêm học viên';
+  document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
+document.getElementById('studentForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const data = {
+    ten: document.getElementById('f_ten').value,
+    ngay: document.getElementById('f_ngay').value,
+    diaChi: document.getElementById('f_diachi').value,
+    nguoiDanDat: document.getElementById('f_nguoidandat').value,
+    to: document.getElementById('f_to').value,
+    tienDo: document.getElementById('f_tiendo').value,
+    danhGia: document.getElementById('f_danhgia').value
+  };
+  const editRow = document.getElementById('editRow').value;
+  document.getElementById('submitBtn').disabled = true;
+
+  function done(){
+    document.getElementById('submitBtn').disabled = false;
+    showMsg('Đã lưu thành công', true);
+    resetForm();
+    loadAll();
+  }
+  function fail(err){
+    document.getElementById('submitBtn').disabled = false;
+    showMsg('Lỗi: ' + err.message, false);
+  }
+
+  if (editRow) {
+    google.script.run.withSuccessHandler(done).withFailureHandler(fail).updateStudent(Number(editRow), data);
+  } else {
+    google.script.run.withSuccessHandler(done).withFailureHandler(fail).addStudent(data);
+  }
+});
+
+function removeStudent(row){
+  if (!confirm('Xóa học viên này khỏi danh sách?')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã xóa', true);
+    loadAll();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).deleteStudent(row);
+}
+
+/** ---------- TỔNG QUAN ---------- */
+function renderGoalRows(s){
+  return '<tr><td>Đơn thuần</td><td>' + esc(s.goal.donThuan) + '</td><td>' + esc(s.actual.donThuan) + '</td><td>' + pctText(s.percent.donThuan) + '</td></tr>' +
+    '<tr><td>Hữu hiệu</td><td>' + esc(s.goal.huuHieu) + '</td><td>' + esc(s.actual.huuHieu) + '</td><td>' + pctText(s.percent.huuHieu) + '</td></tr>' +
+    '<tr><td>BT</td><td>' + esc(s.goal.bt) + '</td><td>' + esc(s.actual.bt) + '</td><td>' + pctText(s.percent.bt) + '</td></tr>';
+}
+
+function loadOverallGoal(){
+  const monthKey = currentMonthKey();
+  document.getElementById('ov_monthLabel').textContent = monthKey;
+  google.script.run.withSuccessHandler(function(s){
+    document.getElementById('overallGoalBody').innerHTML = renderGoalRows(s);
+    document.getElementById('ov_donthuan').textContent = pctText(s.percent.donThuan);
+    document.getElementById('ov_huuhieu').textContent = pctText(s.percent.huuHieu);
+    document.getElementById('ov_bt').textContent = pctText(s.percent.bt);
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải mục tiêu tổng: ' + err.message, false);
+  }).getMonthlySummaryOverall(monthKey);
+}
+
+function loadStatsPanel(){
+  loadOverallGoal();
+}
+
+// Bảng "ai đang nghe, nghe đến đâu" — bấm vào thẻ "Đang nghe" để bật/tắt.
+function renderDangNgheTable(){
+  const list = allStudents
+    .filter(function(s){ return !isTamNghi(s.tienDo); })
+    .slice()
+    .sort(function(a, b){
+      if (a.to !== b.to) return String(a.to).localeCompare(String(b.to));
+      return String(a.tienDo).localeCompare(String(b.tienDo), 'vi', { numeric: true });
+    });
+  document.getElementById('dangNgheBody').innerHTML = list.length ? list.map(function(s){
+    return '<tr><td>' + esc(s.ten) + '</td><td>' + esc(s.to) + '</td><td>' + esc(s.tienDo) + '</td><td>' + esc(s.ngay) + '</td></tr>';
+  }).join('') : '<tr><td colspan="4" style="color:#94a3b8;">Chưa có học viên đang nghe</td></tr>';
+}
+
+document.getElementById('ov_dangnghe_card').addEventListener('click', function(){
+  const el = document.getElementById('dangNgheTable');
+  el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
+});
+
+/** ---------- NHẬP MỤC TIÊU ---------- */
+function loadGoalKVList(){
+  const monthKey = currentMonthKey();
+  google.script.run.withSuccessHandler(function(list){
+    document.getElementById('goalKVListBody').innerHTML = list.map(function(s){
+      return '<tr>' +
+        '<td>' + esc(s.khuVuc) + '</td>' +
+        '<td>' + esc(s.goal.donThuan) + '</td><td>' + esc(s.actual.donThuan) + '</td><td>' + pctText(s.percent.donThuan) + '</td>' +
+        '<td>' + esc(s.goal.huuHieu) + '</td><td>' + esc(s.actual.huuHieu) + '</td><td>' + pctText(s.percent.huuHieu) + '</td>' +
+        '<td>' + esc(s.goal.bt) + '</td><td>' + esc(s.actual.bt) + '</td><td>' + pctText(s.percent.bt) + '</td>' +
+        '<td class="actions">' +
+          '<button class="icon-btn" title="Sửa" onclick="editGoalKV(\'' + s.khuVuc + '\',' + s.goal.donThuan + ',' + s.goal.huuHieu + ',' + s.goal.bt + ')">✏️</button>' +
+          '<button class="icon-btn" title="Xóa (đưa về 0)" onclick="deleteGoalKV(\'' + s.khuVuc + '\')">🗑️</button>' +
+        '</td>' +
+      '</tr>';
+    }).join('');
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải mục tiêu Khu vực: ' + err.message, false);
+  }).getMonthlySummaryByKV(monthKey);
+}
+
+function editGoalKV(khuVuc, donThuan, huuHieu, bt){
+  showPanel('goal');
+  document.getElementById('gkv_to').value = khuVuc;
+  document.getElementById('gkv_donthuan').value = donThuan;
+  document.getElementById('gkv_huuhieu').value = huuHieu;
+  document.getElementById('gkv_bt').value = bt;
+  document.getElementById('goalFormTitle').textContent = 'Sửa mục tiêu: ' + khuVuc;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteGoalKV(khuVuc){
+  if (!confirm('Đưa mục tiêu của "' + khuVuc + '" về 0?')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã xóa mục tiêu', true);
+    loadGoalKVList();
+    loadOverallGoal();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).deleteGoalKV(khuVuc);
+}
+
+document.getElementById('goalKVForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const khuVuc = document.getElementById('gkv_to').value;
+  if (!khuVuc) { showMsg('Vui lòng chọn Khu vực', false); return; }
+  const data = {
+    donThuan: document.getElementById('gkv_donthuan').value,
+    huuHieu: document.getElementById('gkv_huuhieu').value,
+    bt: document.getElementById('gkv_bt').value
+  };
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã lưu mục tiêu', true);
+    document.getElementById('goalKVForm').reset();
+    document.getElementById('goalFormTitle').textContent = 'Nhập mục tiêu Khu vực';
+    loadOverallGoal();
+    loadGoalKVList();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).saveGoalKV(khuVuc, data);
+});
+
+function loadLogs(){
+  const monthKey = currentMonthKey();
+  google.script.run.withSuccessHandler(function(list){
+    document.getElementById('logsBody').innerHTML = list.map(function(l){
+      return '<tr><td>' + esc(l.ngay) + '</td><td>' + esc(l.khuVuc) + '</td><td>' + esc(l.soLuong) + '</td><td>' + esc(l.ghiChu) + '</td>' +
+        '<td><button class="danger" onclick="removeLog(' + l.row + ')">Xóa</button></td></tr>';
+    }).join('');
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải nhật ký Đơn thuần: ' + err.message, false);
+  }).getDonThuanLogs(monthKey);
+}
+
+document.getElementById('logForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const data = {
+    ngay: document.getElementById('log_ngay').value,
+    khuVuc: document.getElementById('log_khuvuc').value,
+    soLuong: document.getElementById('log_soluong').value,
+    ghiChu: document.getElementById('log_ghichu').value
+  };
+  if (!data.khuVuc) { showMsg('Vui lòng chọn Khu vực', false); return; }
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã thêm', true);
+    document.getElementById('logForm').reset();
+    loadLogs();
+    loadGoalKVList();
+    loadOverallGoal();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).addDonThuanLog(data);
+});
+
+function removeLog(row){
+  if (!confirm('Xóa dòng này?')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã xóa', true);
+    loadLogs();
+    loadGoalKVList();
+    loadOverallGoal();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).deleteDonThuanLog(row);
+}
+
+function loadGoalPanel(){
+  const mk = currentMonthKey();
+  document.getElementById('goalCurMonthLabel').textContent = mk;
+  document.getElementById('goalCurMonthLabel2').textContent = mk;
+  loadGoalKVList();
+  loadLogs();
+}
+
+/** ---------- HIỆN TRẠNG KHU VỰC ---------- */
+function renderKVPills(){
+  if (!selectedKV && khuVucList.length) selectedKV = khuVucList[0];
+  const pills = document.getElementById('kvPills');
+  pills.innerHTML = khuVucList.map(function(kv){
+    return '<button type="button" class="kv-pill' + (kv === selectedKV ? ' active' : '') + '" onclick="selectKV(\'' + kv + '\')">' + esc(kv) + '</button>';
+  }).join('');
+  document.getElementById('kv_name').textContent = selectedKV || '—';
+}
+
+function selectKV(kv){
+  selectedKV = kv;
+  renderKVPills();
+  loadKVOverview();
+}
+
+function loadKVOverview(){
+  if (!selectedKV) return;
+  const monthKey = document.getElementById('kvMonth').value || currentMonthKey();
+  google.script.run.withSuccessHandler(function(o){
+    document.getElementById('kv_name').textContent = o.khuVuc;
+    document.getElementById('kv_total').textContent = o.tongHocVien;
+    document.getElementById('kvGoalBody').innerHTML = o.goalSummary ? renderGoalRows(o.goalSummary) : '';
+    document.getElementById('kvBuoiBody').innerHTML = o.breakdown.length ? o.breakdown.map(function(r){
+      return '<tr><td>' + esc(r.tienDo) + '</td><td class="stats-num">' + esc(r.count) + '</td></tr>';
+    }).join('') : '<tr><td colspan="2" style="color:#94a3b8;">Chưa có dữ liệu trong tháng này</td></tr>';
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải hiện trạng khu vực: ' + err.message, false);
+  }).getKhuVucOverview(monthKey, selectedKV);
+}
+document.getElementById('kvMonth').addEventListener('change', loadKVOverview);
+
+/** ---------- Khởi động ---------- */
+function loadAll(){
+  loadDropdowns();
+  loadStudents();
+  if (!document.getElementById('kvMonth').value) document.getElementById('kvMonth').value = currentMonthKey();
+  loadStatsPanel();
+  loadGoalPanel();
+  setTimeout(function(){
+    const el = document.getElementById('loadingOverlay');
+    if (el) el.style.display = 'none';
+  }, 400);
+}
+loadAll();
+</script>
+</body>
+</html>
