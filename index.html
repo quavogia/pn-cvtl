@@ -162,13 +162,14 @@
           <input type="hidden" id="editRow" value="">
           <div class="grid">
             <div><label>Tên học viên *</label><input id="f_ten" required></div>
-            <div><label>Ngày chia sẻ cuối cùng</label><input id="f_ngay" type="date"></div>
-            <div><label>Địa chỉ</label><input id="f_diachi"></div>
-            <div><label>Người dẫn dắt 1</label><input id="f_ndd1"></div>
-            <div><label>Người dẫn dắt 2</label><input id="f_ndd2"></div>
-            <div><label>Người dẫn dắt 3</label><input id="f_ndd3"></div>
-            <div><label>Khu vực</label><select id="f_to"></select></div>
-            <div><label>Tiến độ</label><select id="f_tiendo"></select></div>
+            <div><label>Ngày chia sẻ cuối cùng *</label><input id="f_ngay" type="date" required></div>
+            <div><label>Địa chỉ *</label><input id="f_diachi" required></div>
+            <div><label>Người dẫn dắt 1 *</label><input id="f_ndd1" list="nddDatalist" autocomplete="off" placeholder="Gõ để tìm, chỉ chọn trong danh sách"></div>
+            <div><label>Người dẫn dắt 2</label><input id="f_ndd2" list="nddDatalist" autocomplete="off" placeholder="(Không bắt buộc)"></div>
+            <div><label>Người dẫn dắt 3</label><input id="f_ndd3" list="nddDatalist" autocomplete="off" placeholder="(Không bắt buộc)"></div>
+            <datalist id="nddDatalist"></datalist>
+            <div><label>Khu vực *</label><select id="f_to" required></select></div>
+            <div><label>Tiến độ *</label><select id="f_tiendo" required></select></div>
             <div style="grid-column:1/-1"><label>Đánh giá hv (theo ngày học gần nhất)</label><textarea id="f_danhgia"></textarea></div>
           </div>
           <div style="margin-top:10px;display:flex;gap:8px;">
@@ -190,6 +191,7 @@
               <option value="month">1 tháng qua</option>
               <option value="custom">Chọn thời gian...</option>
             </select>
+            <span title="Lọc theo thời gian áp dụng trên cột &quot;Ngày chia sẻ cuối cùng&quot; (&quot;Hôm nay&quot;/&quot;1 tuần qua&quot;/&quot;1 tháng qua&quot; tính lùi từ ngày hiện tại)." style="cursor:help;color:#94a3b8;border:1px solid #cbd5e1;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">ⓘ</span>
             <span id="filterCustomRange" style="display:none;gap:8px;align-items:center;">
               <input type="date" id="filterDateFrom" style="width:auto">
               <span style="font-size:13px;color:#64748b;">đến</span>
@@ -198,7 +200,6 @@
             <button type="button" class="secondary" onclick="loadAll()">🔄 Làm mới</button>
           </div>
         </div>
-        <p style="font-size:12px;color:#64748b;margin:6px 0 0;">Lọc theo thời gian áp dụng trên cột "Ngày chia sẻ cuối cùng" ("Hôm nay"/"1 tuần qua"/"1 tháng qua" tính lùi từ ngày hiện tại).</p>
         <div style="overflow-x:auto">
         <table>
           <thead><tr><th>STT</th><th>Tên</th><th>Ngày chia sẻ</th><th>Địa chỉ</th><th>NDD 1</th><th>NDD 2</th><th>NDD 3</th><th>Khu vực</th><th>Tiến độ</th><th>Đánh giá</th><th>Thao tác</th></tr></thead>
@@ -213,6 +214,9 @@
           <div class="grid">
             <div><label>Ngày *</label><input type="date" id="log_ngay" required></div>
             <div><label>Khu vực *</label><select id="log_khuvuc" required></select></div>
+            <div><label>Người dẫn dắt 1 *</label><input id="log_ndd1" list="nddDatalist" autocomplete="off" placeholder="Gõ để tìm, chỉ chọn trong danh sách"></div>
+            <div><label>Người dẫn dắt 2</label><input id="log_ndd2" list="nddDatalist" autocomplete="off" placeholder="(Không bắt buộc)"></div>
+            <div><label>Người dẫn dắt 3</label><input id="log_ndd3" list="nddDatalist" autocomplete="off" placeholder="(Không bắt buộc)"></div>
             <div><label>Số lượng Đơn thuần</label><input type="number" id="log_soluong" min="0" value="0"></div>
             <div><label>Ghi chú</label><input id="log_ghichu"></div>
           </div>
@@ -223,7 +227,7 @@
 
         <div style="overflow-x:auto;margin-top:12px;">
           <table>
-            <thead><tr><th>Ngày</th><th>Khu vực</th><th>Số lượng</th><th>Ghi chú</th><th>Thao tác</th></tr></thead>
+            <thead><tr><th>Ngày</th><th>Khu vực</th><th>NDD 1</th><th>NDD 2</th><th>NDD 3</th><th>Số lượng</th><th>Ghi chú</th><th>Thao tác</th></tr></thead>
             <tbody id="logsBody"></tbody>
           </table>
         </div>
@@ -362,6 +366,7 @@ Object.defineProperty(window.google.script, 'run', { get: createRunner, configur
 
 let allStudents = [];
 let khuVucList = [];
+let nddList = [];
 let selectedKV = '';
 
 /** ---------- Điều hướng sidebar ---------- */
@@ -388,6 +393,12 @@ function fillSelect(sel, list, placeholder, keepValue){
   if (current) sel.value = current;
 }
 
+// Điền <datalist> cho các ô Người dẫn dắt (input gõ-để-tìm, gợi ý theo ký tự gõ vào,
+// nhưng vẫn chỉ được chọn đúng giá trị có trong danh sách — kiểm tra khi lưu).
+function fillDatalist(dl, list){
+  dl.innerHTML = list.map(v => '<option value="' + v + '"></option>').join('');
+}
+
 function esc(s){
   return (s === undefined || s === null) ? '' : String(s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
@@ -406,8 +417,10 @@ function currentMonthKey(){
 function loadDropdowns(){
   google.script.run.withSuccessHandler(function(d){
     khuVucList = d.toList;
+    nddList = d.nddList || [];
     fillSelect(document.getElementById('f_to'), d.toList, '-- Chọn Khu vực --');
     fillSelect(document.getElementById('f_tiendo'), d.tienDoList, '-- Chọn Tiến độ --');
+    fillDatalist(document.getElementById('nddDatalist'), nddList);
     fillSelect(document.getElementById('filterTo'), d.toList, '-- Lọc theo Khu vực --', true);
     fillSelect(document.getElementById('gkv_to'), d.toList, '-- Chọn Khu vực --');
     fillSelect(document.getElementById('log_khuvuc'), d.toList, '-- Chọn Khu vực --', true);
@@ -510,12 +523,21 @@ document.getElementById('filterPeriodType').addEventListener('change', function(
   document.getElementById(id).addEventListener('change', applyFilter);
 });
 
+// Chuyển "dd/mm/yyyy" (định dạng hiển thị) sang "yyyy-mm-dd" (định dạng
+// <input type="date"> cần để hiện đúng giá trị khi Sửa học viên).
+function toDateInputValue_(dmy){
+  const m = String(dmy || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return '';
+  return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+}
+
 function editStudent(row){
   const s = allStudents.find(function(x){ return x.row === row; });
   if (!s) return;
   showPanel('add');
   document.getElementById('editRow').value = row;
   document.getElementById('f_ten').value = s.ten || '';
+  document.getElementById('f_ngay').value = toDateInputValue_(s.ngay);
   document.getElementById('f_diachi').value = s.diaChi || '';
   document.getElementById('f_ndd1').value = s.ndd1 || '';
   document.getElementById('f_ndd2').value = s.ndd2 || '';
@@ -538,15 +560,35 @@ function resetForm(){
   document.getElementById('cancelEditBtn').style.display = 'none';
 }
 
+// Kiểm tra giá trị Người dẫn dắt phải khớp đúng (nguyên văn) một tên trong danh sách
+// Config — nếu để trống thì bỏ qua (NDD2/NDD3 không bắt buộc), nếu gõ dở/gõ sai thì báo lỗi.
+function validateNddInput(inputEl, label){
+  const v = inputEl.value.trim();
+  if (!v) return true;
+  if (nddList.indexOf(v) === -1) {
+    showMsg('"' + label + '": "' + v + '" không có trong danh sách. Vui lòng gõ để chọn đúng tên gợi ý.', false);
+    inputEl.focus();
+    return false;
+  }
+  return true;
+}
+
 document.getElementById('studentForm').addEventListener('submit', function(e){
   e.preventDefault();
+  const f_ndd1 = document.getElementById('f_ndd1');
+  const f_ndd2 = document.getElementById('f_ndd2');
+  const f_ndd3 = document.getElementById('f_ndd3');
+  if (!f_ndd1.value.trim()) { showMsg('Vui lòng chọn Người dẫn dắt 1', false); f_ndd1.focus(); return; }
+  if (!validateNddInput(f_ndd1, 'Người dẫn dắt 1')) return;
+  if (!validateNddInput(f_ndd2, 'Người dẫn dắt 2')) return;
+  if (!validateNddInput(f_ndd3, 'Người dẫn dắt 3')) return;
   const data = {
     ten: document.getElementById('f_ten').value,
     ngay: document.getElementById('f_ngay').value,
     diaChi: document.getElementById('f_diachi').value,
-    ndd1: document.getElementById('f_ndd1').value,
-    ndd2: document.getElementById('f_ndd2').value,
-    ndd3: document.getElementById('f_ndd3').value,
+    ndd1: f_ndd1.value.trim(),
+    ndd2: f_ndd2.value.trim(),
+    ndd3: f_ndd3.value.trim(),
     to: document.getElementById('f_to').value,
     tienDo: document.getElementById('f_tiendo').value,
     danhGia: document.getElementById('f_danhgia').value
@@ -765,7 +807,9 @@ function loadLogs(){
   const monthKey = currentMonthKey();
   google.script.run.withSuccessHandler(function(list){
     document.getElementById('logsBody').innerHTML = list.map(function(l){
-      return '<tr><td>' + esc(l.ngay) + '</td><td>' + esc(l.khuVuc) + '</td><td>' + esc(l.soLuong) + '</td><td>' + esc(l.ghiChu) + '</td>' +
+      return '<tr><td>' + esc(l.ngay) + '</td><td>' + esc(l.khuVuc) + '</td>' +
+        '<td>' + esc(l.ndd1) + '</td><td>' + esc(l.ndd2) + '</td><td>' + esc(l.ndd3) + '</td>' +
+        '<td>' + esc(l.soLuong) + '</td><td>' + esc(l.ghiChu) + '</td>' +
         '<td><button class="danger" onclick="removeLog(' + l.row + ')">Xóa</button></td></tr>';
     }).join('');
   }).withFailureHandler(function(err){
@@ -775,11 +819,21 @@ function loadLogs(){
 
 document.getElementById('logForm').addEventListener('submit', function(e){
   e.preventDefault();
+  const log_ndd1 = document.getElementById('log_ndd1');
+  const log_ndd2 = document.getElementById('log_ndd2');
+  const log_ndd3 = document.getElementById('log_ndd3');
+  if (!log_ndd1.value.trim()) { showMsg('Vui lòng chọn Người dẫn dắt 1', false); log_ndd1.focus(); return; }
+  if (!validateNddInput(log_ndd1, 'Người dẫn dắt 1')) return;
+  if (!validateNddInput(log_ndd2, 'Người dẫn dắt 2')) return;
+  if (!validateNddInput(log_ndd3, 'Người dẫn dắt 3')) return;
   const data = {
     ngay: document.getElementById('log_ngay').value,
     khuVuc: document.getElementById('log_khuvuc').value,
     soLuong: document.getElementById('log_soluong').value,
-    ghiChu: document.getElementById('log_ghichu').value
+    ghiChu: document.getElementById('log_ghichu').value,
+    ndd1: log_ndd1.value.trim(),
+    ndd2: log_ndd2.value.trim(),
+    ndd3: log_ndd3.value.trim()
   };
   if (!data.khuVuc) { showMsg('Vui lòng chọn Khu vực', false); return; }
   google.script.run.withSuccessHandler(function(){
