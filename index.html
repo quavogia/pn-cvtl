@@ -619,23 +619,20 @@ function renderBarChart_(container, categories, series){
   }).join('');
   // Duong cong mem (Catmull-Rom -> Bezier) thay vi noi thang gap khuc, ve them 1
   // lop "vien trang" phia sau moi duong mau de cac duong khong lan vao nhau khi
-  // chong len o cung 1 vi tri X. Nhan gia tri dat ngay tren tung diem, cung mau
-  // voi duong — neu 2 duong co gia tri gan nhau, nhan co the hoi chong len nhau
-  // (danh doi chap nhan duoc de giu thuan CSS/SVG, khong dung thu vien ngoai).
-  let lineSvg = '';
-  let dotsHtml = '';
-  let valsHtml = '';
-  series.forEach(function(s, si){
-    const pts = s.values.map(function(v, ci){
+  // chong len o cung 1 vi tri X.
+  const allPts = series.map(function(s){
+    return s.values.map(function(v, ci){
       const x = Number((((ci + 0.5)) / n * 100).toFixed(2));
       const y = Number(yPct_(v));
       return { x: x, y: y, v: v };
     });
+  });
+  let lineSvg = '';
+  let dotsHtml = '';
+  series.forEach(function(s, si){
+    const pts = allPts[si];
     dotsHtml += pts.map(function(p){
       return '<div class="chart-dot" style="left:' + p.x + '%;top:' + p.y + '%;border-color:' + s.color + ';"></div>';
-    }).join('');
-    valsHtml += pts.map(function(p){
-      return '<div class="chart-point-val" style="left:' + p.x + '%;top:calc(' + p.y + '% - ' + (16 + si * 2) + 'px);color:' + s.color + ';">' + esc(p.v) + '</div>';
     }).join('');
     if (n > 1) {
       const d = smoothPathD_(pts);
@@ -644,6 +641,31 @@ function renderBarChart_(container, categories, series){
     }
   });
   const svgWrap = '<svg class="chart-line-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + lineSvg + '</svg>';
+  // Nhan gia tri: xu ly rieng TUNG hang muc (Tuan 1, Tuan 2...) — khi cac duong
+  // co gia tri gan bang nhau, nhan se de chong len nhau neu chi dat co dinh
+  // "cach diem 16px". Cach xu ly: trong 1 hang muc, sap xep cac diem tu CAO
+  // xuong THAP (tren truoc), rieng nhan tu tren xuong theo dung thu tu do, neu
+  // vi tri "tu nhien" (ngay tren diem) qua gan nhan vua dat truoc thi day no
+  // xuong them cho du khoang cach toi thieu — dam bao khong con nhan nao de len
+  // nhan nao, van thuan CSS/SVG, khong can thu vien ngoai.
+  const LABEL_OFFSET_PX = 16;
+  const LABEL_MIN_GAP_PX = 17;
+  let valsHtml = '';
+  for (let ci = 0; ci < n; ci++) {
+    const items = series.map(function(s, si){
+      const p = allPts[si][ci];
+      return { color: s.color, x: p.x, yPx: (p.y / 100) * CHART_H, v: p.v };
+    });
+    items.sort(function(a, b){ return a.yPx - b.yPx; });
+    let prevLabelYPx = -Infinity;
+    items.forEach(function(it){
+      let labelYPx = it.yPx - LABEL_OFFSET_PX;
+      if (labelYPx < prevLabelYPx + LABEL_MIN_GAP_PX) labelYPx = prevLabelYPx + LABEL_MIN_GAP_PX;
+      prevLabelYPx = labelYPx;
+      const topPct = (labelYPx / CHART_H * 100).toFixed(2);
+      valsHtml += '<div class="chart-point-val" style="left:' + it.x + '%;top:' + topPct + '%;color:' + it.color + ';">' + esc(it.v) + '</div>';
+    });
+  }
   container.innerHTML = '<div class="chart-row">' + axisHtml + '<div class="chart">' + gridHtml + groups + svgWrap + dotsHtml + valsHtml + '</div></div>' + legend;
 }
 
