@@ -91,21 +91,19 @@
   .tp-trend.down{color:#dc2626;}
   .tp-trend.flat{color:#94a3b8;}
 
-  /* ---------- Biểu đồ cột + đường kết hợp, thuần CSS/SVG (không phụ thuộc thư viện ngoài) ---------- */
+  /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
   .chart-legend .dot{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:middle;}
   .chart-row{display:flex;align-items:stretch;gap:6px;}
   .chart-axis{position:relative;width:40px;flex-shrink:0;}
   .chart-axis .axis-tick{position:absolute;right:8px;transform:translateY(-50%);font-size:12px;color:#94a3b8;white-space:nowrap;}
-  .chart{display:flex;align-items:flex-end;gap:28px;height:300px;padding:34px 14px 0;position:relative;flex:1;min-width:0;}
+  .chart{display:flex;align-items:flex-end;gap:28px;height:300px;padding:34px 14px 0;position:relative;flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;background:#fff;}
   .chart-gridline{position:absolute;left:0;right:0;border-top:1px dashed #e9edf2;}
   .chart-group{display:flex;flex-direction:column;align-items:center;flex:1;height:100%;justify-content:flex-end;min-width:0;position:relative;z-index:1;}
-  .chart-bars{display:flex;gap:10px;align-items:flex-end;justify-content:center;width:100%;height:100%;}
-  .chart-bar{width:32px;border-radius:4px 4px 0 0;position:relative;min-height:2px;}
-  .chart-bar .val{position:absolute;top:-22px;left:50%;transform:translateX(-50%);font-size:13px;font-weight:700;color:#334155;white-space:nowrap;}
   .chart-label{font-size:14px;color:#64748b;margin-top:14px;text-align:center;}
   .chart-line-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:2;}
   .chart-dot{position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;border-width:2.75px;border-style:solid;transform:translate(-50%,-50%);pointer-events:none;z-index:3;box-shadow:0 1px 3px rgba(15,23,42,.25);}
+  .chart-point-val{position:absolute;transform:translate(-50%,-100%);font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:4;}
 
   /* ---------- Nhóm thành viên trong bảng nhập Giáo dục theo tuần ---------- */
   .edu-member-head td{background:#f8fafc;font-weight:700;padding-top:10px !important;}
@@ -585,19 +583,21 @@ function smoothPathD_(pts){
   return d.join(' ');
 }
 
+// Bieu do dang DUONG thuan (khong con cot) — giong kieu bieu do duong cua Google
+// Sheets: moi Khu vuc/chi so la 1 duong rieng mau, cac duong chong len nhau tai
+// tung moc thoi gian tren cung 1 truc X, co khung vien bao quanh vung ve.
 function renderBarChart_(container, categories, series){
   if (typeof container === 'string') container = document.getElementById(container);
   if (!container) return;
   const CHART_H = 300; // phai khop voi CSS .chart{height:...}
-  const BAR_MAX = 205; // chieu cao toi da cua cot (tinh theo axisMax), chua khoang trong cho nhan gia tri
+  const PLOT_MAX = 205; // chieu cao toi da cua duong (tinh theo axisMax), chua khoang trong cho nhan gia tri o tren
   let allValues = [0];
   series.forEach(function(s){ allValues = allValues.concat(s.values); });
   const rawMax = Math.max.apply(null, allValues) || 1;
   const step = niceAxisStep_(rawMax, 4);
   const axisMax = Math.max(step, Math.ceil(rawMax / step) * step);
   const n = categories.length || 1;
-  const nSeries = series.length || 1;
-  const px_ = function(v){ return Math.max(2, (v / axisMax) * BAR_MAX); };
+  const px_ = function(v){ return Math.max(2, (v / axisMax) * PLOT_MAX); };
   const yPct_ = function(v){ return (100 - (px_(v) / CHART_H * 100)).toFixed(2); };
   const legend = series.length > 1 ? '<div class="chart-legend">' + series.map(function(s){
     return '<span><span class="dot" style="background:' + s.color + '"></span>' + esc(s.name) + '</span>';
@@ -611,39 +611,40 @@ function renderBarChart_(container, categories, series){
   const gridHtml = ticks.map(function(t){
     return '<div class="chart-gridline" style="top:' + yPct_(t) + '%;"></div>';
   }).join('');
-  const groups = categories.map(function(cat, ci){
-    const bars = series.map(function(s){
-      const v = s.values[ci] || 0;
-      const h = Math.round(px_(v));
-      return '<div class="chart-bar" style="height:' + h + 'px;background:' + s.color + ';"><span class="val">' + esc(v) + '</span></div>';
-    }).join('');
-    return '<div class="chart-group"><div class="chart-bars">' + bars + '</div><div class="chart-label">' + esc(cat) + '</div></div>';
+  // Chi con nhan ten Khu vuc/tuan o duoi truc X, khong con cot — moi hang muc 1
+  // vi tri X duy nhat, tat ca cac duong deu di qua dung vi tri do (khac voi bieu
+  // do cot ghep truoc day phai chia le vi tri theo tung Khu vuc trong nhom).
+  const groups = categories.map(function(cat){
+    return '<div class="chart-group"><div class="chart-label">' + esc(cat) + '</div></div>';
   }).join('');
-  // Duong chi bao xu huong de len tren dinh cua TUNG cot (khong phai giua nhom), nen toa do X
-  // tinh theo vi tri rieng cua moi cot trong nhom — neu dung x giua nhom, cham se "lo lung" lech
-  // sang mot ben, nhin roi mat. Duong ke cong mem (Catmull-Rom -> Bezier) cho de nhin hon duong
-  // thang gap khuc, ve them 1 lop "vien trang" phia sau moi duong mau de no noi ro tren nen cot
-  // cung mau (khong bi lan vao cot) — cham tron dung div HTML thuong (SVG circle se bi keo thanh
-  // elip khi viewBox bi ep ty le).
+  // Duong cong mem (Catmull-Rom -> Bezier) thay vi noi thang gap khuc, ve them 1
+  // lop "vien trang" phia sau moi duong mau de cac duong khong lan vao nhau khi
+  // chong len o cung 1 vi tri X. Nhan gia tri dat ngay tren tung diem, cung mau
+  // voi duong — neu 2 duong co gia tri gan nhau, nhan co the hoi chong len nhau
+  // (danh doi chap nhan duoc de giu thuan CSS/SVG, khong dung thu vien ngoai).
   let lineSvg = '';
   let dotsHtml = '';
-  if (n > 1) {
-    const shapes = series.map(function(s, si){
-      const pts = s.values.map(function(v, ci){
-        const x = Number((((ci + (si + 0.5) / nSeries)) / n * 100).toFixed(2));
-        const y = Number(yPct_(v));
-        return { x: x, y: y };
-      });
-      dotsHtml += pts.map(function(p){
-        return '<div class="chart-dot" style="left:' + p.x + '%;top:' + p.y + '%;border-color:' + s.color + ';"></div>';
-      }).join('');
-      const d = smoothPathD_(pts);
-      return '<path d="' + d + '" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity="0.85"/>' +
-        '<path d="' + d + '" fill="none" stroke="' + s.color + '" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+  let valsHtml = '';
+  series.forEach(function(s, si){
+    const pts = s.values.map(function(v, ci){
+      const x = Number((((ci + 0.5)) / n * 100).toFixed(2));
+      const y = Number(yPct_(v));
+      return { x: x, y: y, v: v };
+    });
+    dotsHtml += pts.map(function(p){
+      return '<div class="chart-dot" style="left:' + p.x + '%;top:' + p.y + '%;border-color:' + s.color + ';"></div>';
     }).join('');
-    lineSvg = '<svg class="chart-line-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + shapes + '</svg>';
-  }
-  container.innerHTML = '<div class="chart-row">' + axisHtml + '<div class="chart">' + gridHtml + groups + lineSvg + dotsHtml + '</div></div>' + legend;
+    valsHtml += pts.map(function(p){
+      return '<div class="chart-point-val" style="left:' + p.x + '%;top:calc(' + p.y + '% - ' + (16 + si * 2) + 'px);color:' + s.color + ';">' + esc(p.v) + '</div>';
+    }).join('');
+    if (n > 1) {
+      const d = smoothPathD_(pts);
+      lineSvg += '<path d="' + d + '" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity="0.85"/>' +
+        '<path d="' + d + '" fill="none" stroke="' + s.color + '" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
+    }
+  });
+  const svgWrap = '<svg class="chart-line-svg" viewBox="0 0 100 100" preserveAspectRatio="none">' + lineSvg + '</svg>';
+  container.innerHTML = '<div class="chart-row">' + axisHtml + '<div class="chart">' + gridHtml + groups + svgWrap + dotsHtml + valsHtml + '</div></div>' + legend;
 }
 
 function currentMonthKey(){
