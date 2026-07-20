@@ -47,6 +47,13 @@
   .msg.err{background:#fee2e2;color:#991b1b;}
   .stat-input{width:60px;padding:4px;}
 
+  /* ---------- Cột "Đánh giá" dài — thu gọn + nút Xem thêm/Thu gọn ---------- */
+  .danhgia-cell{max-width:280px;}
+  .danhgia-text{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;white-space:pre-wrap;}
+  .danhgia-text.expanded{display:block;-webkit-line-clamp:unset;overflow:visible;}
+  .danhgia-toggle{color:var(--primary);cursor:pointer;font-size:12px;font-weight:600;margin-top:4px;display:inline-block;user-select:none;}
+  .danhgia-toggle:hover{text-decoration:underline;}
+
   /* ---------- Stat cards ---------- */
   .stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;}
   .stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;}
@@ -716,6 +723,25 @@ function formatYMD(d){
 }
 
 /** ---------- NHẬP HỌC VIÊN ---------- */
+// Cot "Danh gia" co the rat dai (nhu vi du "Trang thai nghe" nhieu doan) — thu
+// gon mac dinh con ~3 dong bang CSS line-clamp, kem nut "Xem them"/"Thu gon"
+// de bam xem toan bo khi can, thay vi luon hien het lam bang bi day/kho doc.
+const DANHGIA_TRUNCATE_LEN_ = 140;
+function danhGiaCellHtml_(text, row){
+  const t = String(text || '');
+  if (!t) return '';
+  if (t.length <= DANHGIA_TRUNCATE_LEN_) return '<div class="danhgia-text">' + esc(t) + '</div>';
+  const id = 'dg_' + row;
+  return '<div class="danhgia-text" id="' + id + '">' + esc(t) + '</div>' +
+    '<span class="danhgia-toggle" onclick="toggleDanhGia_(\'' + id + '\', this)">Xem thêm</span>';
+}
+function toggleDanhGia_(id, btn){
+  const el = document.getElementById(id);
+  if (!el) return;
+  const expanded = el.classList.toggle('expanded');
+  btn.textContent = expanded ? 'Thu gọn' : 'Xem thêm';
+}
+
 function renderStudents(list){
   const body = document.getElementById('studentsBody');
   document.getElementById('countBadge').textContent = list.length;
@@ -723,7 +749,8 @@ function renderStudents(list){
     return '<tr>' +
       '<td>' + esc(s.stt) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.diaChi) + '</td>' +
       '<td>' + esc(s.ndd1) + '</td><td>' + esc(s.ndd2) + '</td><td>' + esc(s.ndd3) + '</td>' +
-      '<td>' + esc(s.to) + '</td><td>' + esc(s.tienDo) + '</td><td>' + esc(s.danhGia) + '</td>' +
+      '<td>' + esc(s.to) + '</td><td>' + esc(s.tienDo) + '</td>' +
+      '<td class="danhgia-cell">' + danhGiaCellHtml_(s.danhGia, s.row) + '</td>' +
       '<td class="actions">' +
         '<button class="edit" onclick="editStudent(' + s.row + ')">Sửa</button>' +
         '<button class="danger" onclick="removeStudent(' + s.row + ')">Xóa</button>' +
