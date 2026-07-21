@@ -104,10 +104,11 @@
   .chart-row{display:flex;align-items:stretch;gap:6px;}
   .chart-axis{position:relative;width:40px;flex-shrink:0;}
   .chart-axis .axis-tick{position:absolute;right:8px;transform:translateY(-50%);font-size:12px;color:#94a3b8;white-space:nowrap;}
-  .chart{display:flex;align-items:flex-end;gap:28px;height:300px;padding:34px 14px 0;position:relative;flex:1;min-width:0;border:1px solid var(--border);border-radius:8px;background:#fff;}
+  .chart-col{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .chart{height:300px;padding:34px 14px 0;position:relative;min-width:0;border:1px solid var(--border);border-radius:8px;background:#fff;}
   .chart-gridline{position:absolute;left:0;right:0;border-top:1px dashed #e9edf2;}
-  .chart-group{display:flex;flex-direction:column;align-items:center;flex:1;height:100%;justify-content:flex-end;min-width:0;position:relative;z-index:1;}
-  .chart-label{font-size:14px;color:#64748b;margin-top:14px;text-align:center;}
+  .chart-labels{position:relative;height:20px;margin-top:8px;}
+  .chart-x-label{position:absolute;top:0;transform:translateX(-50%);font-size:14px;color:#64748b;white-space:nowrap;}
   .chart-line-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:2;}
   .chart-dot{position:absolute;width:10px;height:10px;border-radius:50%;background:#fff;border-width:2.75px;border-style:solid;transform:translate(-50%,-50%);pointer-events:none;z-index:3;box-shadow:0 1px 3px rgba(15,23,42,.25);}
   .chart-point-val{position:absolute;transform:translate(-50%,-100%);font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none;z-index:4;}
@@ -728,6 +729,7 @@ function renderBarChart_(container, categories, series){
   const n = categories.length || 1;
   const px_ = function(v){ return Math.max(2, (v / axisMax) * PLOT_MAX); };
   const yPct_ = function(v){ return (100 - (px_(v) / CHART_H * 100)).toFixed(2); };
+  const xOfCi_ = function(ci){ return Number((((ci + 0.5)) / n * 100).toFixed(2)); };
   const legend = series.length > 1 ? '<div class="chart-legend">' + series.map(function(s){
     return '<span><span class="dot" style="background:' + s.color + '"></span>' + esc(s.name) + '</span>';
   }).join('') + '</div>' : '';
@@ -740,18 +742,20 @@ function renderBarChart_(container, categories, series){
   const gridHtml = ticks.map(function(t){
     return '<div class="chart-gridline" style="top:' + yPct_(t) + '%;"></div>';
   }).join('');
-  // Chi con nhan ten Khu vuc/tuan o duoi truc X, khong con cot — moi hang muc 1
-  // vi tri X duy nhat, tat ca cac duong deu di qua dung vi tri do (khac voi bieu
-  // do cot ghep truoc day phai chia le vi tri theo tung Khu vuc trong nhom).
-  const groups = categories.map(function(cat){
-    return '<div class="chart-group"><div class="chart-label">' + esc(cat) + '</div></div>';
+  // Nhan Khu vực/tuần đặt trong 1 hàng RIÊNG, NẰM DƯỚI khung biểu đồ (không còn
+  // nằm trong .chart-group bám sát đáy .chart như trước — trước đây khi giá
+  // trị = 0, nhãn đè lên đúng đường/chấm tròn ở đáy biểu đồ, rất khó đọc). Vị
+  // trí X của từng nhãn dùng CHÍNH XÁC công thức xOfCi_() như các điểm trên
+  // đường, đảm bảo nhãn luôn thẳng hàng với điểm dữ liệu tương ứng.
+  const labelsHtml = categories.map(function(cat, ci){
+    return '<div class="chart-x-label" style="left:' + xOfCi_(ci) + '%;">' + esc(cat) + '</div>';
   }).join('');
   // Duong cong mem (Catmull-Rom -> Bezier) thay vi noi thang gap khuc, ve them 1
   // lop "vien trang" phia sau moi duong mau de cac duong khong lan vao nhau khi
   // chong len o cung 1 vi tri X.
   const allPts = series.map(function(s){
     return s.values.map(function(v, ci){
-      const x = Number((((ci + 0.5)) / n * 100).toFixed(2));
+      const x = xOfCi_(ci);
       const y = Number(yPct_(v));
       return { x: x, y: y, v: v };
     });
@@ -795,7 +799,9 @@ function renderBarChart_(container, categories, series){
       valsHtml += '<div class="chart-point-val" style="left:' + it.x + '%;top:' + topPct + '%;color:' + it.color + ';">' + esc(it.v) + '</div>';
     });
   }
-  container.innerHTML = '<div class="chart-row">' + axisHtml + '<div class="chart">' + gridHtml + groups + svgWrap + dotsHtml + valsHtml + '</div></div>' + legend;
+  container.innerHTML = '<div class="chart-row">' + axisHtml +
+    '<div class="chart-col"><div class="chart">' + gridHtml + svgWrap + dotsHtml + valsHtml + '</div>' +
+    '<div class="chart-labels">' + labelsHtml + '</div></div></div>' + legend;
 }
 
 function currentMonthKey(){
