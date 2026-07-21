@@ -534,8 +534,8 @@
  * ========================================================= */
 const API_BASE = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
 const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
-  'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getDonThuanLogs', 'getTopNguoiDanDat',
-  'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getLichTuan']);
+  'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getDonThuanLogs', 'getTopNguoiDanDat',
+  'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan']);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
 // giá trị sống trong CACHE_TTL_MS. Mục đích: khi chuyển qua lại Khu vực/tab đã xem
@@ -543,9 +543,12 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
 // mạng/Apps Script) — KHÔNG gọi lại API ngầm trong lúc đó, để số liệu/biểu đồ không
 // tự đổi giữa chừng gây cảm giác "nhảy". Hết CACHE_TTL_MS thì lần xem kế tiếp mới
 // gọi lại API. Mọi thao tác GHI (thêm/sửa/xóa) sẽ xóa sạch cache để đảm bảo lần đọc
-// kế tiếp luôn lấy dữ liệu mới nhất.
+// kế tiếp luôn lấy dữ liệu mới nhất. Nâng từ 60 giây lên 5 phút — vì các hàm "gộp tất
+// cả Khu vực" (getAllKhuVucOverview/getGiaoDucWeeklyAll/getTPSummary) giờ có key cache
+// KHÔNG phụ thuộc Khu vực (chỉ phụ thuộc tháng), nên đổi Khu vực trong 5 phút đó luôn
+// tức thì; 5 phút vẫn đủ mới cho 1 công cụ nội bộ xem theo ngày/tuần.
 const _apiCache = {};
-const CACHE_TTL_MS = 60000;
+const CACHE_TTL_MS = 300000;
 
 function createRunner(){
   let onSuccess = null;
@@ -1446,10 +1449,13 @@ function loadKVOverview(){
   const monthKey = kvMonthKey();
   document.getElementById('trudo_kvName').textContent = selectedKV;
 
-  // Chỉ 1 lượt gọi tới Apps Script (trước đây phải gọi 2 lượt riêng: dữ liệu
-  // tháng đang xem + dữ liệu tháng trước) — getKhuVucOverview giờ trả về cả
-  // 2 trong 1 lần, giảm 1 chuyến đi-về qua mạng mỗi khi đổi Khu vực/tháng.
-  google.script.run.withSuccessHandler(function(o){
+  // Gọi getAllKhuVucOverview (gộp cả 6 Khu vực trong 1 lần, key cache không phụ
+  // thuộc Khu vực) thay vì getKhuVucOverview(monthKey, khuVuc) riêng từng Khu vực
+  // — nhờ vậy đổi Khu vực chỉ là lọc lại mảng đã có sẵn trên trình duyệt, không
+  // phải chờ gọi mạng/Apps Script mỗi lần bấm nữa (giống cách tab TP đã làm).
+  google.script.run.withSuccessHandler(function(list){
+    const o = list.find(function(r){ return r.khuVuc === selectedKV; }) ||
+      { tongHocVien: 0, goalSummary: null, prevGoalSummary: null, breakdown: [] };
     document.getElementById('kv_total').textContent = o.tongHocVien;
     document.getElementById('kvGoalBody').innerHTML = o.goalSummary ? renderGoalRows(o.goalSummary) : '';
     document.getElementById('kvBuoiBody').innerHTML = o.breakdown.length ? o.breakdown.map(function(r){
@@ -1464,7 +1470,7 @@ function loadKVOverview(){
     ]);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải hiện trạng khu vực: ' + err.message, false);
-  }).getKhuVucOverview(monthKey, selectedKV);
+  }).getAllKhuVucOverview(monthKey);
 }
 
 /** ---------- GIÁO DỤC — 1 Khu vực đang chọn, % theo tuần từng thành viên ---------- */
@@ -1476,13 +1482,18 @@ function loadEduPanel(){
   document.getElementById('edu_kvName').textContent = selectedKV;
   document.getElementById('edu_kvName2').textContent = selectedKV;
   document.getElementById('edu_monthLabel').textContent = monthKey;
-  google.script.run.withSuccessHandler(function(list){
+  // Gọi getGiaoDucWeeklyAll (gộp cả 6 Khu vực trong 1 lần, key cache không phụ
+  // thuộc Khu vực) thay vì getGiaoDucWeekly(monthKey, khuVuc) riêng từng Khu vực
+  // — đổi Khu vực chỉ là đọc lại đúng nhánh trong object đã có sẵn trên trình
+  // duyệt, không phải chờ gọi mạng/Apps Script mỗi lần bấm nữa.
+  google.script.run.withSuccessHandler(function(allMap){
+    const list = allMap[selectedKV] || [];
     eduCurrentList = list;
     renderEduChart_(list);
     renderEduEditTable_(list);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Giáo dục: ' + err.message, false);
-  }).getGiaoDucWeekly(monthKey, selectedKV);
+  }).getGiaoDucWeeklyAll(monthKey);
 }
 
 // % trung bình cả Khu vực theo từng tuần (làm tròn 1 chữ số thập phân).
