@@ -474,7 +474,16 @@
               <button type="button" class="kv-pill" id="eduViewMonth" onclick="setEduView_('month')">Xem theo tháng</button>
             </div>
           </div>
-          <div id="eduChart"></div>
+          <div class="chart-split">
+            <div>
+              <div class="chart-split-title" style="color:#2563eb;">EDU LMS (%)</div>
+              <div id="eduChartLMS"></div>
+            </div>
+            <div>
+              <div class="chart-split-title" style="color:#f59e0b;">Trực tuyến 127 (%)</div>
+              <div id="eduChartTruc"></div>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -1614,18 +1623,19 @@ function avgMonthOf_(list, field){
 }
 
 function renderEduChart_(list){
-  const el = document.getElementById('eduChart');
+  const elLMS = document.getElementById('eduChartLMS');
+  const elTruc = document.getElementById('eduChartTruc');
   if (!list.length) {
-    el.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Chưa có thành viên nào trong khu vực này.</p>';
+    const empty = '<p style="color:#94a3b8;font-size:13px;">Chưa có thành viên nào trong khu vực này.</p>';
+    elLMS.innerHTML = empty;
+    elTruc.innerHTML = empty;
     return;
   }
   const categories = eduViewMode === 'week' ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['Tháng trước', 'Tháng này'];
   const eduLmsValues = eduViewMode === 'week' ? avgWeeksOf_(list, 'eduLms') : avgMonthOf_(list, 'eduLms');
   const truc127Values = eduViewMode === 'week' ? avgWeeksOf_(list, 'truc127') : avgMonthOf_(list, 'truc127');
-  renderBarChart_(el, categories, [
-    { name: 'EDU LMS (%)', color: '#2563eb', values: eduLmsValues },
-    { name: 'Trực tuyến 127 (%)', color: '#f59e0b', values: truc127Values }
-  ]);
+  renderBarChart_(elLMS, categories, [{ name: 'EDU LMS (%)', color: '#2563eb', values: eduLmsValues }]);
+  renderBarChart_(elTruc, categories, [{ name: 'Trực tuyến 127 (%)', color: '#f59e0b', values: truc127Values }]);
 }
 
 // Tỷ lệ tham gia (đã nhập % > 0 trong tháng) / tỷ lệ hoàn thành (đạt 100% trong
