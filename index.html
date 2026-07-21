@@ -914,13 +914,21 @@ function isTamNghi(tienDo){
   return String(tienDo || '').trim() === 'Tạm nghỉ';
 }
 
+// Vẽ lại toàn bộ giao diện học viên (thẻ Tổng/Đang nghe, bảng, bộ lọc) từ
+// mảng allStudents ĐANG CÓ trên trình duyệt — không gọi mạng. Dùng chung cho
+// cả loadStudents() (dữ liệu thật từ server) lẫn các thao tác LƯU LẠC QUAN
+// (thêm/sửa/xóa cập nhật allStudents trước, rồi gọi hàm này để hiện ngay).
+function refreshStudentsUI_(){
+  document.getElementById('ov_total').textContent = allStudents.length;
+  document.getElementById('ov_dangnghe').textContent = allStudents.filter(function(s){ return !isTamNghi(s.tienDo); }).length;
+  renderDangNgheTable();
+  applyFilter();
+}
+
 function loadStudents(){
   google.script.run.withSuccessHandler(function(list){
     allStudents = list;
-    document.getElementById('ov_total').textContent = list.length;
-    document.getElementById('ov_dangnghe').textContent = list.filter(function(s){ return !isTamNghi(s.tienDo); }).length;
-    renderDangNgheTable();
-    applyFilter();
+    refreshStudentsUI_();
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải danh sách học viên: ' + err.message, false);
   }).getStudents();
@@ -1045,32 +1053,56 @@ document.getElementById('studentForm').addEventListener('submit', function(e){
     danhGia: document.getElementById('f_danhgia').value
   };
   const editRow = document.getElementById('editRow').value;
-  document.getElementById('submitBtn').disabled = true;
 
-  function done(){
-    document.getElementById('submitBtn').disabled = false;
-    showMsg('Đã lưu thành công', true);
-    resetForm();
-    loadAll();
-  }
-  function fail(err){
-    document.getElementById('submitBtn').disabled = false;
-    showMsg('Lỗi: ' + err.message, false);
-  }
-
+  // LƯU LẠC QUAN: cập nhật bảng học viên NGAY trên trình duyệt, không chờ
+  // mạng. Lưu thật chạy ngầm; khi xong mới âm thầm tải lại (loadStudents +
+  // loadStatsPanel) để lấy đúng số dòng thật trên Sheet / cập nhật lại các
+  // số liệu phụ thuộc (Xếp hạng người dẫn dắt, % mục tiêu...) — không chặn
+  // thao tác đang thấy. Nếu lưu lỗi mới hoàn tác + báo lỗi.
   if (editRow) {
-    google.script.run.withSuccessHandler(done).withFailureHandler(fail).updateStudent(Number(editRow), data);
+    const rowNum = Number(editRow);
+    const idx = allStudents.findIndex(function(s){ return s.row === rowNum; });
+    const backup = idx > -1 ? allStudents[idx] : null;
+    if (idx > -1) allStudents[idx] = Object.assign({}, backup, data, { row: rowNum });
+    refreshStudentsUI_();
+    resetForm();
+    showMsg('Đã lưu thành công', true);
+    google.script.run.withSuccessHandler(function(){
+      loadStatsPanel();
+    }).withFailureHandler(function(err){
+      if (idx > -1 && backup) { allStudents[idx] = backup; refreshStudentsUI_(); }
+      showMsg('Lỗi: ' + err.message, false);
+    }).updateStudent(rowNum, data);
   } else {
-    google.script.run.withSuccessHandler(done).withFailureHandler(fail).addStudent(data);
+    const tempRow = -Date.now();
+    const optimisticStudent = Object.assign({ stt: allStudents.length + 1, row: tempRow }, data);
+    allStudents.push(optimisticStudent);
+    refreshStudentsUI_();
+    resetForm();
+    showMsg('Đã lưu thành công', true);
+    google.script.run.withSuccessHandler(function(){
+      loadStudents();   // đồng bộ số dòng/STT thật chạy ngầm
+      loadStatsPanel();
+    }).withFailureHandler(function(err){
+      const i = allStudents.indexOf(optimisticStudent);
+      if (i > -1) allStudents.splice(i, 1);
+      refreshStudentsUI_();
+      showMsg('Lỗi: ' + err.message, false);
+    }).addStudent(data);
   }
 });
 
 function removeStudent(row){
   if (!confirm('Xóa học viên này khỏi danh sách?')) return;
+  const idx = allStudents.findIndex(function(s){ return s.row === row; });
+  const backup = idx > -1 ? allStudents[idx] : null;
+  if (idx > -1) allStudents.splice(idx, 1);
+  refreshStudentsUI_();
+  showMsg('Đã xóa', true);
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã xóa', true);
-    loadAll();
+    loadStatsPanel();
   }).withFailureHandler(function(err){
+    if (backup) { allStudents.splice(idx, 0, backup); refreshStudentsUI_(); }
     showMsg('Lỗi: ' + err.message, false);
   }).deleteStudent(row);
 }
@@ -1179,23 +1211,38 @@ function updateGoalMonthUI(){
   return past;
 }
 
+window._goalKVList = [];
+
+// PHẢI khớp CHÍNH XÁC công thức pct_() bên Code.gs (Math.round(actual/target*1000)/10,
+// null nếu target = 0) — dùng để tính % ngay trên trình duyệt cho LƯU LẠC
+// QUAN (không chờ server tính lại % mục tiêu).
+function pctClient_(actual, target){
+  if (!target) return null;
+  return Math.round((actual / target) * 1000) / 10;
+}
+
+function renderGoalKVList_(list, past){
+  document.getElementById('goalKVListBody').innerHTML = list.map(function(s){
+    const actions = past
+      ? '<span style="color:#94a3b8;">— (tháng đã qua)</span>'
+      : '<button class="icon-btn" title="Sửa" onclick="editGoalKV(\'' + s.khuVuc + '\',' + s.goal.donThuan + ',' + s.goal.huuHieu + ',' + s.goal.bt + ')">✏️</button>' +
+        '<button class="icon-btn" title="Xóa (đưa về 0)" onclick="deleteGoalKV(\'' + s.khuVuc + '\')">🗑️</button>';
+    return '<tr>' +
+      '<td>' + esc(s.khuVuc) + '</td>' +
+      '<td>' + esc(s.goal.donThuan) + '</td><td>' + esc(s.actual.donThuan) + '</td><td>' + pctText(s.percent.donThuan) + '</td>' +
+      '<td>' + esc(s.goal.huuHieu) + '</td><td>' + esc(s.actual.huuHieu) + '</td><td>' + pctText(s.percent.huuHieu) + '</td>' +
+      '<td>' + esc(s.goal.bt) + '</td><td>' + esc(s.actual.bt) + '</td><td>' + pctText(s.percent.bt) + '</td>' +
+      '<td class="actions">' + actions + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
 function loadGoalKVList(){
   const monthKey = goalMonthKey();
   const past = updateGoalMonthUI();
   google.script.run.withSuccessHandler(function(list){
-    document.getElementById('goalKVListBody').innerHTML = list.map(function(s){
-      const actions = past
-        ? '<span style="color:#94a3b8;">— (tháng đã qua)</span>'
-        : '<button class="icon-btn" title="Sửa" onclick="editGoalKV(\'' + s.khuVuc + '\',' + s.goal.donThuan + ',' + s.goal.huuHieu + ',' + s.goal.bt + ')">✏️</button>' +
-          '<button class="icon-btn" title="Xóa (đưa về 0)" onclick="deleteGoalKV(\'' + s.khuVuc + '\')">🗑️</button>';
-      return '<tr>' +
-        '<td>' + esc(s.khuVuc) + '</td>' +
-        '<td>' + esc(s.goal.donThuan) + '</td><td>' + esc(s.actual.donThuan) + '</td><td>' + pctText(s.percent.donThuan) + '</td>' +
-        '<td>' + esc(s.goal.huuHieu) + '</td><td>' + esc(s.actual.huuHieu) + '</td><td>' + pctText(s.percent.huuHieu) + '</td>' +
-        '<td>' + esc(s.goal.bt) + '</td><td>' + esc(s.actual.bt) + '</td><td>' + pctText(s.percent.bt) + '</td>' +
-        '<td class="actions">' + actions + '</td>' +
-      '</tr>';
-    }).join('');
+    window._goalKVList = list;
+    renderGoalKVList_(list, past);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải mục tiêu Khu vực: ' + err.message, false);
   }).getMonthlySummaryByKV(monthKey);
@@ -1225,13 +1272,27 @@ function editGoalKV(khuVuc, donThuan, huuHieu, bt){
 function deleteGoalKV(khuVuc){
   if (isPastGoalMonth(goalMonthKey())) return;
   if (!confirm('Đưa mục tiêu của "' + khuVuc + '" (tháng ' + goalMonthKey() + ') về 0?')) return;
+  const monthKey = goalMonthKey();
+  const past = isPastGoalMonth(monthKey);
+  const idx = window._goalKVList.findIndex(function(s){ return s.khuVuc === khuVuc; });
+  let backup = null;
+  if (idx > -1) {
+    backup = window._goalKVList[idx];
+    window._goalKVList[idx] = {
+      khuVuc: khuVuc,
+      goal: { donThuan: 0, huuHieu: 0, bt: 0 },
+      actual: backup.actual,
+      percent: { donThuan: null, huuHieu: null, bt: null }
+    };
+    renderGoalKVList_(window._goalKVList, past);
+  }
+  showMsg('Đã xóa mục tiêu', true);
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã xóa mục tiêu', true);
-    loadGoalKVList();
     loadOverallGoal();
   }).withFailureHandler(function(err){
+    if (idx > -1 && backup) { window._goalKVList[idx] = backup; renderGoalKVList_(window._goalKVList, past); }
     showMsg('Lỗi: ' + err.message, false);
-  }).deleteGoalKV(goalMonthKey(), khuVuc);
+  }).deleteGoalKV(monthKey, khuVuc);
 }
 
 document.getElementById('goalKVForm').addEventListener('submit', function(e){
@@ -1241,29 +1302,56 @@ document.getElementById('goalKVForm').addEventListener('submit', function(e){
   const khuVuc = document.getElementById('gkv_to').value;
   if (!khuVuc) { showMsg('Vui lòng chọn Khu vực', false); return; }
   const data = {
-    donThuan: document.getElementById('gkv_donthuan').value,
-    huuHieu: document.getElementById('gkv_huuhieu').value,
-    bt: document.getElementById('gkv_bt').value
+    donThuan: Number(document.getElementById('gkv_donthuan').value) || 0,
+    huuHieu: Number(document.getElementById('gkv_huuhieu').value) || 0,
+    bt: Number(document.getElementById('gkv_bt').value) || 0
   };
+
+  // LƯU LẠC QUAN: cập nhật bảng mục tiêu + % NGAY (tính lại % ngay trên trình
+  // duyệt bằng pctClient_, khớp công thức server) — không chờ mạng.
+  const past = isPastGoalMonth(monthKey);
+  const idx = window._goalKVList.findIndex(function(s){ return s.khuVuc === khuVuc; });
+  let backup = null;
+  if (idx > -1) {
+    backup = window._goalKVList[idx];
+    const actual = backup.actual;
+    window._goalKVList[idx] = {
+      khuVuc: khuVuc,
+      goal: data,
+      actual: actual,
+      percent: {
+        donThuan: pctClient_(actual.donThuan, data.donThuan),
+        huuHieu: pctClient_(actual.huuHieu, data.huuHieu),
+        bt: pctClient_(actual.bt, data.bt)
+      }
+    };
+    renderGoalKVList_(window._goalKVList, past);
+  }
+  resetGoalForm();
+  showMsg('Đã lưu mục tiêu', true);
+
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã lưu mục tiêu', true);
-    resetGoalForm();
     loadOverallGoal();
-    loadGoalKVList();
   }).withFailureHandler(function(err){
+    if (idx > -1 && backup) { window._goalKVList[idx] = backup; renderGoalKVList_(window._goalKVList, past); }
     showMsg('Lỗi: ' + err.message, false);
   }).saveGoalKV(monthKey, khuVuc, data);
 });
 
+window._logsCurrentList = [];
+function renderLogsTable_(list){
+  document.getElementById('logsBody').innerHTML = list.map(function(l){
+    return '<tr><td>' + esc(l.ngay) + '</td><td>' + esc(l.khuVuc) + '</td>' +
+      '<td>' + esc(l.ndd1) + '</td><td>' + esc(l.ndd2) + '</td><td>' + esc(l.ndd3) + '</td>' +
+      '<td>' + esc(l.soLuong) + '</td><td>' + esc(l.ghiChu) + '</td>' +
+      '<td><button class="danger" onclick="removeLog(' + l.row + ')">Xóa</button></td></tr>';
+  }).join('');
+}
 function loadLogs(){
   const monthKey = currentMonthKey();
   google.script.run.withSuccessHandler(function(list){
-    document.getElementById('logsBody').innerHTML = list.map(function(l){
-      return '<tr><td>' + esc(l.ngay) + '</td><td>' + esc(l.khuVuc) + '</td>' +
-        '<td>' + esc(l.ndd1) + '</td><td>' + esc(l.ndd2) + '</td><td>' + esc(l.ndd3) + '</td>' +
-        '<td>' + esc(l.soLuong) + '</td><td>' + esc(l.ghiChu) + '</td>' +
-        '<td><button class="danger" onclick="removeLog(' + l.row + ')">Xóa</button></td></tr>';
-    }).join('');
+    window._logsCurrentList = list;
+    renderLogsTable_(list);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải nhật ký Đơn thuần: ' + err.message, false);
   }).getDonThuanLogs(monthKey);
@@ -1288,25 +1376,38 @@ document.getElementById('logForm').addEventListener('submit', function(e){
     ndd3: log_ndd3.value.trim()
   };
   if (!data.khuVuc) { showMsg('Vui lòng chọn Khu vực', false); return; }
+
+  // LƯU LẠC QUAN: hiện dòng nhật ký mới NGAY, không chờ mạng. Lưu thật +
+  // tính lại % mục tiêu (cần server) chạy ngầm phía sau.
+  const optimisticLog = Object.assign({ row: -Date.now() }, data);
+  window._logsCurrentList = [optimisticLog].concat(window._logsCurrentList);
+  renderLogsTable_(window._logsCurrentList);
+  document.getElementById('logForm').reset();
+  showMsg('Đã thêm', true);
+
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã thêm', true);
-    document.getElementById('logForm').reset();
     loadLogs();
     loadGoalKVList();
     loadOverallGoal();
   }).withFailureHandler(function(err){
+    window._logsCurrentList = window._logsCurrentList.filter(function(l){ return l !== optimisticLog; });
+    renderLogsTable_(window._logsCurrentList);
     showMsg('Lỗi: ' + err.message, false);
   }).addDonThuanLog(data);
 });
 
 function removeLog(row){
   if (!confirm('Xóa dòng này?')) return;
+  const idx = window._logsCurrentList.findIndex(function(l){ return l.row === row; });
+  const backup = idx > -1 ? window._logsCurrentList[idx] : null;
+  if (idx > -1) window._logsCurrentList.splice(idx, 1);
+  renderLogsTable_(window._logsCurrentList);
+  showMsg('Đã xóa', true);
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã xóa', true);
-    loadLogs();
     loadGoalKVList();
     loadOverallGoal();
   }).withFailureHandler(function(err){
+    if (backup) { window._logsCurrentList.splice(idx, 0, backup); renderLogsTable_(window._logsCurrentList); }
     showMsg('Lỗi: ' + err.message, false);
   }).deleteDonThuanLog(row);
 }
@@ -1449,26 +1550,28 @@ function renderTPEditTable_(row, past){
 }
 
 // Tự lưu ngay khi rời khỏi 1 ô Tuần (blur/Enter) — không cần nút Lưu riêng.
+// LƯU LẠC QUAN: cập nhật Tổng/biểu đồ NGAY, không chờ mạng — lưu thật chạy
+// ngầm, lỗi thì báo + tự tải lại để đồng bộ.
 function saveTPCell(inputEl){
   const monthKey = kvMonthKey();
   if (isPastMonthTP_(monthKey)) return;
   const metric = inputEl.dataset.metric; // '1lan' | '4lan'
   const week = inputEl.dataset.week;
   const soLuong = inputEl.value;
-  inputEl.disabled = true;
+
+  inputEl.classList.add('saved');
+  setTimeout(function(){ inputEl.classList.remove('saved'); }, 700);
+  const indicator = document.getElementById('tp_saveIndicator');
+  indicator.style.display = 'inline';
+  clearTimeout(window._tpSaveTimer);
+  window._tpSaveTimer = setTimeout(function(){ indicator.style.display = 'none'; }, 1500);
+  recomputeTPMetricTotal_(metric);
+  refreshTPFromTable_();
+
   google.script.run.withSuccessHandler(function(){
-    inputEl.disabled = false;
-    inputEl.classList.add('saved');
-    setTimeout(function(){ inputEl.classList.remove('saved'); }, 700);
-    const indicator = document.getElementById('tp_saveIndicator');
-    indicator.style.display = 'inline';
-    clearTimeout(window._tpSaveTimer);
-    window._tpSaveTimer = setTimeout(function(){ indicator.style.display = 'none'; }, 1500);
-    recomputeTPMetricTotal_(metric);
-    refreshTPFromTable_();
   }).withFailureHandler(function(err){
-    inputEl.disabled = false;
-    showMsg('Lỗi lưu TP: ' + err.message, false);
+    showMsg('Lỗi lưu TP: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadTPPanel();
   }).saveTPWeek(monthKey, selectedKV, metric, week, soLuong);
 }
 
@@ -1983,12 +2086,17 @@ function cancelLichEdit(){
 
 function removeLichEvent(row){
   if (!confirm('Xóa công việc này?')) return;
+  const list = (window._lichCurrentList || []).slice();
+  const idx = list.findIndex(function(e){ return e.row === row; });
+  const backup = idx > -1 ? list[idx] : null;
+  if (idx > -1) list.splice(idx, 1);
+  renderLichGrid(list);
+  if (lichEditRow === row) resetLichForm();
+  showMsg('Đã xóa', true);
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã xóa', true);
-    if (lichEditRow === row) resetLichForm();
-    loadLichTuan();
   }).withFailureHandler(function(err){
-    showMsg('Lỗi: ' + err.message, false);
+    showMsg('Lỗi: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadLichTuan();
   }).deleteLichEvent(row);
 }
 
@@ -2017,12 +2125,26 @@ document.getElementById('lichForm').addEventListener('submit', function(e){
   if (!data.ngay) { showMsg('Vui lòng chọn Ngày', false); return; }
   if (!data.noiDung.trim()) { showMsg('Vui lòng nhập Nội dung công việc', false); return; }
   const isEdit = lichEditRow !== null;
+
+  // LƯU LẠC QUAN: hiện công việc mới/đã sửa lên lịch NGAY, không chờ mạng.
+  const list = (window._lichCurrentList || []).slice();
+  const optimisticEv = Object.assign({ row: isEdit ? lichEditRow : -Date.now() }, data,
+    { nguoiThamGia: data.nguoiThamGia.join(', ') });
+  if (isEdit) {
+    const idx = list.findIndex(function(ev){ return ev.row === lichEditRow; });
+    if (idx > -1) list[idx] = optimisticEv; else list.push(optimisticEv);
+  } else {
+    list.push(optimisticEv);
+  }
+  renderLichGrid(list);
+  resetLichForm();
+  showMsg(isEdit ? 'Đã lưu' : 'Đã thêm', true);
+
   const runner = google.script.run.withSuccessHandler(function(){
-    showMsg(isEdit ? 'Đã lưu' : 'Đã thêm', true);
-    resetLichForm();
-    loadLichTuan();
+    loadLichTuan(); // đồng bộ row thật chạy ngầm
   }).withFailureHandler(function(err){
-    showMsg('Lỗi: ' + err.message, false);
+    showMsg('Lỗi: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadLichTuan();
   });
   if (isEdit) runner.updateLichEvent(lichEditRow, data);
   else runner.addLichEvent(data);
