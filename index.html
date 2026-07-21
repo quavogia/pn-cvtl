@@ -645,9 +645,12 @@ function createRunner(){
           req.then(function(r){ return r.json(); })
             .then(function(data){
               if (data.authError) {
-                // Chưa đăng nhập / hết phiên / chưa được duyệt -> hiện lại màn
-                // hình đăng nhập thay vì báo lỗi khó hiểu.
+                // Chưa đăng nhập / hết phiên / chưa được duyệt -> xóa token cũ
+                // đã lưu (nếu có) và hiện lại màn hình đăng nhập thay vì báo
+                // lỗi khó hiểu.
+                if (typeof clearSavedAuthToken_ === 'function') clearSavedAuthToken_();
                 showAuthOverlay_(data.pending ? 'pending' : 'signedout');
+                if (typeof initGoogleSignIn_ === 'function') initGoogleSignIn_();
                 throw new Error('Cần đăng nhập để tiếp tục');
               }
               if (data.error) throw new Error(data.error);
@@ -2206,6 +2209,28 @@ const GOOGLE_CLIENT_ID = '48721787270-7s0r6r5e960ddr01tv9cg8p16akehip7.apps.goog
 window._authToken = '';
 window._authEmail = '';
 
+// Ghi nhớ đăng nhập: lưu token vào localStorage của trình duyệt để lần sau
+// mở lại trang KHÔNG phải bấm đăng nhập lại (trừ khi token hết hạn ~1 giờ
+// và trình duyệt cũng không còn phiên Google nào để tự đăng nhập ngầm).
+const AUTH_LS_KEY = 'pnc_auth_token_v1';
+
+function saveAuthToken_(token){
+  try { localStorage.setItem(AUTH_LS_KEY, token); } catch(e){}
+}
+function loadSavedAuthToken_(){
+  try { return localStorage.getItem(AUTH_LS_KEY) || ''; } catch(e){ return ''; }
+}
+function clearSavedAuthToken_(){
+  try { localStorage.removeItem(AUTH_LS_KEY); } catch(e){}
+}
+function isTokenExpired_(token){
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+    if (!payload.exp) return false;
+    return (Date.now() / 1000) > (payload.exp - 30);
+  } catch(e){ return true; }
+}
+
 function showAuthOverlay_(state, extra){
   document.getElementById('loadingOverlay').style.display = 'none';
   const overlay = document.getElementById('authOverlay');
@@ -2253,17 +2278,45 @@ function onGoogleSignIn_(response){
   google.script.run.withSuccessHandler(function(res){
     window._authEmail = res.email;
     if (res.authorized) {
+      saveAuthToken_(window._authToken);
       hideAuthOverlay_();
       document.getElementById('loadingOverlay').style.display = 'flex';
       loadAll();
     } else if (res.pending) {
+      clearSavedAuthToken_();
       showAuthOverlay_('pending');
     } else {
+      clearSavedAuthToken_();
       showAuthOverlay_('denied', res.email);
     }
   }).withFailureHandler(function(err){
     showAuthOverlay_('error', err.message);
   }).checkAccess();
+}
+
+// Thử đăng nhập ngầm bằng token đã lưu từ lần trước (nếu còn hạn) — người
+// dùng KHÔNG cần bấm gì cả. Trả về true nếu đang thử (kết quả sẽ tới sau
+// qua callback), false nếu không có token hợp lệ để thử.
+function tryAutoLoginFromStorage_(){
+  const saved = loadSavedAuthToken_();
+  if (!saved || isTokenExpired_(saved)) { clearSavedAuthToken_(); return false; }
+  window._authToken = saved;
+  google.script.run.withSuccessHandler(function(res){
+    window._authEmail = res.email;
+    if (res.authorized) {
+      hideAuthOverlay_();
+      loadAll();
+    } else {
+      clearSavedAuthToken_();
+      window._authToken = '';
+      initGoogleSignIn_();
+    }
+  }).withFailureHandler(function(err){
+    clearSavedAuthToken_();
+    window._authToken = '';
+    initGoogleSignIn_();
+  }).checkAccess();
+  return true;
 }
 
 function initGoogleSignIn_(){
@@ -2274,15 +2327,24 @@ function initGoogleSignIn_(){
   }
   window.google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
-    callback: onGoogleSignIn_
+    callback: onGoogleSignIn_,
+    auto_select: true
   });
   window.google.accounts.id.renderButton(
     document.getElementById('authGoogleBtn'),
     { theme: 'outline', size: 'large', text: 'signin_with', shape: 'pill' }
   );
   showAuthOverlay_('signedout');
+  // Nếu trình duyệt vẫn còn phiên Google đã từng đồng ý trước đó -> Google tự
+  // động đăng nhập lại (One Tap), không cần người dùng bấm nút.
+  try { window.google.accounts.id.prompt(); } catch(e){}
 }
-initGoogleSignIn_();
+
+// Ưu tiên thử token đã lưu trước; chỉ khi không có / hết hạn mới hiện màn
+// hình đăng nhập Google (và màn đó cũng tự thử đăng nhập ngầm qua One Tap).
+if (!tryAutoLoginFromStorage_()) {
+  initGoogleSignIn_();
+}
 </script>
 </body>
 </html>
