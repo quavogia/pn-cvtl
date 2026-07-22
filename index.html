@@ -747,6 +747,17 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
 const _apiCache = {};
 const CACHE_TTL_MS = 300000;
 
+// QUAN TRỌNG: gộp các yêu cầu ĐỌC trùng nhau đang bay cùng lúc (vd trang Tổng
+// quan gọi getLeHoiBanner() để hiện banner, gần như đồng thời người dùng bấm
+// sang tab khác cũng gọi lại đúng hàm đó trước khi request đầu tiên kịp trả
+// lời) — nếu không gộp, 2 request độc lập cùng ghi đè _apiCache[cacheKey] khi
+// trả lời xong, ai xong SAU cùng "thắng"; từng ghi nhận trường hợp request
+// thứ 2 trả lời chậm hơn/khác kết quả (race), làm 1 trong 2 nơi hiển thị nhận
+// sai dữ liệu dù bản thân hàm backend hoàn toàn đúng. Gộp lại: nếu đã có 1
+// request cùng cacheKey đang bay, các lệnh gọi sau chỉ "đăng ký" nhận cùng 1
+// kết quả khi request đó xong, KHÔNG bắn thêm request mới.
+const _inFlight = {};
+
 function createRunner(){
   let onSuccess = null;
   let onFailure = null;
@@ -782,14 +793,25 @@ function createRunner(){
               if (data.error) throw new Error(data.error);
               if (isRead) {
                 _apiCache[cacheKey] = { time: Date.now(), data: data.result };
+                const waiters = _inFlight[cacheKey];
+                delete _inFlight[cacheKey];
+                if (waiters) waiters.forEach(function(w){ if (w.onSuccess) w.onSuccess(data.result); });
               } else {
                 // Vừa ghi dữ liệu -> mọi cache đọc trước đó có thể đã cũ, xóa hết.
                 Object.keys(_apiCache).forEach(function(k){ delete _apiCache[k]; });
+                if (onSuccess) onSuccess(data.result);
               }
-              if (onSuccess) onSuccess(data.result);
             })
             .catch(function(err){
-              if (onFailure) onFailure(err); else console.error(err);
+              if (isRead) {
+                const waiters = _inFlight[cacheKey];
+                delete _inFlight[cacheKey];
+                if (waiters) waiters.forEach(function(w){ if (w.onFailure) w.onFailure(err); else console.error(err); });
+              } else if (onFailure) {
+                onFailure(err);
+              } else {
+                console.error(err);
+              }
             });
         }
 
@@ -799,6 +821,13 @@ function createRunner(){
             if (onSuccess) onSuccess(cached.data);
             return proxy; // dùng đúng dữ liệu đã cache, không gọi lại API ngầm
           }
+          if (_inFlight[cacheKey]) {
+            // Đã có 1 request giống hệt đang bay -> chỉ đăng ký nhận kết quả
+            // chung, không bắn thêm request (tránh race điều kiện ở trên).
+            _inFlight[cacheKey].push({ onSuccess: onSuccess, onFailure: onFailure });
+            return proxy;
+          }
+          _inFlight[cacheKey] = [{ onSuccess: onSuccess, onFailure: onFailure }];
         }
         doFetch();
         return proxy;
