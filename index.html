@@ -152,6 +152,9 @@
   .dt-lesson-cell{width:32px;height:32px;border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:14px;font-weight:700;color:#16a34a;padding:0;}
   .dt-lesson-cell:hover{background:#f1f5f9;}
   .dt-lesson-cell.done{background:#dcfce7;border-color:#86efac;}
+  .dt-quyen-btn{border:1px solid var(--border);border-radius:6px;background:#fff;cursor:pointer;font-size:12px;font-weight:600;color:#334155;padding:4px 10px;white-space:nowrap;}
+  .dt-quyen-btn:hover{background:#f1f5f9;}
+  .dt-quyen-btn.done{background:#dcfce7;border-color:#86efac;color:#166534;}
 
   /* ---------- Loading ---------- */
   #loadingOverlay{position:fixed;inset:0;background:#f8fafc;display:flex;align-items:center;justify-content:center;font-size:14px;color:#64748b;z-index:999;}
@@ -2108,7 +2111,12 @@ function renderDaoTaoLessonGrid_(m){
     Array.from({ length: 10 }, function(_, b){ return '<th>Bài ' + (b + 1) + '</th>'; }).join('') +
     '</tr></thead><tbody>';
   for (let q = 1; q <= 7; q++) {
-    html += '<tr><td>Quyển ' + q + '</td>';
+    let doneInQuyen = 0;
+    for (let b = 1; b <= 10; b++) { if (doneSet[q + '-' + b]) doneInQuyen++; }
+    const quyenDone = doneInQuyen === 10;
+    html += '<tr><td><button type="button" class="dt-quyen-btn' + (quyenDone ? ' done' : '') +
+      '" onclick="toggleDaoTaoQuyen_(' + q + ')" title="Bấm để chọn/bỏ chọn cả Quyển ' + q + '">' +
+      (quyenDone ? '✓ ' : '') + 'Quyển ' + q + '</button></td>';
     for (let b = 1; b <= 10; b++) {
       const code = q + '-' + b;
       const done = !!doneSet[code];
@@ -2118,6 +2126,33 @@ function renderDaoTaoLessonGrid_(m){
   }
   html += '</tbody></table>';
   el.innerHTML = html;
+}
+
+// "Chọn cả quyển" / "Bỏ chọn cả quyển" — bấm vào nhãn "Quyển N" để tích/bỏ
+// tích nguyên 10 bài của quyển đó 1 lượt (không hỏi xác nhận vì chỉ 10 bài,
+// ít rủi ro hơn "Chọn tất cả" 70 bài). Nếu quyển đã đủ 10/10 -> bỏ chọn hết;
+// ngược lại (rỗng hoặc dở dang) -> tích đủ 10/10.
+function toggleDaoTaoQuyen_(q){
+  const m = dtSelectedIdx !== null ? dtCurrentList[dtSelectedIdx] : null;
+  if (!m) return;
+  if (!m.baiDaHoc) m.baiDaHoc = [];
+  const quyenCodes = [];
+  for (let b = 1; b <= 10; b++) quyenCodes.push(q + '-' + b);
+  const allDone = quyenCodes.every(function(c){ return m.baiDaHoc.indexOf(c) !== -1; });
+  const willBeDone = !allDone;
+
+  m.baiDaHoc = m.baiDaHoc.filter(function(c){ return quyenCodes.indexOf(c) === -1; });
+  if (willBeDone) m.baiDaHoc = m.baiDaHoc.concat(quyenCodes);
+  m.soBai = m.baiDaHoc.length;
+  m.phanTram = Math.round((m.soBai / 70) * 1000) / 10;
+  renderDaoTaoLessonGrid_(m);
+  renderDaoTaoTienDoTable_(dtCurrentList);
+
+  google.script.run.withSuccessHandler(function(){
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi lưu tiến độ: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadDaoTaoPanel();
+  }).setDaoTaoQuyenAll(selectedKV, m.ten, q, willBeDone);
 }
 
 // LƯU LẠC QUAN: đổi trạng thái ô + số bài/% ngay trên trình duyệt, không chờ
