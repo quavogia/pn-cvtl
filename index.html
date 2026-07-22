@@ -889,14 +889,26 @@ function renderBarChart_(container, categories, series){
       return { x: x, y: y, v: v };
     });
   });
+  // Cac hang muc (vi du Tuan 4, Tuan 5) chua toi/chua duoc nhap thi gia tri mac
+  // dinh la 0 — neu ve het se tao ra 1 doan duong "vot xuong 0" gay hieu lam la
+  // "da giam ve 0" thay vi "chua co du lieu". Vi khong the phan biet "0 that" voi
+  // "chua nhap" tu du lieu tho, dung heuristic: chi CAT BO chuoi 0 lien tiep o
+  // CUOI mang (tinh tu Tuan cuoi lui ve), giu nguyen 0 o giua neu sau do lai co
+  // gia tri (0 giua 2 tuan co du lieu la 0 that, van ve binh thuong).
+  const lastIdxBySeries = series.map(function(s){
+    let li = s.values.length - 1;
+    while (li >= 0 && Number(s.values[li]) === 0) li--;
+    return li; // -1 = ca chuoi deu chua co du lieu
+  });
   let lineSvg = '';
   let dotsHtml = '';
   series.forEach(function(s, si){
-    const pts = allPts[si];
+    const lastIdx = lastIdxBySeries[si];
+    const pts = allPts[si].filter(function(p, ci){ return ci <= lastIdx; });
     dotsHtml += pts.map(function(p){
       return '<div class="chart-dot" style="left:' + p.x + '%;top:' + p.y + '%;border-color:' + s.color + ';"></div>';
     }).join('');
-    if (n > 1) {
+    if (pts.length > 1) {
       const d = smoothPathD_(pts);
       lineSvg += '<path d="' + d + '" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke" opacity="0.85"/>' +
         '<path d="' + d + '" fill="none" stroke="' + s.color + '" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>';
@@ -914,9 +926,11 @@ function renderBarChart_(container, categories, series){
   const LABEL_MIN_GAP_PX = 17;
   let valsHtml = '';
   for (let ci = 0; ci < n; ci++) {
-    const items = series.map(function(s, si){
+    const items = [];
+    series.forEach(function(s, si){
+      if (ci > lastIdxBySeries[si]) return; // tuan chua co du lieu -> khong hien nhan
       const p = allPts[si][ci];
-      return { color: s.color, x: p.x, yPx: (p.y / 100) * CHART_H, v: p.v };
+      items.push({ color: s.color, x: p.x, yPx: (p.y / 100) * CHART_H, v: p.v });
     });
     items.sort(function(a, b){ return a.yPx - b.yPx; });
     let prevLabelYPx = -Infinity;
