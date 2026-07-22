@@ -2494,8 +2494,9 @@ function loadLeHoiPanel(){
     document.getElementById('lhNoneCard').style.display = 'none';
     document.getElementById('lhContent').style.display = 'block';
     document.getElementById('lh_tenLeHoi').textContent = lh.ten;
+    const trangThaiText = lh.trangThai === 'active' ? 'Đang diễn ra' : 'Sắp diễn ra — có thể nhập tiến độ trước';
     document.getElementById('lh_moTa').textContent =
-      'Diễn ra ' + lh.ngayBatDau + ' — ' + lh.ngayKetThuc + '. Nội dung: phát biểu ' + lh.danhSachBai.length +
+      trangThaiText + ' ' + lh.ngayBatDau + ' — ' + lh.ngayKetThuc + '. Nội dung: phát biểu ' + lh.danhSachBai.length +
       ' bài (' + lh.danhSachBai.join(', ') + '), mỗi bài đủ ' + lh.soLanYeuCau + ' lần với các thành viên khác.';
     if (!selectedKV) return;
     google.script.run.withSuccessHandler(function(allMap){
@@ -2512,7 +2513,7 @@ function loadLeHoiPanel(){
     }).getLeHoiTienDoAll(lh.ma);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Lễ hội: ' + err.message, false);
-  }).getLeHoiActive();
+  }).getLeHoiBanner();
 }
 
 function renderLeHoiTable_(list){
