@@ -2624,6 +2624,11 @@ function toggleLeHoiLan_(btn){
   renderLeHoiTable_(lhCurrentList);
 
   google.script.run.withSuccessHandler(function(){
+    // Bảng xếp hạng ở tab Tổng quan là 1 panel ẩn/hiện bằng CSS (không tự
+    // tải lại khi chuyển tab) -> nếu không chủ động tải lại ở đây, lúc quay
+    // về Tổng quan sẽ vẫn thấy số liệu CŨ dù vừa nhập xong. Tải ngầm lại
+    // ngay sau khi lưu thành công để lần sau xem Tổng quan luôn đúng nhất.
+    if (typeof loadLeHoiXepHang_ === 'function' && lhActive) loadLeHoiXepHang_(lhActive);
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu tiến độ: ' + err.message + ' — đang tải lại để đồng bộ.', false);
     loadLeHoiPanel();
