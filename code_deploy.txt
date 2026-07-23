@@ -1,0 +1,2360 @@
+/** =========================================================
+ *  WEB APP NHẬP LIỆU - DANH SÁCH HỌC VIÊN
+ *  Đồng bộ trực tiếp với sheet "DS HV" trong file Google Sheet này.
+ *  Dán toàn bộ nội dung file này vào Code.gs trong Apps Script.
+ * ========================================================= */
+
+// ID của Google Sheet "2. VT2 - DS học viên". Dùng openById() thay vì
+// getActiveSpreadsheet() để script luôn đọc/ghi đúng file này, bất kể
+// project Apps Script có được gắn (container-bound) vào Sheet hay không.
+const SPREADSHEET_ID = '1qRuOuejnl6QwgHL7cEl71jORJJv9BA3sIuZOz8imHVk';
+
+function getSpreadsheet_() {
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
+const SHEET_DATA = 'DS HV';
+const CONFIG_SHEET = 'Config';
+const LOG_SHEET = 'Nhat Ky Don Thuan';      // nhật ký nhập tay số lượng "Đơn thuần" theo ngày/Khu vực
+const GOAL_KV_SHEET = 'Muc Tieu KV Thang';  // mục tiêu Đơn thuần/Hữu hiệu/BT riêng từng Khu vực, từng tháng
+const TP_SHEET = 'TP Tho Phuong';           // số lượng tham dự Thờ phượng, nhập tay theo Khu vực/Tháng/Tuần (1-5)
+const EDU_SHEET = 'Giao Duc Thanh Vien';    // danh sách thành viên (nhóm/nhân sự) từng Khu vực + % EDU LMS / % Trực tuyến 127
+const LICH_SHEET = 'Lich Lam Viec Tuan';    // lịch làm việc từng tuần, mỗi dòng 1 công việc (ngày cụ thể, không lặp lại)
+
+// Giá trị cột "Tiến độ" đại diện cho học viên đã Báp-têm.
+// PHẢI khớp đúng chính tả với lựa chọn "Tiến độ" chọn cho học viên đã Báp-têm
+// (mặc định có sẵn "BT" trong danh sách Tiến độ ở tab Config).
+const BT_STATUS_VALUE = 'BT';
+
+// Quy tắc tính "Hữu hiệu": học viên có Tiến độ dạng "B<số>" (buổi học) và
+// số buổi >= ngưỡng này thì được tính là Hữu hiệu. Ví dụ Tiến độ = "B2" trở
+// lên (B2, B3, B4...) mới tính Hữu hiệu; "B1" chưa tính.
+const HUU_HIEU_MIN_BUOI = 2;
+
+// Vị trí cột trong bảng "Danh sách học viên". Có 3 cột Người dẫn dắt riêng
+// (NDD1/NDD2/NDD3, hỗ trợ tối đa 3 Anh/Chị cùng dẫn dắt 1 học viên) chèn ngay
+// sau cột Địa chỉ — cột NDD1 chính là cột "Người dẫn dắt" cũ (dữ liệu cũ giữ
+// nguyên), NDD2/NDD3 là 2 cột mới. Khu vực/Tiến độ/Đánh giá vì vậy dịch sang
+// phải 2 cột so với trước (F/G/H -> H/I/J).
+const COL = {
+  STT: 1, TEN: 2, NGAY: 3, DIACHI: 4, NDD1: 5, NDD2: 6, NDD3: 7, TO: 8, TIENDO: 9, DANHGIA: 10
+};
+const HEADER_ROW = 2;
+const DATA_START_ROW = 3;
+const ROW_WIDTH = 10; // tổng số cột dữ liệu học viên (dùng khi xóa/renumber cả hàng)
+
+// Vị trí cột trong bảng "Thống kê" (bên phải bảng học viên) — chỉ còn dùng
+// cột Khu vực + Đang nghe (tự động). Cột Mục tiêu/BT cũ (L, M) không còn được
+// script quản lý nữa vì đã thay bằng tab "Nhập mục tiêu" (chi tiết hơn, theo
+// Đơn thuần/Hữu hiệu/BT riêng từng Khu vực). Dịch sang phải 2 cột (J/K -> L/M)
+// do thêm 2 cột NDD2/NDD3 ở trên.
+const STATS_COL = { TO: 12, DANGNGHE: 13 };
+const STATS_START_ROW = 3;
+
+/** ---------- Web app entry point ---------- */
+function doGet(e) {
+  // Link "Cấp quyền" gửi qua email cho Trưởng phòng — bấm là duyệt ngay, KHÔNG
+  // cần đăng nhập Google (xác thực bằng ADMIN_APPROVE_SECRET_PROP thay vì token).
+  if (e && e.parameter && e.parameter.action === 'approve') {
+    return handleApproveLink_(e.parameter.email, e.parameter.secret);
+  }
+  if (e && e.parameter && e.parameter.fn) {
+    return handleApiRequest_(e.parameter.fn, e.parameter.args ? JSON.parse(e.parameter.args) : [], e.parameter.token || '');
+  }
+  return HtmlService.createTemplateFromFile('Index')
+    .evaluate()
+    .setTitle('Danh sách học viên')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** ---------- JSON API (dùng cho trang web ngoài, ví dụ host trên GitHub
+ *  Pages) — cho phép gọi các hàm backend qua fetch() thay vì google.script.run
+ *  (chỉ hoạt động khi mở trực tiếp trong Apps Script HTML Service). ---------- */
+function doPost(e) {
+  try {
+    const body = JSON.parse(e.postData.contents);
+    return handleApiRequest_(body.fn, body.args || [], body.token || '');
+  } catch (err) {
+    return jsonOutput_({ error: err.message });
+  }
+}
+
+const API_READ_FNS_ = ['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
+  'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs',
+  'getTopNguoiDanDat', 'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan',
+  'getDaoTaoTienDoAll', 'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner', 'getLeHoiXepHang', 'checkAccess'];
+const API_WRITE_FNS_ = ['addStudent', 'updateStudent', 'deleteStudent', 'saveGoalKV',
+  'deleteGoalKV', 'addDonThuanLog', 'deleteDonThuanLog', 'saveTPWeek',
+  'addGiaoDucMember', 'deleteGiaoDucMember', 'saveGiaoDucWeek',
+  'addLichEvent', 'updateLichEvent', 'deleteLichEvent',
+  'toggleDaoTaoBai', 'setDaoTaoBaiAll', 'setDaoTaoQuyenAll', 'capChungChiDaoTao', 'addDaoTaoViec', 'updateDaoTaoViec', 'deleteDaoTaoViec',
+  'toggleLeHoiLan', 'requestAccess'];
+const API_ALLOWED_FNS_ = API_READ_FNS_.concat(API_WRITE_FNS_);
+
+// 2 hàm này chỉ cần đăng nhập Google hợp lệ (KHÔNG cần đã được duyệt) — vì
+// chính chúng là bước kiểm tra/xin quyền. Tất cả hàm còn lại (kể cả các hàm
+// ĐỌC) bắt buộc phải có token hợp lệ + email đã ở trạng thái "Đã duyệt"
+// trong sheet "Access Control" thì mới được thực thi.
+const NO_APPROVAL_NEEDED_FNS_ = ['checkAccess', 'requestAccess'];
+
+function handleApiRequest_(fnName, args, token) {
+  try {
+    if (API_ALLOWED_FNS_.indexOf(fnName) === -1) {
+      return jsonOutput_({ error: 'Không hỗ trợ hàm: ' + fnName });
+    }
+    let authInfo;
+    try {
+      authInfo = verifyAnyToken_(token);
+    } catch (authErr) {
+      return jsonOutput_({ error: authErr.message, authError: true });
+    }
+    if (NO_APPROVAL_NEEDED_FNS_.indexOf(fnName) !== -1) {
+      // Lấy email/tên đã xác thực từ chính token (KHÔNG dùng args do client gửi
+      // lên, tránh trường hợp giả mạo email của người khác).
+      args = [authInfo.email, authInfo.name];
+    } else {
+      const status = getAccessStatus_(authInfo.email);
+      if (status !== 'Đã duyệt') {
+        return jsonOutput_({ error: 'CHUA_DUOC_CAP_QUYEN', authError: true, pending: status === 'Chờ duyệt' });
+      }
+    }
+    const fn = apiFnMap_(fnName);
+    const result = fn.apply(null, args);
+    return jsonOutput_({ result: result });
+  } catch (err) {
+    return jsonOutput_({ error: err.message });
+  }
+}
+
+/** ---------- Bảo mật: xác thực Google ID token + danh sách được duyệt ----------
+ *  Trang web (host ngoài GitHub Pages) yêu cầu người dùng đăng nhập bằng
+ *  Google (Google Identity Services). Mỗi lần gọi API, trình duyệt gửi kèm
+ *  "token" (Google ID token) — script xác minh token đó thật sự do Google
+ *  cấp (gọi endpoint tokeninfo của Google), rồi kiểm tra email tương ứng có
+ *  nằm trong danh sách "Đã duyệt" ở tab "Access Control" của Sheet không. */
+
+// !!! THAY GIÁ TRỊ NÀY bằng Client ID lấy từ Google Cloud Console (OAuth 2.0
+// Client ID, loại "Web application", Authorized JavaScript origins thêm đúng
+// domain GitHub Pages, ví dụ https://quavogia.github.io). Token không khớp
+// đúng Client ID này sẽ bị từ chối.
+const GOOGLE_CLIENT_ID = '48721787270-7s0r6r5e960ddr01tv9cg8p16akehip7.apps.googleusercontent.com';
+
+// Email này LUÔN được coi là "Đã duyệt" (không thể tự khóa nhầm chính mình
+// dù sheet Access Control bị xóa/sửa nhầm).
+const ADMIN_EMAILS_ = ['trungduc.hb1902@gmail.com'];
+
+const ACCESS_SHEET = 'Access Control';
+
+function verifyGoogleToken_(token) {
+  if (!token) throw new Error('CHUA_DANG_NHAP');
+  const resp = UrlFetchApp.fetch(
+    'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
+    { muteHttpExceptions: true }
+  );
+  if (resp.getResponseCode() !== 200) throw new Error('CHUA_DANG_NHAP');
+  const info = JSON.parse(resp.getContentText());
+  if (info.aud !== GOOGLE_CLIENT_ID) throw new Error('CHUA_DANG_NHAP');
+  if (info.email_verified !== 'true' && info.email_verified !== true) throw new Error('EMAIL_CHUA_XAC_MINH');
+  if (Number(info.exp) < Math.floor(Date.now() / 1000)) throw new Error('PHIEN_DANG_NHAP_HET_HAN');
+  return { email: String(info.email).toLowerCase(), name: info.name || info.email };
+}
+
+/** ---------- "Ghi nhớ đăng nhập" bền hơn 1 giờ ----------
+ *  Google ID token (JWT lấy từ đăng nhập Google) chỉ sống ĐÚNG 1 giờ — đây là
+ *  giới hạn cứng do Google quy định, script không thể tự gia hạn. Vì vậy nếu
+ *  chỉ lưu lại chính token đó, cứ sau ~1 giờ (hoặc bất cứ khi nào Google "One
+ *  Tap" đăng nhập ngầm bị trình duyệt chặn — trên thực tế hay xảy ra) là web
+ *  bắt đăng nhập lại từ đầu, dù mới refresh trang.
+ *
+ *  Giải pháp: sau khi đăng nhập Google thành công + đã được duyệt, script tự
+ *  cấp thêm 1 "session token" riêng (ký bằng khóa bí mật lưu trong Script
+ *  Properties, không phải của Google) có hạn dùng 30 NGÀY. Trang web lưu
+ *  session token này (thay vì token Google) vào localStorage; mỗi lần vào
+ *  lại, script chỉ cần xác minh chữ ký + hạn dùng (không cần gọi Google) là
+ *  cho vào ngay, đồng thời cấp lại 1 session token mới 30 ngày (gia hạn dần,
+ *  "sliding window") nên hễ còn ghé web tối thiểu 1 lần/30 ngày là không bao
+ *  giờ phải đăng nhập lại. Thu hồi quyền (đổi trạng thái ở Access Control)
+ *  vẫn có hiệu lực ngay lập tức cho MỌI hàm khác (chỉ checkAccess/
+ *  requestAccess là ngoại lệ theo thiết kế) vì handleApiRequest_ luôn kiểm
+ *  tra lại trạng thái duyệt mới nhất từ Sheet ở mỗi lần gọi, không phụ thuộc
+ *  vào session token.
+ */
+const SESSION_TOKEN_PREFIX_ = 'SESS.';
+const SESSION_TTL_MS_ = 30 * 24 * 60 * 60 * 1000; // 30 ngày
+
+function getSessionSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let secret = props.getProperty('SESSION_SECRET');
+  if (!secret) {
+    secret = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+    props.setProperty('SESSION_SECRET', secret);
+  }
+  return secret;
+}
+
+function createSessionToken_(email) {
+  const payload = JSON.stringify({ email: String(email).toLowerCase(), exp: Date.now() + SESSION_TTL_MS_ });
+  const payloadB64 = Utilities.base64EncodeWebSafe(payload);
+  const sig = Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(payloadB64, getSessionSecret_())
+  );
+  return SESSION_TOKEN_PREFIX_ + payloadB64 + '.' + sig;
+}
+
+function verifySessionToken_(token) {
+  const rest = token.slice(SESSION_TOKEN_PREFIX_.length);
+  const parts = rest.split('.');
+  if (parts.length !== 2) throw new Error('CHUA_DANG_NHAP');
+  const payloadB64 = parts[0], sig = parts[1];
+  const expectedSig = Utilities.base64EncodeWebSafe(
+    Utilities.computeHmacSha256Signature(payloadB64, getSessionSecret_())
+  );
+  if (sig !== expectedSig) throw new Error('CHUA_DANG_NHAP');
+  const payload = JSON.parse(Utilities.newBlob(Utilities.base64DecodeWebSafe(payloadB64)).getDataAsString());
+  if (!payload.exp || Date.now() > payload.exp) throw new Error('PHIEN_DANG_NHAP_HET_HAN');
+  return { email: String(payload.email).toLowerCase(), name: payload.email };
+}
+
+// Chấp nhận CẢ 2 loại token: session token do chính script cấp (bền, ưu tiên
+// dùng cho các lần vào lại sau) hoặc token Google ID gốc (chỉ dùng lần đăng
+// nhập Google đầu tiên, trước khi có session token).
+function verifyAnyToken_(token) {
+  if (!token) throw new Error('CHUA_DANG_NHAP');
+  if (token.indexOf(SESSION_TOKEN_PREFIX_) === 0) return verifySessionToken_(token);
+  return verifyGoogleToken_(token);
+}
+
+function ensureAccessSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(ACCESS_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(ACCESS_SHEET);
+    sheet.getRange(1, 1, 1, 4).setValues([['Email', 'Trạng thái', 'Tên', 'Ngày yêu cầu / duyệt']]);
+    sheet.getRange(2, 1, 1, 4).setValues([[ADMIN_EMAILS_[0], 'Đã duyệt', 'Trưởng phòng', new Date()]]);
+    // Ghi chú cho Trưởng phòng: đổi cột "Trạng thái" thành "Đã duyệt" để cấp
+    // quyền, hoặc xóa dòng / đổi thành bất kỳ giá trị khác để thu hồi quyền.
+    sheet.getRange(1, 6).setValue('Ghi chú: đổi cột B (Trạng thái) thành "Đã duyệt" để cấp quyền truy cập; xóa dòng hoặc đổi giá trị khác để thu hồi quyền.');
+    sheet.autoResizeColumns(1, 4);
+  }
+  return sheet;
+}
+
+function getAccessRows_() {
+  const sheet = ensureAccessSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+}
+
+function getAccessStatus_(email) {
+  email = String(email).toLowerCase();
+  if (ADMIN_EMAILS_.indexOf(email) !== -1) return 'Đã duyệt';
+  const rows = getAccessRows_();
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === email) return String(rows[i][1]).trim();
+  }
+  return null;
+}
+
+// Gọi khi trang web vừa đăng nhập Google xong — kiểm tra email đã được cấp
+// quyền chưa. email/name do handleApiRequest_ điền vào từ token đã xác thực.
+function checkAccess(email, name) {
+  const status = getAccessStatus_(email);
+  const authorized = status === 'Đã duyệt';
+  return {
+    email: email, name: name, authorized: authorized, pending: status === 'Chờ duyệt',
+    // Cấp (hoặc gia hạn thêm 30 ngày) session token mỗi lần kiểm tra thành
+    // công -> web lưu lại token NÀY thay vì token Google (chỉ sống 1 giờ) để
+    // lần sau vào lại không phải đăng nhập lại.
+    sessionToken: authorized ? createSessionToken_(email) : null
+  };
+}
+
+// Gọi khi người dùng bấm "Gửi yêu cầu truy cập" — ghi 1 dòng "Chờ duyệt" vào
+// sheet Access Control, đồng thời gửi email cho Trưởng phòng kèm link "Cấp
+// quyền" bấm 1 phát là xong (không cần mở Sheet, không cần đăng nhập lại).
+function requestAccess(email, name) {
+  const sheet = ensureAccessSheet_();
+  const rows = getAccessRows_();
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === email) {
+      return { ok: true, alreadyRequested: true, status: String(rows[i][1]).trim() };
+    }
+  }
+  sheet.appendRow([email, 'Chờ duyệt', name, new Date()]);
+  sendAccessRequestEmail_(email, name);
+  return { ok: true, alreadyRequested: false };
+}
+
+// Secret ngẫu nhiên (tạo 1 lần, lưu trong Script Properties) dùng để xác thực
+// link "Cấp quyền" trong email — KHÔNG dùng token Google, để bấm là duyệt
+// ngay lập tức, kể cả trên điện thoại, không cần đăng nhập lại.
+function getAdminApproveSecret_() {
+  const props = PropertiesService.getScriptProperties();
+  let secret = props.getProperty('ADMIN_APPROVE_SECRET');
+  if (!secret) {
+    secret = Utilities.getUuid().replace(/-/g, '');
+    props.setProperty('ADMIN_APPROVE_SECRET', secret);
+  }
+  return secret;
+}
+
+// Gửi email cho Trưởng phòng (ADMIN_EMAILS_[0]) mỗi khi có người xin quyền
+// truy cập mới. Bọc try/catch để nếu gửi mail lỗi (vd chưa cấp quyền gửi
+// mail) cũng không làm hỏng luồng ghi "Chờ duyệt" ở trên.
+function sendAccessRequestEmail_(email, name) {
+  try {
+    const secret = getAdminApproveSecret_();
+    const approveUrl = ScriptApp.getService().getUrl() +
+      '?action=approve&email=' + encodeURIComponent(email) + '&secret=' + encodeURIComponent(secret);
+    const body = 'Có người vừa xin quyền truy cập trang "Web nhập liệu học viên":\n\n' +
+      'Tên: ' + (name || '(không rõ)') + '\n' +
+      'Email: ' + email + '\n\n' +
+      'Bấm vào đường link dưới đây để CẤP QUYỀN ngay (không cần đăng nhập gì thêm):\n' +
+      approveUrl + '\n\n' +
+      'Nếu không muốn cấp quyền, bỏ qua email này (có thể xử lý sau trong tab "Access Control" của Sheet).';
+    MailApp.sendEmail(ADMIN_EMAILS_[0], 'Yêu cầu truy cập mới: ' + (name || email), body);
+  } catch (err) {
+    // im lặng bỏ qua — không chặn người dùng gửi yêu cầu chỉ vì mail lỗi.
+  }
+}
+
+// Xử lý khi Trưởng phòng bấm link "Cấp quyền" trong email — xác thực bằng
+// ADMIN_APPROVE_SECRET_PROP (không phải token Google), duyệt ngay email đó,
+// rồi trả về 1 trang HTML xác nhận đơn giản.
+function handleApproveLink_(email, secret) {
+  const expected = getAdminApproveSecret_();
+  if (!secret || secret !== expected) {
+    return HtmlService.createHtmlOutput(
+      '<div style="font-family:sans-serif;padding:40px;text-align:center;color:#991b1b;">' +
+      '<h2>Liên kết không hợp lệ</h2><p>Vui lòng vào tab "Access Control" trong Sheet để duyệt thủ công.</p></div>'
+    );
+  }
+  email = String(email || '').toLowerCase().trim();
+  if (!email) {
+    return HtmlService.createHtmlOutput('<p style="font-family:sans-serif;">Thiếu email cần duyệt.</p>');
+  }
+  const sheet = ensureAccessSheet_();
+  const rows = getAccessRows_();
+  let found = false;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0]).toLowerCase() === email) {
+      sheet.getRange(2 + i, 2).setValue('Đã duyệt');
+      sheet.getRange(2 + i, 4).setValue(new Date());
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+    sheet.appendRow([email, 'Đã duyệt', '', new Date()]);
+  }
+  return HtmlService.createHtmlOutput(
+    '<div style="font-family:sans-serif;padding:40px;text-align:center;">' +
+    '<h2 style="color:#16a34a;">✅ Đã cấp quyền truy cập</h2>' +
+    '<p>Email <b>' + email + '</b> giờ có thể vào trang web nhập liệu.</p></div>'
+  );
+}
+
+// Tra cứu hàm theo tên qua map cố định (an toàn hơn eval, tránh gọi được
+// hàm ngoài whitelist).
+function apiFnMap_(name) {
+  const map = {
+    getDropdownOptions: getDropdownOptions,
+    getStudents: getStudents,
+    getStats: getStats,
+    getProgressBreakdown: getProgressBreakdown,
+    getMonthlySummaryByKV: getMonthlySummaryByKV,
+    getMonthlySummaryOverall: getMonthlySummaryOverall,
+    getKhuVucOverview: getKhuVucOverview,
+    getAllKhuVucOverview: getAllKhuVucOverview,
+    getAllKhuVucWeekly: getAllKhuVucWeekly,
+    getDonThuanLogs: getDonThuanLogs,
+    getTopNguoiDanDat: getTopNguoiDanDat,
+    getTPSummary: getTPSummary,
+    getGiaoDucMembers: getGiaoDucMembers,
+    getGiaoDucWeekly: getGiaoDucWeekly,
+    getGiaoDucWeeklyAll: getGiaoDucWeeklyAll,
+    addStudent: addStudent,
+    updateStudent: updateStudent,
+    deleteStudent: deleteStudent,
+    saveGoalKV: saveGoalKV,
+    deleteGoalKV: deleteGoalKV,
+    addDonThuanLog: addDonThuanLog,
+    deleteDonThuanLog: deleteDonThuanLog,
+    saveTPWeek: saveTPWeek,
+    addGiaoDucMember: addGiaoDucMember,
+    deleteGiaoDucMember: deleteGiaoDucMember,
+    saveGiaoDucWeek: saveGiaoDucWeek,
+    getLichTuan: getLichTuan,
+    addLichEvent: addLichEvent,
+    updateLichEvent: updateLichEvent,
+    deleteLichEvent: deleteLichEvent,
+    getDaoTaoTienDoAll: getDaoTaoTienDoAll,
+    toggleDaoTaoBai: toggleDaoTaoBai,
+    setDaoTaoBaiAll: setDaoTaoBaiAll,
+    setDaoTaoQuyenAll: setDaoTaoQuyenAll,
+    capChungChiDaoTao: capChungChiDaoTao,
+    getDaoTaoViecList: getDaoTaoViecList,
+    addDaoTaoViec: addDaoTaoViec,
+    updateDaoTaoViec: updateDaoTaoViec,
+    deleteDaoTaoViec: deleteDaoTaoViec,
+    getLeHoiActive: getLeHoiActive,
+    getLeHoiTienDoAll: getLeHoiTienDoAll,
+    getLeHoiBanner: getLeHoiBanner,
+    getLeHoiXepHang: getLeHoiXepHang,
+    toggleLeHoiLan: toggleLeHoiLan,
+    checkAccess: checkAccess,
+    requestAccess: requestAccess
+  };
+  return map[name];
+}
+
+function jsonOutput_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function getSheet_() {
+  const sheet = getSpreadsheet_().getSheetByName(SHEET_DATA);
+  if (!sheet) throw new Error('Không tìm thấy sheet "' + SHEET_DATA + '"');
+  return sheet;
+}
+
+/** ---------- Config: danh sách Khu vực / Tiến độ cho dropdown ---------- */
+function ensureConfigSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(CONFIG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(CONFIG_SHEET);
+    sheet.getRange(1, 1, 1, 3).setValues([['Danh sách Khu vực', 'Danh sách Tiến độ', 'Danh sách Người dẫn dắt']]);
+    // Anh có thể sửa trực tiếp trong tab "Config" này bất cứ lúc nào (thêm/xóa/đổi tên).
+    const toList = ['Đ Uyên', 'K Thành', 'K Trâm', 'K My', 'K Long', 'K Đức'];
+    // "B1..B16" = buổi học (Tiến độ dạng B<số> dùng để tự tính Hữu hiệu, xem
+    // HUU_HIEU_MIN_BUOI ở trên). Học hết B16 thì chuyển sang "BT" (đã Báp-têm,
+    // khớp BT_STATUS_VALUE) — đây là mốc cuối cùng của tiến độ.
+    const tienDoList = [];
+    for (let i = 1; i <= 16; i++) tienDoList.push('B' + i);
+    tienDoList.push('BT', 'Tạm nghỉ');
+    const maxLen = Math.max(toList.length, tienDoList.length);
+    for (let i = 0; i < maxLen; i++) {
+      sheet.getRange(i + 2, 1).setValue(toList[i] || '');
+      sheet.getRange(i + 2, 2).setValue(tienDoList[i] || '');
+    }
+    sheet.autoResizeColumns(1, 3);
+  } else if (!sheet.getRange(1, 3).getValue()) {
+    // Sheet Config đã có từ trước (khi chưa có cột Người dẫn dắt) -> chỉ cần
+    // thêm tiêu đề cột C, danh sách tên sẽ được đổ vào bằng migrateNddListFromDSHV_().
+    sheet.getRange(1, 3).setValue('Danh sách Người dẫn dắt');
+  }
+  return sheet;
+}
+
+// Danh sách "Người dẫn dắt" (cột C tab Config) — dùng làm nguồn cho dropdown
+// Người dẫn dắt 1/2/3 ở form nhập học viên. Anh có thể thêm/xóa/sửa trực tiếp
+// trong cột C tab Config bất cứ lúc nào.
+function getNddOptions_() {
+  const sheet = ensureConfigSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  const values = sheet.getRange(2, 3, lastRow - 1, 1).getValues();
+  return values.map(function(r) { return String(r[0] || '').trim(); }).filter(String);
+}
+
+// Chạy 1 LẦN (từ trình chỉnh sửa Apps Script, nút "Chạy") để: (1) gom danh
+// sách tên Người dẫn dắt duy nhất đang có trong cột NDD1/NDD2/NDD3 của sheet
+// "DS HV" (cả dữ liệu học viên thật ở dòng 3+ lẫn danh sách nháp anh gõ tạm ở
+// dòng 6 trở xuống), (2) ghi danh sách đó vào cột C tab "Config" làm nguồn
+// dropdown, (3) xóa sạch vùng nháp E6:G[cuối] ở sheet DS HV (không phải dữ
+// liệu học viên thật, chỉ giữ lại dòng 3-5 là dữ liệu thật). Không nằm trong
+// whitelist API nên không gọi được từ web ngoài.
+function migrateNddListFromDSHV_() {
+  const dsSheet = getSheet_();
+  const lastRow = dsSheet.getLastRow();
+  const seen = {};
+  const list = [];
+  function addName_(v) {
+    const name = String(v || '').trim();
+    if (name && !seen[name]) { seen[name] = true; list.push(name); }
+  }
+  for (let r = DATA_START_ROW; r <= lastRow; r++) {
+    addName_(dsSheet.getRange(r, COL.NDD1).getValue());
+    addName_(dsSheet.getRange(r, COL.NDD2).getValue());
+    addName_(dsSheet.getRange(r, COL.NDD3).getValue());
+  }
+  if (!list.length) {
+    Logger.log('Không tìm thấy tên Người dẫn dắt nào trong sheet DS HV — không có gì để chuyển.');
+    return;
+  }
+  list.sort(function(a, b) { return a.localeCompare(b, 'vi'); });
+
+  const configSheet = ensureConfigSheet_();
+  const clearLen = Math.max(configSheet.getMaxRows() - 1, list.length);
+  configSheet.getRange(2, 3, clearLen, 1).clearContent();
+  configSheet.getRange(2, 3, list.length, 1).setValues(list.map(function(name) { return [name]; }));
+
+  // Xóa vùng nháp E6:G[cuối] ở DS HV (giữ nguyên dòng 3-5 là dữ liệu học viên thật).
+  const scratchStart = 6;
+  if (lastRow >= scratchStart) {
+    dsSheet.getRange(scratchStart, COL.NDD1, lastRow - scratchStart + 1, 3).clearContent();
+  }
+
+  Logger.log('Đã chuyển ' + list.length + ' tên sang Config!C: ' + list.join(', '));
+}
+
+// Hàm "công khai" (không có dấu _ ở cuối tên) để có thể chọn và bấm "Chạy"
+// trực tiếp trong trình chỉnh sửa Apps Script — các hàm tên kết thúc bằng "_"
+// (như migrateNddListFromDSHV_) không hiện trong danh sách hàm để chạy.
+function runMigrateNddListOnce() {
+  migrateNddListFromDSHV_();
+}
+
+// Danh sách "Khu vực"/"Tổ" (cột F) PHẢI luôn khớp với chính danh sách hợp lệ
+// (Data Validation) đã thiết lập sẵn trên cột đó trong sheet "DS HV" — đọc
+// trực tiếp từ đó thay vì từ tab Config, để không bao giờ bị lệch (lệch sẽ
+// khiến việc lưu học viên bị lỗi "vi phạm quy tắc xác thực dữ liệu").
+function getToOptions_() {
+  const sheet = getSheet_();
+  const rule = sheet.getRange(DATA_START_ROW, COL.TO).getDataValidation();
+  if (rule && rule.getCriteriaType() === SpreadsheetApp.DataValidationCriteria.VALUE_IN_LIST) {
+    return rule.getCriteriaValues()[0];
+  }
+  // Không có validation dạng danh sách cố định trên ô này -> suy ra danh sách
+  // từ các giá trị đã từng được nhập trong cột (fallback, không nên xảy ra).
+  const lastRow = sheet.getLastRow();
+  const seen = {};
+  const list = [];
+  for (let r = DATA_START_ROW; r <= lastRow; r++) {
+    const v = sheet.getRange(r, COL.TO).getValue();
+    if (v && !seen[v]) { seen[v] = true; list.push(v); }
+  }
+  return list;
+}
+
+// Danh sách Khu vực CHÍNH THỨC (đồng bộ với tab "Nhập mục tiêu"/"Hiện trạng
+// khu vực"). Dùng để thiết lập lại Data Validation trên cột "Tổ" (F) của
+// sheet DS HV, vì cột này trước đây bị gán nhầm 1 danh sách tên người phụ
+// trách cũ (AE Tuấn, KVT Hường...) đã không còn dùng nữa.
+const KHU_VUC_LIST_ = ['Đ Uyên', 'K Thành', 'K Trâm', 'K My', 'K Long', 'K Đức'];
+
+// Chạy 1 LẦN (từ trình chỉnh sửa Apps Script, nút "Chạy") để thiết lập lại
+// Data Validation đúng trên cột "Tổ" theo KHU_VUC_LIST_ ở trên. Không nằm
+// trong whitelist API nên không gọi được từ web ngoài.
+function fixToValidationOnce() {
+  const sheet = getSheet_();
+  const numRows = Math.max(sheet.getMaxRows() - DATA_START_ROW + 1, 1);
+  const range = sheet.getRange(DATA_START_ROW, COL.TO, numRows, 1);
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(KHU_VUC_LIST_, true)
+    .setAllowInvalid(false)
+    .build();
+  range.setDataValidation(rule);
+}
+
+function getDropdownOptions() {
+  const sheet = ensureConfigSheet_();
+  const lastRow = sheet.getLastRow();
+  const data = lastRow >= 2 ? sheet.getRange(2, 1, lastRow - 1, 2).getValues() : [];
+  return {
+    toList: getToOptions_(),
+    tienDoList: data.map(r => r[1]).filter(String),
+    nddList: getNddOptions_()
+  };
+}
+
+/** ---------- Đọc danh sách học viên ----------
+ * QUAN TRỌNG VỀ HIỆU NĂNG: đọc cả vùng dữ liệu bằng 1 lệnh getValues() duy
+ * nhất rồi lặp trong bộ nhớ, THAY VÌ gọi getRange(r, col).getValue() riêng
+ * từng ô — mỗi lệnh .getValue() là 1 lượt gọi dịch vụ Google Sheets (chậm),
+ * gọi hàng trăm lần trong vòng lặp khiến trang tải rất lâu. Đây là hàm dùng
+ * chung (getAllStudentRows_) cho mọi hàm cần quét bảng học viên bên dưới.
+ */
+function getAllStudentRows_() {
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < DATA_START_ROW) return [];
+  return sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, ROW_WIDTH).getValues();
+}
+
+function getStudents() {
+  const rows = getAllStudentRows_();
+  const result = [];
+  rows.forEach(function(row, i) {
+    const ten = row[COL.TEN - 1];
+    if (!ten) return;
+    result.push({
+      row: DATA_START_ROW + i,
+      stt: row[COL.STT - 1],
+      ten: ten,
+      ngay: formatDate_(row[COL.NGAY - 1]),
+      diaChi: row[COL.DIACHI - 1],
+      ndd1: row[COL.NDD1 - 1],
+      ndd2: row[COL.NDD2 - 1],
+      ndd3: row[COL.NDD3 - 1],
+      to: row[COL.TO - 1],
+      tienDo: row[COL.TIENDO - 1],
+      danhGia: row[COL.DANHGIA - 1]
+    });
+  });
+  return result;
+}
+
+function formatDate_(val) {
+  if (!val) return '';
+  if (Object.prototype.toString.call(val) === '[object Date]') {
+    return Utilities.formatDate(val, Session.getScriptTimeZone(), 'dd/MM/yyyy');
+  }
+  return val;
+}
+
+function monthKeyOfDate_(val) {
+  let d = val;
+  if (Object.prototype.toString.call(d) !== '[object Date]') d = new Date(val);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// Chuẩn hóa giá trị đọc từ cột "Tháng (yyyy-MM)" trong tab Muc Tieu KV Thang.
+// Google Sheets có thể tự động hiểu chuỗi "2026-07" là 1 ngày (01/07/2026) và
+// lưu thành kiểu Date thay vì text — hàm này đưa cả 2 trường hợp về lại đúng
+// định dạng "yyyy-MM" để so sánh cho chính xác.
+function normalizeMonthCell_(val) {
+  if (Object.prototype.toString.call(val) === '[object Date]') return monthKeyOfDate_(val);
+  return String(val || '').trim();
+}
+
+function currentMonthKey_() {
+  return monthKeyOfDate_(new Date());
+}
+
+// Tháng liền trước 1 tháng của monthKey ("yyyy-MM") -> "yyyy-MM". Dùng để tính
+// cột "tháng trước" trong bảng TP (Thờ phượng) — so sánh tổng tháng hiện tại
+// đang xem với tổng tháng ngay trước đó.
+function prevMonthKey_(monthKey) {
+  const parts = String(monthKey || '').split('-');
+  if (parts.length !== 2) return '';
+  let y = Number(parts[0]);
+  let m = Number(parts[1]) - 1;
+  if (m < 1) { m = 12; y -= 1; }
+  return y + '-' + String(m).padStart(2, '0');
+}
+
+// Tiến độ dạng "B<số>" (buổi học) -> trả về số buổi, ngược lại null.
+function parseBuoiNumber_(tienDo) {
+  const m = String(tienDo || '').trim().match(/^B(\d+)$/i);
+  return m ? Number(m[1]) : null;
+}
+
+function isHuuHieuTienDo_(tienDo) {
+  const n = parseBuoiNumber_(tienDo);
+  return n !== null && n >= HUU_HIEU_MIN_BUOI;
+}
+
+/** ---------- Thêm / Sửa / Xóa học viên ---------- */
+function findFirstEmptyRow_() {
+  const sheet = getSheet_();
+  const lastRow = Math.max(sheet.getLastRow(), DATA_START_ROW);
+  const numRows = lastRow - DATA_START_ROW + 1;
+  const names = sheet.getRange(DATA_START_ROW, COL.TEN, numRows, 1).getValues();
+  for (let i = 0; i < names.length; i++) {
+    if (!names[i][0]) return DATA_START_ROW + i;
+  }
+  return lastRow + 1;
+}
+
+// Kiểm tra "to" (Khu vực/Tổ) và "tienDo" (Tiến độ) hợp lệ TRƯỚC khi ghi bất kỳ
+// ô nào xuống sheet. Nếu không kiểm tra trước, một giá trị không hợp lệ có
+// thể khiến setValue() bị chính Google Sheets chặn giữa chừng (do Data
+// Validation trên cột đó), làm hỏng/mất luôn các ô đã ghi trước đó của cùng
+// học viên (STT, Tiến độ, Đánh giá...). Ném lỗi tiếng Việt rõ ràng để người
+// dùng biết cần chọn lại, thay vì để Google Sheets báo lỗi khó hiểu.
+function validateStudentData_(data) {
+  if (data.to) {
+    const toList = getToOptions_();
+    if (toList.length && toList.indexOf(data.to) === -1) {
+      throw new Error('Khu vực/Tổ "' + data.to + '" không hợp lệ. Vui lòng chọn một trong: ' + toList.join(', '));
+    }
+  }
+  if (data.tienDo) {
+    const tienDoList = getDropdownOptions().tienDoList;
+    if (tienDoList.length && tienDoList.indexOf(data.tienDo) === -1) {
+      throw new Error('Tiến độ "' + data.tienDo + '" không hợp lệ. Vui lòng chọn một trong: ' + tienDoList.join(', '));
+    }
+  }
+  const nddList = getNddOptions_();
+  if (nddList.length) {
+    ['ndd1', 'ndd2', 'ndd3'].forEach(function(key) {
+      const v = data[key];
+      if (v && nddList.indexOf(v) === -1) {
+        throw new Error('Người dẫn dắt "' + v + '" không hợp lệ. Vui lòng chọn một trong: ' + nddList.join(', '));
+      }
+    });
+  }
+}
+
+function addStudent(data) {
+  validateStudentData_(data);
+  const sheet = getSheet_();
+  const row = findFirstEmptyRow_();
+  const stt = getStudents().length + 1;
+  sheet.getRange(row, COL.STT).setValue(stt);
+  sheet.getRange(row, COL.TEN).setValue(data.ten || '');
+  sheet.getRange(row, COL.NGAY).setValue(data.ngay || '');
+  sheet.getRange(row, COL.DIACHI).setValue(data.diaChi || '');
+  sheet.getRange(row, COL.NDD1).setValue(data.ndd1 || '');
+  sheet.getRange(row, COL.NDD2).setValue(data.ndd2 || '');
+  sheet.getRange(row, COL.NDD3).setValue(data.ndd3 || '');
+  sheet.getRange(row, COL.TO).setValue(data.to || '');
+  sheet.getRange(row, COL.TIENDO).setValue(data.tienDo || '');
+  sheet.getRange(row, COL.DANHGIA).setValue(data.danhGia || '');
+  updateStats_();
+  return { success: true };
+}
+
+function updateStudent(row, data) {
+  validateStudentData_(data);
+  const sheet = getSheet_();
+  sheet.getRange(row, COL.TEN).setValue(data.ten || '');
+  sheet.getRange(row, COL.NGAY).setValue(data.ngay || '');
+  sheet.getRange(row, COL.DIACHI).setValue(data.diaChi || '');
+  sheet.getRange(row, COL.NDD1).setValue(data.ndd1 || '');
+  sheet.getRange(row, COL.NDD2).setValue(data.ndd2 || '');
+  sheet.getRange(row, COL.NDD3).setValue(data.ndd3 || '');
+  sheet.getRange(row, COL.TO).setValue(data.to || '');
+  sheet.getRange(row, COL.TIENDO).setValue(data.tienDo || '');
+  sheet.getRange(row, COL.DANHGIA).setValue(data.danhGia || '');
+  updateStats_();
+  return { success: true };
+}
+
+function deleteStudent(row) {
+  const sheet = getSheet_();
+  sheet.getRange(row, 1, 1, ROW_WIDTH).clearContent();
+  renumberStt_();
+  updateStats_();
+  return { success: true };
+}
+
+function renumberStt_() {
+  const sheet = getSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < DATA_START_ROW) return;
+  const allRows = sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, ROW_WIDTH).getValues();
+  const values = allRows.filter(function(v) { return v[COL.TEN - 1]; });
+  sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, ROW_WIDTH).clearContent();
+  if (!values.length) return;
+  values.forEach(function(v, i) { v[0] = i + 1; }); // STT
+  sheet.getRange(DATA_START_ROW, 1, values.length, ROW_WIDTH).setValues(values);
+}
+
+/** ---------- Thống kê theo Khu vực (chỉ "Đang nghe", tự động) ----------
+ * Bảng này được script "quản lý" hoàn toàn: mỗi lần chạy sẽ tự ghi lại tên
+ * Khu vực (lấy từ tab Config, cột A) vào cột J theo đúng thứ tự, rồi tính lại
+ * "Đang nghe". Đổi danh sách Khu vực trong Config là bảng này tự cập nhật.
+ *
+ * "Đang nghe" = học viên có Tiến độ từ B1 đến BT, KHÔNG tính học viên có
+ * Tiến độ = "Tạm nghỉ". "Tổng học viên" (không lọc) vẫn tính đủ tất cả.
+ */
+function updateStats_() {
+  const dataSheet = getSheet_();
+  const toList = getDropdownOptions().toList;
+  const rows = getAllStudentRows_();
+
+  const counts = {};
+  toList.forEach(function(t) { counts[t] = 0; });
+  let totalDangNghe = 0;
+  rows.forEach(function(row) {
+    const ten = row[COL.TEN - 1];
+    const to = row[COL.TO - 1];
+    if (!ten || !to) return;
+    const tienDo = row[COL.TIENDO - 1];
+    if (String(tienDo).trim() === 'Tạm nghỉ') return;
+    if (counts.hasOwnProperty(to)) counts[to]++;
+    totalDangNghe++;
+  });
+
+  const clearRows = Math.max(toList.length + 1, 40);
+  dataSheet.getRange(STATS_START_ROW, STATS_COL.TO, clearRows, 2).clearContent();
+
+  const writeRows = toList.map(function(name) { return [name, counts[name] || 0]; });
+  writeRows.push(['Tổng', totalDangNghe]);
+  dataSheet.getRange(STATS_START_ROW, STATS_COL.TO, writeRows.length, 2).setValues(writeRows);
+}
+
+function getStats() {
+  updateStats_();
+  const sheet = getSheet_();
+  const toList = getDropdownOptions().toList;
+  const numRows = toList.length + 1;
+  const values = sheet.getRange(STATS_START_ROW, STATS_COL.TO, numRows, 2).getValues();
+  return values.map(function(v, i) {
+    return { row: STATS_START_ROW + i, to: v[0], dangNghe: v[1] };
+  });
+}
+
+/** ---------- Học viên theo Buổi / Tiến độ (thống kê theo tháng) ----------
+ * Đếm số học viên theo từng giá trị "Tiến độ" (buổi B1..B16, BT, Tạm nghỉ...),
+ * lọc theo "Ngày chia sẻ cuối cùng" thuộc tháng đang xem. Có thể lọc thêm
+ * theo 1 Khu vực cụ thể (dùng cho tab "Hiện trạng khu vực"), để trống/0 thì
+ * tính toàn bộ.
+ */
+function getProgressBreakdown(monthKey, khuVuc) {
+  const rows = getAllStudentRows_();
+  const counts = {};
+  rows.forEach(function(row) {
+    const ten = row[COL.TEN - 1];
+    if (!ten) return;
+    const kv = row[COL.TO - 1];
+    if (khuVuc && kv !== khuVuc) return;
+    const ngay = row[COL.NGAY - 1];
+    if (!ngay || monthKeyOfDate_(ngay) !== monthKey) return;
+    const tienDo = String(row[COL.TIENDO - 1] || '').trim();
+    if (!tienDo) return;
+    counts[tienDo] = (counts[tienDo] || 0) + 1;
+  });
+  const keys = Object.keys(counts);
+  keys.sort(function(a, b) {
+    const na = parseBuoiNumber_(a);
+    const nb = parseBuoiNumber_(b);
+    if (na !== null && nb !== null) return na - nb;
+    if (na !== null) return -1;
+    if (nb !== null) return 1;
+    return a.localeCompare(b);
+  });
+  return keys.map(function(k) { return { tienDo: k, count: counts[k] }; });
+}
+
+/** =========================================================
+ *  NHẬT KÝ "ĐƠN THUẦN" (nhập tay: ngày + khu vực + số lượng)
+ * ========================================================= */
+function ensureLogSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(LOG_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(LOG_SHEET);
+    sheet.getRange(1, 1, 1, 7).setValues([['Ngày', 'Khu vực', 'Đơn thuần', 'Ghi chú', 'Người dẫn dắt 1', 'Người dẫn dắt 2', 'Người dẫn dắt 3']]);
+    sheet.autoResizeColumns(1, 7);
+  } else if (!sheet.getRange(1, 5).getValue()) {
+    // Sheet cũ chỉ có 4 cột — thêm tiêu đề 3 cột NDD mà không đụng dữ liệu cũ.
+    sheet.getRange(1, 5, 1, 3).setValues([['Người dẫn dắt 1', 'Người dẫn dắt 2', 'Người dẫn dắt 3']]);
+  }
+  return sheet;
+}
+
+function addDonThuanLog(data) {
+  const nddList = getNddOptions_();
+  if (!String(data.ndd1 || '').trim()) {
+    throw new Error('Vui lòng nhập "Người dẫn dắt 1".');
+  }
+  [['ndd1', 'Người dẫn dắt 1'], ['ndd2', 'Người dẫn dắt 2'], ['ndd3', 'Người dẫn dắt 3']].forEach(function(pair) {
+    const v = String(data[pair[0]] || '').trim();
+    if (v && nddList.length && nddList.indexOf(v) === -1) {
+      throw new Error('"' + pair[1] + '": "' + v + '" không có trong danh sách Người dẫn dắt (tab Config).');
+    }
+  });
+  const sheet = ensureLogSheet_();
+  const row = sheet.getLastRow() + 1;
+  sheet.getRange(row, 1).setValue(data.ngay || '');
+  sheet.getRange(row, 2).setValue(data.khuVuc || '');
+  sheet.getRange(row, 3).setValue(Number(data.soLuong) || 0);
+  sheet.getRange(row, 4).setValue(data.ghiChu || '');
+  sheet.getRange(row, 5).setValue(String(data.ndd1 || '').trim());
+  sheet.getRange(row, 6).setValue(String(data.ndd2 || '').trim());
+  sheet.getRange(row, 7).setValue(String(data.ndd3 || '').trim());
+  return { success: true };
+}
+
+function getDonThuanLogs(monthKey) {
+  const sheet = ensureLogSheet_();
+  const lastRow = sheet.getLastRow();
+  const result = [];
+  if (lastRow < 2) return result;
+  const rows = sheet.getRange(2, 1, lastRow - 1, 7).getValues();
+  rows.forEach(function(row, i) {
+    const ngay = row[0];
+    if (!ngay) return;
+    if (monthKeyOfDate_(ngay) !== monthKey) return;
+    result.push({
+      row: 2 + i,
+      ngay: formatDate_(ngay),
+      khuVuc: row[1],
+      soLuong: row[2],
+      ghiChu: row[3],
+      ndd1: row[4],
+      ndd2: row[5],
+      ndd3: row[6]
+    });
+  });
+  return result;
+}
+
+function deleteDonThuanLog(row) {
+  const sheet = ensureLogSheet_();
+  sheet.getRange(row, 1, 1, 7).clearContent();
+  return { success: true };
+}
+
+function sumDonThuanByKV_(monthKey) {
+  const logs = getDonThuanLogs(monthKey);
+  const sums = {};
+  logs.forEach(function(l) {
+    sums[l.khuVuc] = (sums[l.khuVuc] || 0) + (Number(l.soLuong) || 0);
+  });
+  return sums;
+}
+
+/** =========================================================
+ *  MỤC TIÊU THEO KHU VỰC (Đơn thuần / Hữu hiệu / BT) — mỗi Khu vực có bộ
+ *  mục tiêu riêng, luôn áp dụng cho THÁNG HIỆN TẠI (nhập ở tab "Nhập mục tiêu").
+ * ========================================================= */
+function ensureGoalKVSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(GOAL_KV_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(GOAL_KV_SHEET);
+    sheet.getRange(1, 1, 1, 5).setValues([['Tháng (yyyy-MM)', 'Khu vực', 'Mục tiêu Đơn thuần', 'Mục tiêu Hữu hiệu', 'Mục tiêu BT']]);
+    sheet.autoResizeColumns(1, 5);
+  }
+  // Ép cột A (Tháng) thành định dạng văn bản thuần, tránh Google Sheets tự
+  // động chuyển "2026-07" thành ngày (Date) khiến so sánh tháng bị sai lệch.
+  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 500), 1).setNumberFormat('@');
+  return sheet;
+}
+
+function findGoalKVRow_(monthKey, khuVuc) {
+  const sheet = ensureGoalKVSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const values = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  for (let i = 0; i < values.length; i++) {
+    if (normalizeMonthCell_(values[i][0]) === monthKey && String(values[i][1]) === khuVuc) return 2 + i;
+  }
+  return null;
+}
+
+function getMonthlyGoalKV_(monthKey, khuVuc) {
+  const sheet = ensureGoalKVSheet_();
+  const row = findGoalKVRow_(monthKey, khuVuc);
+  if (!row) return { donThuan: 0, huuHieu: 0, bt: 0 };
+  const v = sheet.getRange(row, 1, 1, 5).getValues()[0];
+  return { donThuan: Number(v[2]) || 0, huuHieu: Number(v[3]) || 0, bt: Number(v[4]) || 0 };
+}
+
+// Map[Khu vực] = {donThuan, huuHieu, bt} cho 1 tháng, đọc CẢ sheet mục tiêu
+// bằng 1 lệnh getValues() duy nhất — dùng trong getMonthlySummaryByKV() thay
+// vì gọi getMonthlyGoalKV_()/findGoalKVRow_() riêng cho từng Khu vực (mỗi lần
+// gọi lại quét lại cả sheet, nhân lên rất chậm khi có nhiều Khu vực).
+function getGoalKVMap_(monthKey) {
+  const sheet = ensureGoalKVSheet_();
+  const lastRow = sheet.getLastRow();
+  const map = {};
+  if (lastRow >= 2) {
+    const values = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+    values.forEach(function(v) {
+      if (normalizeMonthCell_(v[0]) === monthKey) {
+        map[String(v[1])] = { donThuan: Number(v[2]) || 0, huuHieu: Number(v[3]) || 0, bt: Number(v[4]) || 0 };
+      }
+    });
+  }
+  return map;
+}
+
+// Trước đây hàm này chặn không cho sửa mục tiêu/số liệu của tháng đã qua
+// (tránh sửa nhầm số liệu đã chốt). Theo yêu cầu, đã MỞ KHÓA để cho phép nhập
+// bù/sửa số liệu của các tháng cũ (TP, Giáo dục, Mục tiêu KV). Giữ lại hàm này
+// (không xóa hẳn) để nếu sau này cần khóa lại chỉ cần bật lại đoạn so sánh bên dưới.
+function assertNotPastMonth_(monthKey) {
+  // if (monthKey < currentMonthKey_()) {
+  //   throw new Error('Không thể sửa mục tiêu của tháng đã qua (' + monthKey + ').');
+  // }
+}
+
+// Lưu (thêm mới hoặc cập nhật) cả 3 chỉ tiêu cùng lúc cho 1 Khu vực, 1 tháng
+// cụ thể (tháng hiện tại hoặc tháng tương lai — không cho sửa tháng đã qua).
+function saveGoalKV(monthKey, khuVuc, data) {
+  assertNotPastMonth_(monthKey);
+  const sheet = ensureGoalKVSheet_();
+  let row = findGoalKVRow_(monthKey, khuVuc);
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(monthKey);
+    sheet.getRange(row, 2).setValue(khuVuc);
+  }
+  sheet.getRange(row, 3).setValue(Number(data.donThuan) || 0);
+  sheet.getRange(row, 4).setValue(Number(data.huuHieu) || 0);
+  sheet.getRange(row, 5).setValue(Number(data.bt) || 0);
+  return { success: true };
+}
+
+// "Xóa" mục tiêu của 1 Khu vực, 1 tháng cụ thể = đưa cả 3 chỉ tiêu về 0.
+function deleteGoalKV(monthKey, khuVuc) {
+  assertNotPastMonth_(monthKey);
+  const sheet = ensureGoalKVSheet_();
+  const row = findGoalKVRow_(monthKey, khuVuc);
+  if (row) sheet.getRange(row, 1, 1, 5).clearContent();
+  return { success: true };
+}
+
+function pct_(actual, target) {
+  if (!target) return null;
+  return Math.round((actual / target) * 1000) / 10;
+}
+
+// Mục tiêu / Thực tế / % cho TẤT CẢ Khu vực, trong 1 tháng cụ thể.
+function getMonthlySummaryByKV(monthKey) {
+  const toList = getDropdownOptions().toList;
+  const donThuanByKV = sumDonThuanByKV_(monthKey);
+  const goalMap = getGoalKVMap_(monthKey);
+
+  const rows = getAllStudentRows_();
+  const huuHieuByKV = {};
+  const btByKV = {};
+  rows.forEach(function(row) {
+    const ten = row[COL.TEN - 1];
+    if (!ten) return;
+    const ngay = row[COL.NGAY - 1];
+    if (!ngay || monthKeyOfDate_(ngay) !== monthKey) return;
+    const kv = row[COL.TO - 1];
+    if (!kv) return;
+    const tienDo = row[COL.TIENDO - 1];
+    if (isHuuHieuTienDo_(tienDo)) huuHieuByKV[kv] = (huuHieuByKV[kv] || 0) + 1;
+    if (String(tienDo).trim() === BT_STATUS_VALUE) btByKV[kv] = (btByKV[kv] || 0) + 1;
+  });
+
+  return toList.map(function(kv) {
+    const goal = goalMap[kv] || { donThuan: 0, huuHieu: 0, bt: 0 };
+    const actual = {
+      donThuan: donThuanByKV[kv] || 0,
+      huuHieu: huuHieuByKV[kv] || 0,
+      bt: btByKV[kv] || 0
+    };
+    return {
+      khuVuc: kv,
+      goal: goal,
+      actual: actual,
+      percent: {
+        donThuan: pct_(actual.donThuan, goal.donThuan),
+        huuHieu: pct_(actual.huuHieu, goal.huuHieu),
+        bt: pct_(actual.bt, goal.bt)
+      }
+    };
+  });
+}
+
+// Tổng cộng toàn bộ Khu vực, cho 1 tháng cụ thể — dùng ở tab "Thống kê".
+function getMonthlySummaryOverall(monthKey) {
+  const list = getMonthlySummaryByKV(monthKey);
+  const sum = { donThuan: 0, huuHieu: 0, bt: 0 };
+  const actual = { donThuan: 0, huuHieu: 0, bt: 0 };
+  list.forEach(function(s) {
+    sum.donThuan += s.goal.donThuan; sum.huuHieu += s.goal.huuHieu; sum.bt += s.goal.bt;
+    actual.donThuan += s.actual.donThuan; actual.huuHieu += s.actual.huuHieu; actual.bt += s.actual.bt;
+  });
+  return {
+    monthKey: monthKey,
+    goal: sum,
+    actual: actual,
+    percent: {
+      donThuan: pct_(actual.donThuan, sum.donThuan),
+      huuHieu: pct_(actual.huuHieu, sum.huuHieu),
+      bt: pct_(actual.bt, sum.bt)
+    }
+  };
+}
+
+// Dữ liệu tổng hợp cho 1 Khu vực (tab "Hiện trạng các khu vực"): tổng số học
+// viên (toàn bộ, không lọc tháng), mục tiêu/thực tế/% của tháng đang xem VÀ
+// tháng trước (prevGoalSummary, để vẽ biểu đồ so sánh mà không cần gọi thêm
+// 1 lượt request riêng từ phía web), và số học viên theo buổi trong tháng
+// đang xem. Đọc bảng học viên (getAllStudentRows_) CHỈ 1 LẦN rồi dùng lại
+// cho cả 3 phép tính bên dưới, thay vì gọi getStudents()/getMonthlySummaryByKV()/
+// getProgressBreakdown() riêng (mỗi hàm tự đọc lại toàn bộ bảng — lãng phí).
+function getKhuVucOverview(monthKey, khuVuc) {
+  const prevKey = prevMonthKey_(monthKey);
+  const rows = getAllStudentRows_();
+
+  let tongHocVien = 0;
+  rows.forEach(function(row) {
+    if (row[COL.TEN - 1] && row[COL.TO - 1] === khuVuc) tongHocVien++;
+  });
+
+  function summaryForMonth_(mKey) {
+    const donThuanByKV = sumDonThuanByKV_(mKey);
+    const goalMap = getGoalKVMap_(mKey);
+    let huuHieu = 0, bt = 0;
+    rows.forEach(function(row) {
+      const ten = row[COL.TEN - 1];
+      if (!ten) return;
+      const ngay = row[COL.NGAY - 1];
+      if (!ngay || monthKeyOfDate_(ngay) !== mKey) return;
+      if (row[COL.TO - 1] !== khuVuc) return;
+      const tienDo = row[COL.TIENDO - 1];
+      if (isHuuHieuTienDo_(tienDo)) huuHieu++;
+      if (String(tienDo).trim() === BT_STATUS_VALUE) bt++;
+    });
+    const goal = goalMap[khuVuc] || { donThuan: 0, huuHieu: 0, bt: 0 };
+    const actual = { donThuan: donThuanByKV[khuVuc] || 0, huuHieu: huuHieu, bt: bt };
+    return {
+      khuVuc: khuVuc,
+      goal: goal,
+      actual: actual,
+      percent: {
+        donThuan: pct_(actual.donThuan, goal.donThuan),
+        huuHieu: pct_(actual.huuHieu, goal.huuHieu),
+        bt: pct_(actual.bt, goal.bt)
+      }
+    };
+  }
+
+  const counts = {};
+  rows.forEach(function(row) {
+    const ten = row[COL.TEN - 1];
+    if (!ten) return;
+    if (row[COL.TO - 1] !== khuVuc) return;
+    const ngay = row[COL.NGAY - 1];
+    if (!ngay || monthKeyOfDate_(ngay) !== monthKey) return;
+    const tienDo = String(row[COL.TIENDO - 1] || '').trim();
+    if (!tienDo) return;
+    counts[tienDo] = (counts[tienDo] || 0) + 1;
+  });
+  const keys = Object.keys(counts);
+  keys.sort(function(a, b) {
+    const na = parseBuoiNumber_(a);
+    const nb = parseBuoiNumber_(b);
+    if (na !== null && nb !== null) return na - nb;
+    if (na !== null) return -1;
+    if (nb !== null) return 1;
+    return a.localeCompare(b);
+  });
+  const breakdown = keys.map(function(k) { return { tienDo: k, count: counts[k] }; });
+
+  return {
+    khuVuc: khuVuc,
+    tongHocVien: tongHocVien,
+    goalSummary: summaryForMonth_(monthKey),
+    prevGoalSummary: summaryForMonth_(prevKey),
+    breakdown: breakdown
+  };
+}
+
+// Bản "gộp tất cả Khu vực" của getKhuVucOverview — trả về 1 mảng, mỗi phần tử
+// là kết quả y hệt getKhuVucOverview() cho 1 Khu vực. Mục đích: trang web chỉ
+// cần gọi API 1 LẦN khi vào tab "Hiện trạng khu vực" > Trudo (thay vì gọi lại
+// mỗi khi bấm đổi Khu vực), giúp việc chuyển Khu vực trên trình duyệt gần như
+// tức thì — giống cách tab TP đã làm với getTPSummary(). Cố tình gọi lại
+// getKhuVucOverview() cho từng Khu vực (không viết lại logic tính toán) để
+// không có nguy cơ tính sai lệch giữa 2 hàm; chi phí CPU thêm không đáng kể
+// so với thời gian tiết kiệm được từ việc bớt gọi API qua mạng.
+function getAllKhuVucOverview(monthKey) {
+  const toList = getDropdownOptions().toList;
+  return toList.map(function(kv) { return getKhuVucOverview(monthKey, kv); });
+}
+
+// Tuần trong tháng của 1 ngày cụ thể: ngày 1-7 = Tuần 1, 8-14 = Tuần 2,
+// 15-21 = Tuần 3, 22-28 = Tuần 4, 29-31 = Tuần 5. Cách chia đơn giản, không
+// phụ thuộc thứ trong tuần — chỉ dùng để nhóm số liệu Đơn thuần/Hữu hiệu/BT
+// theo tuần cho biểu đồ "Xem theo tuần" ở tab Trudo.
+function weekOfMonth_(dateVal) {
+  const d = (Object.prototype.toString.call(dateVal) === '[object Date]') ? dateVal : new Date(dateVal);
+  return Math.min(5, Math.ceil(d.getDate() / 7));
+}
+
+// Đơn thuần theo TUẦN: Map[Khu vực] = mảng 5 số (Tuần 1-5), cộng dồn "Số
+// lượng" của các dòng nhật ký Đơn thuần có "Ngày" thuộc tháng monthKey, chia
+// theo tuần bằng weekOfMonth_(). Đọc thẳng sheet nhật ký (không qua
+// getDonThuanLogs() vì hàm đó đã format lại "Ngày" thành chuỗi dd/MM/yyyy,
+// không tiện tính tuần).
+function sumDonThuanWeeksByKV_(monthKey) {
+  const sheet = ensureLogSheet_();
+  const lastRow = sheet.getLastRow();
+  const map = {};
+  if (lastRow < 2) return map;
+  const rows = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+  rows.forEach(function(row) {
+    const ngay = row[0];
+    if (!ngay) return;
+    if (monthKeyOfDate_(ngay) !== monthKey) return;
+    const kv = row[1];
+    if (!kv) return;
+    if (!map[kv]) map[kv] = [0, 0, 0, 0, 0];
+    map[kv][weekOfMonth_(ngay) - 1] += Number(row[2]) || 0;
+  });
+  return map;
+}
+
+// Bản "theo tuần" của getAllKhuVucOverview — cho CẢ 6 Khu vực trong 1 lần gọi
+// (cùng lý do gộp API như getAllKhuVucOverview/getGiaoDucWeeklyAll: đổi Khu
+// vực trên trình duyệt không cần gọi lại mạng). Với mỗi Khu vực, trả về 3
+// mảng 5 số (Tuần 1-5): Đơn thuần (từ nhật ký), Hữu hiệu/BT (từ bảng học
+// viên, đếm theo tuần của "Ngày chia sẻ cuối cùng" — cùng cách lọc theo
+// tháng mà getKhuVucOverview() đang dùng, chỉ chia nhỏ thêm theo tuần).
+function getAllKhuVucWeekly(monthKey) {
+  const toList = getDropdownOptions().toList;
+  const donThuanWeeksByKV = sumDonThuanWeeksByKV_(monthKey);
+  const rows = getAllStudentRows_();
+  const huuHieuWeeksByKV = {};
+  const btWeeksByKV = {};
+  rows.forEach(function(row) {
+    const ten = row[COL.TEN - 1];
+    if (!ten) return;
+    const ngay = row[COL.NGAY - 1];
+    if (!ngay || monthKeyOfDate_(ngay) !== monthKey) return;
+    const kv = row[COL.TO - 1];
+    if (!kv) return;
+    const w = weekOfMonth_(ngay);
+    const tienDo = row[COL.TIENDO - 1];
+    if (isHuuHieuTienDo_(tienDo)) {
+      if (!huuHieuWeeksByKV[kv]) huuHieuWeeksByKV[kv] = [0, 0, 0, 0, 0];
+      huuHieuWeeksByKV[kv][w - 1]++;
+    }
+    if (String(tienDo).trim() === BT_STATUS_VALUE) {
+      if (!btWeeksByKV[kv]) btWeeksByKV[kv] = [0, 0, 0, 0, 0];
+      btWeeksByKV[kv][w - 1]++;
+    }
+  });
+  return toList.map(function(kv) {
+    return {
+      khuVuc: kv,
+      donThuan: donThuanWeeksByKV[kv] || [0, 0, 0, 0, 0],
+      huuHieu: huuHieuWeeksByKV[kv] || [0, 0, 0, 0, 0],
+      bt: btWeeksByKV[kv] || [0, 0, 0, 0, 0]
+    };
+  });
+}
+
+// Xếp hạng "Người dẫn dắt" (cột NDD1/NDD2/NDD3 — 1 học viên có thể có tối đa 3
+// Anh/Chị cùng dẫn dắt) theo số học viên "Đang nghe" (Tiến độ có giá trị, khác
+// "Tạm nghỉ") có "Ngày chia sẻ cuối cùng" thuộc tháng đang xem. Mỗi Anh/Chị có
+// tên ở bất kỳ cột nào trong 3 cột NDD1/NDD2/NDD3 của 1 học viên đều được tính
+// +1 cho học viên đó (không cộng 2-3 lần nếu trùng tên trong cùng 1 hàng). Dùng
+// cho bảng xếp hạng ở tab "Tổng quan". Trả về TOÀN BỘ danh sách đã sắp xếp giảm
+// dần theo số lượng (nhiều nhất trước) — phía web chỉ hiển thị top 3.
+function getTopNguoiDanDat(monthKey) {
+  const rows = getAllStudentRows_();
+  const counts = {};
+  rows.forEach(function(row) {
+    const ten = row[COL.TEN - 1];
+    if (!ten) return;
+    const ngay = row[COL.NGAY - 1];
+    if (!ngay || monthKeyOfDate_(ngay) !== monthKey) return;
+    const tienDo = String(row[COL.TIENDO - 1] || '').trim();
+    if (!tienDo || tienDo === 'Tạm nghỉ') return;
+    const nddRaw = [row[COL.NDD1 - 1], row[COL.NDD2 - 1], row[COL.NDD3 - 1]];
+    const nddSet = {};
+    nddRaw.forEach(function(v) {
+      const name = String(v || '').trim();
+      if (name) nddSet[name] = true;
+    });
+    Object.keys(nddSet).forEach(function(name) {
+      counts[name] = (counts[name] || 0) + 1;
+    });
+  });
+  const list = Object.keys(counts).map(function(name) {
+    return { nguoiDanDat: name, count: counts[name] };
+  });
+  list.sort(function(a, b) { return b.count - a.count; });
+  return list;
+}
+
+/** =========================================================
+ *  TP (THỜ PHƯỢNG) — nhập tay theo Khu vực, mỗi tuần họp 1 lần nên "Tuần" ở
+ *  đây là số thứ tự tuần (1-5) do người dùng tự chọn, KHÔNG tự suy ra từ
+ *  ngày. Có 2 chỉ số riêng theo dõi song song mỗi tuần:
+ *   - "1lan": số người đã thờ phượng TỪ 1 LẦN trở lên tính từ đầu tháng.
+ *   - "4lan": số người đã thờ phượng TỪ 4 LẦN trở lên tính từ đầu tháng.
+ *  Cả 2 chỉ số đều là số đếm CỘNG DỒN theo thời gian (không phải số mới phát
+ *  sinh riêng từng tuần), nên "Tổng tháng" = số LỚN NHẤT đã nhập trong 5 tuần
+ *  (không cộng các tuần lại với nhau) — người dùng chỉ cần cập nhật số mới
+ *  nhất vào tuần hiện tại, các tuần trước đó không bắt buộc phải khớp.
+ * ========================================================= */
+const TP_LOAI_LIST_ = ['1lan', '4lan'];
+
+function ensureTPSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(TP_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(TP_SHEET);
+    sheet.getRange(1, 1, 1, 5).setValues([['Tháng (yyyy-MM)', 'Khu vực', 'Loại', 'Tuần', 'Số lượng']]);
+    sheet.autoResizeColumns(1, 5);
+  } else if (String(sheet.getRange(1, 3).getValue()).trim() !== 'Loại') {
+    // Sheet cũ (trước khi tách 2 chỉ số "1 lần"/"4 lần") chỉ có 4 cột: Tháng,
+    // Khu vực, Tuần, Số lượng. Chèn thêm cột "Loại" ở giữa và gán toàn bộ dữ
+    // liệu cũ đã nhập trước đó là "1lan" (chỉ số "≥1 lần") để không mất số liệu.
+    sheet.insertColumnBefore(3);
+    sheet.getRange(1, 3).setValue('Loại');
+    const lastRow = sheet.getLastRow();
+    if (lastRow >= 2) {
+      const range = sheet.getRange(2, 3, lastRow - 1, 1);
+      range.setValues(range.getValues().map(function() { return ['1lan']; }));
+    }
+  }
+  // Ép cột A (Tháng) thành văn bản thuần, tránh Google Sheets tự chuyển
+  // "2026-07" thành ngày (Date) — cùng lý do như ensureGoalKVSheet_().
+  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 500), 1).setNumberFormat('@');
+  return sheet;
+}
+
+function findTPRow_(monthKey, khuVuc, loai, tuan) {
+  const sheet = ensureTPSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const values = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (normalizeMonthCell_(v[0]) === monthKey && String(v[1]) === khuVuc && String(v[2]) === loai && Number(v[3]) === Number(tuan)) return 2 + i;
+  }
+  return null;
+}
+
+// Lưu (thêm mới hoặc cập nhật) số lượng TP của 1 Khu vực, 1 chỉ số ("1lan"
+// hoặc "4lan"), 1 tuần cụ thể trong tháng — chỉ cho phép sửa tháng hiện tại
+// trở đi, giống quy tắc "Nhập mục tiêu" (không cho sửa số liệu tháng đã qua).
+function saveTPWeek(monthKey, khuVuc, loai, tuan, soLuong) {
+  assertNotPastMonth_(monthKey);
+  if (!khuVuc) throw new Error('Vui lòng chọn Khu vực.');
+  const loaiNorm = String(loai || '').trim();
+  if (TP_LOAI_LIST_.indexOf(loaiNorm) === -1) throw new Error('Chỉ số TP không hợp lệ.');
+  const t = Number(tuan);
+  if (!t || t < 1 || t > 5) throw new Error('Tuần không hợp lệ (chỉ nhận 1-5).');
+  const sheet = ensureTPSheet_();
+  let row = findTPRow_(monthKey, khuVuc, loaiNorm, t);
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(monthKey);
+    sheet.getRange(row, 2).setValue(khuVuc);
+    sheet.getRange(row, 3).setValue(loaiNorm);
+    sheet.getRange(row, 4).setValue(t);
+  }
+  sheet.getRange(row, 5).setValue(Number(soLuong) || 0);
+  return { success: true };
+}
+
+// Gom số liệu TP của 1 tháng thành map[Khu vực][Loại][Tuần] = Số lượng, dùng
+// chung cho cả tháng đang xem lẫn tháng trước đó (để tính "Tổng tháng trước").
+function getTPWeeksMap_(monthKey) {
+  const sheet = ensureTPSheet_();
+  const lastRow = sheet.getLastRow();
+  const map = {};
+  if (lastRow < 2) return map;
+  const values = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+  values.forEach(function(v) {
+    if (normalizeMonthCell_(v[0]) !== monthKey) return;
+    const kv = String(v[1] || '');
+    const loai = String(v[2] || '');
+    const tuan = Number(v[3]);
+    if (!kv || !loai || !tuan) return;
+    if (!map[kv]) map[kv] = {};
+    if (!map[kv][loai]) map[kv][loai] = {};
+    map[kv][loai][tuan] = Number(v[4]) || 0;
+  });
+  return map;
+}
+
+// weeks (mảng 5 số ứng Tuần 1-5) + total = số LỚN NHẤT trong 5 tuần (không
+// cộng dồn — vì đây là số đếm lũy kế từ đầu tháng, xem ghi chú đầu file).
+function tpMetricFromMap_(map, khuVuc, loai) {
+  const weeksObj = (map[khuVuc] && map[khuVuc][loai]) || {};
+  const weeks = [1, 2, 3, 4, 5].map(function(w) { return weeksObj[w] || 0; });
+  const total = Math.max.apply(null, weeks.concat([0]));
+  return { weeks: weeks, total: total };
+}
+
+// Bảng tổng hợp TP cho TẤT CẢ Khu vực, dùng cho tab "TP" — mỗi hàng gồm:
+// khuVuc, oneLan { prevMonthTotal, weeks, total }, fourLan { prevMonthTotal, weeks, total }.
+function getTPSummary(monthKey) {
+  const toList = getDropdownOptions().toList;
+  const prevKey = prevMonthKey_(monthKey);
+  const curMap = getTPWeeksMap_(monthKey);
+  const prevMap = getTPWeeksMap_(prevKey);
+  return toList.map(function(kv) {
+    const cur1 = tpMetricFromMap_(curMap, kv, '1lan');
+    const cur4 = tpMetricFromMap_(curMap, kv, '4lan');
+    const prev1 = tpMetricFromMap_(prevMap, kv, '1lan');
+    const prev4 = tpMetricFromMap_(prevMap, kv, '4lan');
+    return {
+      khuVuc: kv,
+      oneLan: { prevMonthTotal: prev1.total, weeks: cur1.weeks, total: cur1.total },
+      fourLan: { prevMonthTotal: prev4.total, weeks: cur4.weeks, total: cur4.total }
+    };
+  });
+}
+
+/** =========================================================
+ *  GIÁO DỤC — danh sách thành viên (nhóm/nhân sự) riêng của từng Khu vực,
+ *  theo dõi % hoàn thành EDU LMS và % hoàn thành khóa Trực tuyến 127 THEO
+ *  TỪNG TUẦN (1-5) trong tháng, tương tự cách theo dõi TP ở trên. Đây là số
+ *  % lũy kế (đã hoàn thành bao nhiêu % tính đến tuần đó), nên "Tổng tháng"
+ *  cũng lấy số LỚN NHẤT trong 5 tuần (không cộng dồn) — giống quy tắc TP.
+ *
+ *  Danh sách thành viên (roster) được suy ra từ TOÀN BỘ các dòng đã từng
+ *  nhập (mọi tháng), để tên thành viên không bị mất khi sang tháng mới dù
+ *  tháng mới chưa nhập số liệu gì cho họ. Đây là danh sách nhập tay, KHÔNG
+ *  liên quan đến danh sách học viên hay Người dẫn dắt hiện có.
+ * ========================================================= */
+function ensureEduSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(EDU_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(EDU_SHEET);
+    sheet.getRange(1, 1, 1, 6).setValues([['Tháng (yyyy-MM)', 'Khu vực', 'Tên thành viên', 'Tuần', 'EDU LMS (%)', 'Trực tuyến 127 (%)']]);
+    sheet.autoResizeColumns(1, 6);
+  } else if (String(sheet.getRange(1, 1).getValue()).trim() !== 'Tháng (yyyy-MM)') {
+    // Sheet cũ (trước khi theo dõi theo tuần) chỉ có 4 cột: Khu vực, Tên thành
+    // viên, EDU LMS (%), Trực tuyến 127 (%) — 1 dòng/thành viên, không phân
+    // biệt tháng/tuần. Chuyển toàn bộ thành viên đã có sang tháng HIỆN TẠI,
+    // Tuần 1, giữ nguyên % đã nhập trước đó, để không mất dữ liệu.
+    const lastRow = sheet.getLastRow();
+    const oldData = [];
+    for (let r = 2; r <= lastRow; r++) {
+      const ten = sheet.getRange(r, 2).getValue();
+      if (!ten) continue;
+      oldData.push([sheet.getRange(r, 1).getValue(), ten, sheet.getRange(r, 3).getValue(), sheet.getRange(r, 4).getValue()]);
+    }
+    sheet.clear();
+    sheet.getRange(1, 1, 1, 6).setValues([['Tháng (yyyy-MM)', 'Khu vực', 'Tên thành viên', 'Tuần', 'EDU LMS (%)', 'Trực tuyến 127 (%)']]);
+    if (oldData.length) {
+      const mk = currentMonthKey_();
+      const rows = oldData.map(function(d) {
+        return [mk, d[0], d[1], 1, Number(d[2]) || 0, Number(d[3]) || 0];
+      });
+      sheet.getRange(2, 1, rows.length, 6).setValues(rows);
+    }
+    sheet.autoResizeColumns(1, 6);
+  }
+  // Ép cột A (Tháng) thành văn bản thuần, giống các sheet Tháng khác ở trên.
+  sheet.getRange(2, 1, Math.max(sheet.getMaxRows() - 1, 500), 1).setNumberFormat('@');
+  return sheet;
+}
+
+// Danh sách thành viên (roster) của TẤT CẢ Khu vực, suy ra từ toàn bộ các
+// dòng đã từng nhập ở bất kỳ tháng nào (không lọc theo tháng) — mỗi cặp
+// (Khu vực, Tên) chỉ xuất hiện 1 lần, sắp xếp theo Khu vực rồi Tên.
+// Đọc cả sheet Giáo dục bằng 1 lệnh getValues() — dùng chung cho
+// getGiaoDucMembers()/getEduWeeksMap_() thay vì mỗi hàm tự quét lại từng ô.
+function getAllEduRows_() {
+  const sheet = ensureEduSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+}
+
+function getGiaoDucMembers() {
+  const rows = getAllEduRows_();
+  const seen = {};
+  const list = [];
+  rows.forEach(function(row) {
+    const khuVuc = String(row[1] || '');
+    const ten = String(row[2] || '').trim();
+    if (!khuVuc || !ten) return;
+    const key = khuVuc + '||' + ten;
+    if (seen[key]) return;
+    seen[key] = true;
+    list.push({ khuVuc: khuVuc, ten: ten });
+  });
+  list.sort(function(a, b) {
+    if (a.khuVuc !== b.khuVuc) return a.khuVuc.localeCompare(b.khuVuc, 'vi');
+    return a.ten.localeCompare(b.ten, 'vi');
+  });
+  return list;
+}
+
+// Thêm 1 thành viên mới vào Khu vực (chỉ cần Tên — chưa có % nào), tạo dòng
+// đầu tiên cho họ ở tháng HIỆN TẠI, Tuần 1, cả 2 chỉ số = 0.
+function addGiaoDucMember(data) {
+  const khuVuc = data.khuVuc;
+  const ten = String(data.ten || '').trim();
+  if (!khuVuc) throw new Error('Vui lòng chọn Khu vực.');
+  if (!ten) throw new Error('Vui lòng nhập Tên thành viên.');
+  const existing = getGiaoDucMembers();
+  if (existing.some(function(m) { return m.khuVuc === khuVuc && m.ten === ten; })) {
+    throw new Error('Thành viên "' + ten + '" đã có trong Khu vực "' + khuVuc + '".');
+  }
+  const sheet = ensureEduSheet_();
+  const row = sheet.getLastRow() + 1;
+  sheet.getRange(row, 1, 1, 6).setValues([[currentMonthKey_(), khuVuc, ten, 1, 0, 0]]);
+  return { success: true };
+}
+
+// Xóa hẳn 1 thành viên khỏi Khu vực — xóa TẤT CẢ các dòng của họ ở MỌI
+// tháng (xóa luôn lịch sử), vì roster được suy ra từ lịch sử này.
+function deleteGiaoDucMember(khuVuc, ten) {
+  const sheet = ensureEduSheet_();
+  const lastRow = sheet.getLastRow();
+  const tenNorm = String(ten || '').trim();
+  if (lastRow < 2) return { success: true };
+  const values = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (String(values[i][1]) === khuVuc && String(values[i][2]).trim() === tenNorm) {
+      sheet.deleteRow(2 + i);
+    }
+  }
+  return { success: true };
+}
+
+function findEduWeekRow_(monthKey, khuVuc, ten, tuan) {
+  const sheet = ensureEduSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const values = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (normalizeMonthCell_(v[0]) === monthKey && String(v[1]) === khuVuc && String(v[2]).trim() === ten && Number(v[3]) === Number(tuan)) return 2 + i;
+  }
+  return null;
+}
+
+// Lưu (thêm mới hoặc cập nhật) % EDU LMS + % Trực tuyến 127 của 1 thành viên,
+// 1 tuần cụ thể trong tháng — chỉ cho phép sửa tháng hiện tại trở đi.
+function saveGiaoDucWeek(monthKey, khuVuc, ten, tuan, eduLms, truc127) {
+  assertNotPastMonth_(monthKey);
+  if (!khuVuc) throw new Error('Vui lòng chọn Khu vực.');
+  const tenNorm = String(ten || '').trim();
+  if (!tenNorm) throw new Error('Thiếu tên thành viên.');
+  const t = Number(tuan);
+  if (!t || t < 1 || t > 5) throw new Error('Tuần không hợp lệ (chỉ nhận 1-5).');
+  const sheet = ensureEduSheet_();
+  let row = findEduWeekRow_(monthKey, khuVuc, tenNorm, t);
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(monthKey);
+    sheet.getRange(row, 2).setValue(khuVuc);
+    sheet.getRange(row, 3).setValue(tenNorm);
+    sheet.getRange(row, 4).setValue(t);
+  }
+  sheet.getRange(row, 5).setValue(Number(eduLms) || 0);
+  sheet.getRange(row, 6).setValue(Number(truc127) || 0);
+  return { success: true };
+}
+
+// Gom số liệu Giáo dục của 1 tháng + 1 Khu vực thành map[Tên][Tuần] = {eduLms, truc127}.
+function getEduWeeksMap_(monthKey, khuVuc) {
+  const rows = getAllEduRows_();
+  const map = {};
+  rows.forEach(function(v) {
+    if (normalizeMonthCell_(v[0]) !== monthKey) return;
+    if (String(v[1]) !== khuVuc) return;
+    const ten = String(v[2] || '').trim();
+    const tuan = Number(v[3]);
+    if (!ten || !tuan) return;
+    if (!map[ten]) map[ten] = {};
+    map[ten][tuan] = { eduLms: Number(v[4]) || 0, truc127: Number(v[5]) || 0 };
+  });
+  return map;
+}
+
+// weeks (mảng 5 số ứng Tuần 1-5) + total = số LỚN NHẤT trong 5 tuần (% lũy
+// kế, không cộng dồn — giống quy tắc TP).
+function eduMetricFromMap_(weeksForMember, field) {
+  const weeks = [1, 2, 3, 4, 5].map(function(w) {
+    return (weeksForMember[w] && weeksForMember[w][field]) || 0;
+  });
+  const total = Math.max.apply(null, weeks.concat([0]));
+  return { weeks: weeks, total: total };
+}
+
+// Bảng chi tiết Giáo dục cho 1 Khu vực, 1 tháng — mỗi hàng là 1 thành viên:
+// ten, eduLms { prevMonthTotal, weeks, total }, truc127 { prevMonthTotal, weeks, total }.
+// Dùng cho tab "Hiện trạng khu vực" > Giáo dục (đã chọn sẵn 1 Khu vực).
+function getGiaoDucWeekly(monthKey, khuVuc) {
+  const roster = getGiaoDucMembers().filter(function(m) { return m.khuVuc === khuVuc; });
+  const prevKey = prevMonthKey_(monthKey);
+  const curMap = getEduWeeksMap_(monthKey, khuVuc);
+  const prevMap = getEduWeeksMap_(prevKey, khuVuc);
+  return roster.map(function(m) {
+    const curW = curMap[m.ten] || {};
+    const prevW = prevMap[m.ten] || {};
+    const eduLms = eduMetricFromMap_(curW, 'eduLms');
+    const truc127 = eduMetricFromMap_(curW, 'truc127');
+    const prevEduLms = eduMetricFromMap_(prevW, 'eduLms');
+    const prevTruc127 = eduMetricFromMap_(prevW, 'truc127');
+    return {
+      ten: m.ten,
+      eduLms: { prevMonthTotal: prevEduLms.total, weeks: eduLms.weeks, total: eduLms.total },
+      truc127: { prevMonthTotal: prevTruc127.total, weeks: truc127.weeks, total: truc127.total }
+    };
+  });
+}
+
+// Bản "gộp tất cả Khu vực" của getGiaoDucWeekly — trả về object dạng
+// { "<Khu vực>": [ ...danh sách thành viên như getGiaoDucWeekly() ] }. Cùng
+// mục đích với getAllKhuVucOverview(): gọi API 1 lần cho cả tab "Giáo dục"
+// khi vào tab "Hiện trạng khu vực", đổi Khu vực trên trình duyệt không cần
+// gọi lại mạng nữa.
+//
+// QUAN TRỌNG VỀ TỐC ĐỘ: hàm này KHÔNG được gọi getGiaoDucWeekly() lặp lại
+// cho từng Khu vực nữa — bản cũ làm vậy khiến sheet Giáo dục bị đọc lại
+// TOÀN BỘ 3 lần/Khu vực x 6 Khu vực = 18 lần mỗi khi mở tab hay thêm/xóa/sửa
+// 1 thành viên (rất chậm trên Apps Script vì mỗi lần đọc sheet tốn round-trip
+// riêng). Giờ chỉ đọc sheet ĐÚNG 1 LẦN rồi gộp roster + số liệu tháng này/
+// tháng trước cho cả 6 Khu vực trong 1 lượt duyệt qua các dòng.
+function getGiaoDucWeeklyAll(monthKey) {
+  const toList = getDropdownOptions().toList;
+  const prevKey = prevMonthKey_(monthKey);
+  const rows = getAllEduRows_();
+
+  const rosterByKV = {};   // khuVuc -> { ten: true, ... } (dùng để dedupe + liệt kê)
+  const dataByKV = {};     // khuVuc -> monthKey -> ten -> tuan -> {eduLms, truc127}
+
+  rows.forEach(function(v) {
+    const khuVuc = String(v[1] || '');
+    const ten = String(v[2] || '').trim();
+    if (!khuVuc || !ten) return;
+    if (!rosterByKV[khuVuc]) rosterByKV[khuVuc] = {};
+    rosterByKV[khuVuc][ten] = true;
+
+    const tuan = Number(v[3]);
+    if (!tuan) return;
+    const mk = normalizeMonthCell_(v[0]);
+    if (!dataByKV[khuVuc]) dataByKV[khuVuc] = {};
+    if (!dataByKV[khuVuc][mk]) dataByKV[khuVuc][mk] = {};
+    if (!dataByKV[khuVuc][mk][ten]) dataByKV[khuVuc][mk][ten] = {};
+    dataByKV[khuVuc][mk][ten][tuan] = { eduLms: Number(v[4]) || 0, truc127: Number(v[5]) || 0 };
+  });
+
+  const result = {};
+  toList.forEach(function(kv) {
+    const names = Object.keys(rosterByKV[kv] || {}).sort(function(a, b) { return a.localeCompare(b, 'vi'); });
+    const curMap = (dataByKV[kv] && dataByKV[kv][monthKey]) || {};
+    const prevMap = (dataByKV[kv] && dataByKV[kv][prevKey]) || {};
+    result[kv] = names.map(function(ten) {
+      const curW = curMap[ten] || {};
+      const prevW = prevMap[ten] || {};
+      const eduLms = eduMetricFromMap_(curW, 'eduLms');
+      const truc127 = eduMetricFromMap_(curW, 'truc127');
+      const prevEduLms = eduMetricFromMap_(prevW, 'eduLms');
+      const prevTruc127 = eduMetricFromMap_(prevW, 'truc127');
+      return {
+        ten: ten,
+        eduLms: { prevMonthTotal: prevEduLms.total, weeks: eduLms.weeks, total: eduLms.total },
+        truc127: { prevMonthTotal: prevTruc127.total, weeks: truc127.weeks, total: truc127.total }
+      };
+    });
+  });
+  return result;
+}
+
+/** =========================================================
+ *  LỊCH LÀM VIỆC TUẦN — mỗi dòng là 1 công việc gắn với 1 ngày cụ thể (KHÔNG
+ *  lặp lại tự động mỗi tuần, mỗi tuần Trưởng phòng/các Khu vực tự nhập mới).
+ *  Dùng cho tab "Lịch làm việc": bảng lịch tuần Thứ 2 - Chủ nhật, mọi Khu vực/
+ *  Người dẫn dắt cùng xem để biết tuần này ai làm gì, ở đâu.
+ * ========================================================= */
+const LICH_TRANGTHAI_LIST_ = ['Chưa diễn ra', 'Đã diễn ra', 'Hủy'];
+
+function ensureLichSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(LICH_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(LICH_SHEET);
+    sheet.getRange(1, 1, 1, 9).setValues([[
+      'Ngày', 'Giờ bắt đầu', 'Giờ kết thúc', 'Nội dung công việc',
+      'Người phụ trách', 'Khu vực', 'Địa điểm', 'Trạng thái', 'Người tham gia'
+    ]]);
+    sheet.autoResizeColumns(1, 9);
+  } else if (String(sheet.getRange(1, 9).getValue()).trim() !== 'Người tham gia') {
+    // Sheet cũ (trước khi có "Người tham gia") chỉ có 8 cột — thêm tiêu đề cột
+    // 9 mà không đụng dữ liệu cũ, các dòng cũ sẽ có "Người tham gia" trống.
+    sheet.getRange(1, 9).setValue('Người tham gia');
+  }
+  // Ép cột Giờ bắt đầu/Giờ kết thúc thành văn bản thuần, tránh Google Sheets
+  // tự hiểu "19:00" là giá trị thời gian (Date) rồi hiển thị/so sánh sai lệch
+  // — cùng lý do như các sheet Tháng khác ép cột A thành text ('@').
+  sheet.getRange(2, 2, Math.max(sheet.getMaxRows() - 1, 500), 2).setNumberFormat('@');
+  return sheet;
+}
+
+// Quy đổi 1 giá trị (Date do Sheets tự nhận diện, hoặc chuỗi "yyyy-MM-dd" từ
+// web) về 1 Date chỉ còn phần NGÀY (bỏ giờ/phút/giây) để so sánh khoảng ngày
+// chính xác, không lệch múi giờ — dùng chung cho cả lúc ĐỌC (ô trong sheet có
+// thể là Date) lẫn lúc nhận tham số từ web (luôn là chuỗi "yyyy-MM-dd").
+function dateOnly_(val) {
+  if (val === null || val === undefined || val === '') return null;
+  if (Object.prototype.toString.call(val) === '[object Date]') {
+    if (isNaN(val.getTime())) return null;
+    return new Date(val.getFullYear(), val.getMonth(), val.getDate());
+  }
+  const m = String(val).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+function formatYMD_(d) {
+  if (!d) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Chuẩn hóa "Người tham gia" (nhiều người) về 1 mảng tên đã trim, bỏ tên rỗng
+// — chấp nhận cả mảng (["A","B"], từ web gửi lên) lẫn chuỗi "A, B" (đọc lại
+// từ ô Sheet đã lưu trước đó), để dùng chung 1 hàm cho cả ghi lẫn đọc.
+function parseThamGiaList_(val) {
+  if (Array.isArray(val)) {
+    return val.map(function(v) { return String(v || '').trim(); }).filter(String);
+  }
+  return String(val || '').split(',').map(function(v) { return v.trim(); }).filter(String);
+}
+
+function validateLichData_(data) {
+  if (!dateOnly_(data.ngay)) throw new Error('Vui lòng chọn Ngày hợp lệ.');
+  if (!String(data.noiDung || '').trim()) throw new Error('Vui lòng nhập Nội dung công việc.');
+  const nddList = getNddOptions_();
+  const nguoiPhuTrach = String(data.nguoiPhuTrach || '').trim();
+  if (nguoiPhuTrach) {
+    if (nddList.length && nddList.indexOf(nguoiPhuTrach) === -1) {
+      throw new Error('"Người phụ trách": "' + nguoiPhuTrach + '" không có trong danh sách Người dẫn dắt (tab Config).');
+    }
+  }
+  const thamGiaList = parseThamGiaList_(data.nguoiThamGia);
+  thamGiaList.forEach(function(ten) {
+    if (nddList.length && nddList.indexOf(ten) === -1) {
+      throw new Error('"Người tham gia": "' + ten + '" không có trong danh sách Người dẫn dắt (tab Config).');
+    }
+  });
+  const khuVuc = String(data.khuVuc || '').trim();
+  if (khuVuc) {
+    const kvList = getToOptions_();
+    if (kvList.indexOf(khuVuc) === -1) throw new Error('Khu vực không hợp lệ.');
+  }
+  const trangThai = String(data.trangThai || '').trim();
+  if (trangThai && LICH_TRANGTHAI_LIST_.indexOf(trangThai) === -1) throw new Error('Trạng thái không hợp lệ.');
+}
+
+function lichRowValues_(data) {
+  return [[
+    dateOnly_(data.ngay),
+    String(data.gioBatDau || '').trim(),
+    String(data.gioKetThuc || '').trim(),
+    String(data.noiDung || '').trim(),
+    String(data.nguoiPhuTrach || '').trim(),
+    String(data.khuVuc || '').trim(),
+    String(data.diaDiem || '').trim(),
+    String(data.trangThai || '').trim() || LICH_TRANGTHAI_LIST_[0],
+    parseThamGiaList_(data.nguoiThamGia).join(', ')
+  ]];
+}
+
+function addLichEvent(data) {
+  validateLichData_(data);
+  const sheet = ensureLichSheet_();
+  const row = sheet.getLastRow() + 1;
+  sheet.getRange(row, 1, 1, 9).setValues(lichRowValues_(data));
+  return { success: true };
+}
+
+function updateLichEvent(row, data) {
+  validateLichData_(data);
+  const sheet = ensureLichSheet_();
+  sheet.getRange(row, 1, 1, 9).setValues(lichRowValues_(data));
+  return { success: true };
+}
+
+function deleteLichEvent(row) {
+  const sheet = ensureLichSheet_();
+  sheet.getRange(row, 1, 1, 9).clearContent();
+  return { success: true };
+}
+
+// Toàn bộ công việc trong 1 tuần — 7 ngày liên tiếp bắt đầu từ ngayBatDau
+// ("yyyy-MM-dd", luôn là Thứ 2 do frontend tự tính) đến hết Chủ nhật. Sắp xếp
+// theo Ngày rồi Giờ bắt đầu để hiển thị đúng thứ tự trong từng cột của lịch.
+function getLichTuan(ngayBatDau) {
+  const sheet = ensureLichSheet_();
+  const lastRow = sheet.getLastRow();
+  const result = [];
+  if (lastRow < 2) return result;
+  const start = dateOnly_(ngayBatDau);
+  if (!start) throw new Error('Ngày bắt đầu tuần không hợp lệ.');
+  const end = new Date(start.getTime());
+  end.setDate(end.getDate() + 6);
+  const rows = sheet.getRange(2, 1, lastRow - 1, 9).getValues();
+  rows.forEach(function(row, i) {
+    const d = dateOnly_(row[0]);
+    if (!d || d < start || d > end) return;
+    if (!String(row[3] || '').trim()) return; // dòng đã xóa nội dung (clearContent) -> bỏ qua
+    result.push({
+      row: 2 + i,
+      ngay: formatYMD_(d),
+      gioBatDau: row[1] || '',
+      gioKetThuc: row[2] || '',
+      noiDung: row[3] || '',
+      nguoiPhuTrach: row[4] || '',
+      khuVuc: row[5] || '',
+      diaDiem: row[6] || '',
+      trangThai: row[7] || LICH_TRANGTHAI_LIST_[0],
+      nguoiThamGia: row[8] || ''
+    });
+  });
+  result.sort(function(a, b) {
+    if (a.ngay !== b.ngay) return a.ngay < b.ngay ? -1 : 1;
+    return String(a.gioBatDau).localeCompare(String(b.gioBatDau));
+  });
+  return result;
+}
+
+/** =========================================================
+ *  ĐÀO TẠO — dùng cho tab "Hiện trạng khu vực" > Đào tạo. Gồm 2 phần độc lập:
+ *  (A) Giáo trình "Đứng lớp" — 70 bài chia thành 7 quyển x 10 bài (mã "Q-B",
+ *      ví dụ "3-7" = Quyển 3, Bài 7). Thành viên đánh dấu TỰ DO bài nào cũng
+ *      được (không bắt buộc thứ tự). Đủ 70/70 bài mới được cấp chứng chỉ.
+ *      Dùng CHUNG danh sách thành viên với tab Giáo dục (getGiaoDucMembers())
+ *      — cùng là "thành viên trong Khu vực", tránh phải quản lý 2 roster
+ *      trùng nhau.
+ *  (B) Việc giao trong tuần/tháng — Trưởng phòng/Người dẫn dắt tự tạo việc
+ *      giao cho từng thành viên, không có sẵn danh sách mặc định. Theo mẫu
+ *      CRUD y hệt "Lịch làm việc" ở trên (định danh dòng qua "row").
+ * ========================================================= */
+const DAOTAO_TIENDO_SHEET = 'Dao Tao Tien Do';
+const DAOTAO_VIEC_SHEET = 'Dao Tao Viec Giao';
+const DAOTAO_SO_QUYEN_ = 7;
+const DAOTAO_SO_BAI_MOI_QUYEN_ = 10;
+const DAOTAO_TONG_BAI_ = DAOTAO_SO_QUYEN_ * DAOTAO_SO_BAI_MOI_QUYEN_; // 70
+const DAOTAO_VIEC_TRANGTHAI_LIST_ = ['Chưa làm', 'Đang làm', 'Hoàn thành', 'Trễ hạn'];
+
+/** ---------- (A) Giáo trình "Đứng lớp" ---------- */
+function ensureDaoTaoTienDoSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(DAOTAO_TIENDO_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(DAOTAO_TIENDO_SHEET);
+    sheet.getRange(1, 1, 1, 4).setValues([['Khu vực', 'Tên thành viên', 'Bài đã học (mã Quyển-Bài, cách nhau dấu phẩy)', 'Ngày cấp chứng chỉ']]);
+    sheet.autoResizeColumns(1, 4);
+  }
+  // QUAN TRỌNG: ép cột C (Bài đã học) thành văn bản thuần ('@') — nếu không,
+  // Google Sheets tự hiểu các mã "1-1", "3-7"... là NGÀY THÁNG (kiểu Date)
+  // thay vì text, làm hỏng toàn bộ danh sách bài đã học đã lưu. Cùng lý do
+  // các sheet Giờ/Tháng khác trong file này đều ép '@' cho cột dễ bị hiểu nhầm.
+  sheet.getRange(2, 3, Math.max(sheet.getMaxRows() - 1, 500), 1).setNumberFormat('@');
+  return sheet;
+}
+
+// "1-1,1-2,3-7" -> ['1-1','1-2','3-7'] (bỏ khoảng trắng thừa, bỏ mã rỗng).
+function parseDaoTaoBaiList_(val) {
+  return String(val || '').split(',').map(function(v) { return v.trim(); }).filter(Boolean);
+}
+
+function daoTaoValidMaBai_(ma) {
+  const m = String(ma || '').trim().match(/^([1-7])-(\d{1,2})$/);
+  if (!m) return false;
+  const bai = Number(m[2]);
+  return bai >= 1 && bai <= DAOTAO_SO_BAI_MOI_QUYEN_;
+}
+
+function findDaoTaoTienDoRow_(khuVuc, ten) {
+  const sheet = ensureDaoTaoTienDoSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const values = sheet.getRange(2, 1, lastRow - 1, 2).getValues();
+  const kvNorm = String(khuVuc || '').trim();
+  const tenNorm = String(ten || '').trim();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() === kvNorm && String(values[i][1]).trim() === tenNorm) return 2 + i;
+  }
+  return null;
+}
+
+// Đánh dấu Đã học / Chưa học 1 bài cụ thể cho 1 thành viên — tự do, không cần
+// theo thứ tự. hoanThanh=true -> thêm mã bài vào danh sách (nếu chưa có);
+// hoanThanh=false -> bỏ mã bài ra khỏi danh sách.
+function toggleDaoTaoBai(khuVuc, ten, maBai, hoanThanh) {
+  const khuVucNorm = String(khuVuc || '').trim();
+  const tenNorm = String(ten || '').trim();
+  if (!khuVucNorm) throw new Error('Thiếu Khu vực.');
+  if (!tenNorm) throw new Error('Thiếu tên thành viên.');
+  const ma = String(maBai || '').trim();
+  if (!daoTaoValidMaBai_(ma)) throw new Error('Mã bài không hợp lệ: "' + ma + '" (phải dạng "Quyển-Bài", ví dụ "3-7").');
+  const sheet = ensureDaoTaoTienDoSheet_();
+  let row = findDaoTaoTienDoRow_(khuVucNorm, tenNorm);
+  let baiList;
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(khuVucNorm);
+    sheet.getRange(row, 2).setValue(tenNorm);
+    baiList = [];
+  } else {
+    baiList = parseDaoTaoBaiList_(sheet.getRange(row, 3).getValue());
+  }
+  const idx = baiList.indexOf(ma);
+  if (hoanThanh) {
+    if (idx === -1) baiList.push(ma);
+  } else if (idx !== -1) {
+    baiList.splice(idx, 1);
+  }
+  sheet.getRange(row, 3).setValue(baiList.join(','));
+  return { success: true, soBai: baiList.length, phanTram: Math.round((baiList.length / DAOTAO_TONG_BAI_) * 1000) / 10 };
+}
+
+// "Chọn tất cả" / "Bỏ chọn tất cả" — ghi thẳng cả 70 mã (hoặc rỗng) trong 1
+// lượt ghi sheet, thay vì gọi toggleDaoTaoBai() lặp 70 lần (chậm, tốn 70 lượt
+// gọi mạng từ trình duyệt).
+function setDaoTaoBaiAll(khuVuc, ten, hoanThanh) {
+  const khuVucNorm = String(khuVuc || '').trim();
+  const tenNorm = String(ten || '').trim();
+  if (!khuVucNorm) throw new Error('Thiếu Khu vực.');
+  if (!tenNorm) throw new Error('Thiếu tên thành viên.');
+  const sheet = ensureDaoTaoTienDoSheet_();
+  let row = findDaoTaoTienDoRow_(khuVucNorm, tenNorm);
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(khuVucNorm);
+    sheet.getRange(row, 2).setValue(tenNorm);
+  }
+  let baiList = [];
+  if (hoanThanh) {
+    for (let q = 1; q <= DAOTAO_SO_QUYEN_; q++) {
+      for (let b = 1; b <= DAOTAO_SO_BAI_MOI_QUYEN_; b++) baiList.push(q + '-' + b);
+    }
+  }
+  sheet.getRange(row, 3).setValue(baiList.join(','));
+  return { success: true, soBai: baiList.length, phanTram: Math.round((baiList.length / DAOTAO_TONG_BAI_) * 1000) / 10 };
+}
+
+// "Chọn cả quyển" / "Bỏ chọn cả quyển" — tương tự setDaoTaoBaiAll() nhưng chỉ
+// tác động 10 bài của 1 quyển, GIỮ NGUYÊN các bài đã đánh dấu ở quyển khác.
+function setDaoTaoQuyenAll(khuVuc, ten, quyen, hoanThanh) {
+  const khuVucNorm = String(khuVuc || '').trim();
+  const tenNorm = String(ten || '').trim();
+  if (!khuVucNorm) throw new Error('Thiếu Khu vực.');
+  if (!tenNorm) throw new Error('Thiếu tên thành viên.');
+  const q = Number(quyen);
+  if (!(q >= 1 && q <= DAOTAO_SO_QUYEN_)) throw new Error('Quyển không hợp lệ: ' + quyen);
+  const sheet = ensureDaoTaoTienDoSheet_();
+  let row = findDaoTaoTienDoRow_(khuVucNorm, tenNorm);
+  let baiList;
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(khuVucNorm);
+    sheet.getRange(row, 2).setValue(tenNorm);
+    baiList = [];
+  } else {
+    baiList = parseDaoTaoBaiList_(sheet.getRange(row, 3).getValue());
+  }
+  const quyenCodes = [];
+  for (let b = 1; b <= DAOTAO_SO_BAI_MOI_QUYEN_; b++) quyenCodes.push(q + '-' + b);
+  baiList = baiList.filter(function(c) { return quyenCodes.indexOf(c) === -1; });
+  if (hoanThanh) baiList = baiList.concat(quyenCodes);
+  sheet.getRange(row, 3).setValue(baiList.join(','));
+  return { success: true, soBai: baiList.length, phanTram: Math.round((baiList.length / DAOTAO_TONG_BAI_) * 1000) / 10 };
+}
+
+// Cấp chứng chỉ "Đứng lớp" — chỉ cho phép khi đã đủ TRỌN 70/70 bài.
+function capChungChiDaoTao(khuVuc, ten) {
+  const row = findDaoTaoTienDoRow_(khuVuc, ten);
+  if (!row) throw new Error('Thành viên chưa có tiến độ nào để cấp chứng chỉ.');
+  const sheet = ensureDaoTaoTienDoSheet_();
+  const baiList = parseDaoTaoBaiList_(sheet.getRange(row, 3).getValue());
+  if (baiList.length < DAOTAO_TONG_BAI_) {
+    throw new Error('Chưa đủ điều kiện — mới hoàn thành ' + baiList.length + '/' + DAOTAO_TONG_BAI_ + ' bài.');
+  }
+  const now = new Date();
+  sheet.getRange(row, 4).setValue(now);
+  return { success: true, ngayCap: formatYMD_(now) };
+}
+
+// Toàn bộ tiến độ Giáo trình "Đứng lớp", gộp sẵn TẤT CẢ Khu vực trong 1 lần
+// đọc sheet (cùng lý do hiệu năng như getGiaoDucWeeklyAll() ở trên) — trả về
+// { "<Khu vực>": [ {ten, baiDaHoc, soBai, phanTram, ngayCapChungChi} ] }.
+// Roster (danh sách thành viên) lấy CHUNG từ getGiaoDucMembers().
+function getDaoTaoTienDoAll() {
+  const roster = getGiaoDucMembers();
+  const sheet = ensureDaoTaoTienDoSheet_();
+  const lastRow = sheet.getLastRow();
+  const progressMap = {}; // "KhuVực||Tên" -> { baiList, ngayCap }
+  if (lastRow >= 2) {
+    const values = sheet.getRange(2, 1, lastRow - 1, 4).getValues();
+    values.forEach(function(v) {
+      const kv = String(v[0] || '').trim();
+      const ten = String(v[1] || '').trim();
+      if (!kv || !ten) return;
+      const d = v[3] ? dateOnly_(v[3]) : null;
+      progressMap[kv + '||' + ten] = { baiList: parseDaoTaoBaiList_(v[2]), ngayCap: d ? formatYMD_(d) : '' };
+    });
+  }
+  const result = {};
+  roster.forEach(function(m) {
+    const p = progressMap[m.khuVuc + '||' + m.ten] || { baiList: [], ngayCap: '' };
+    if (!result[m.khuVuc]) result[m.khuVuc] = [];
+    result[m.khuVuc].push({
+      ten: m.ten,
+      baiDaHoc: p.baiList,
+      soBai: p.baiList.length,
+      phanTram: Math.round((p.baiList.length / DAOTAO_TONG_BAI_) * 1000) / 10,
+      ngayCapChungChi: p.ngayCap
+    });
+  });
+  return result;
+}
+
+/** ---------- (B) Việc giao trong tuần/tháng ---------- */
+function ensureDaoTaoViecSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(DAOTAO_VIEC_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(DAOTAO_VIEC_SHEET);
+    sheet.getRange(1, 1, 1, 6).setValues([['Khu vực', 'Tên thành viên', 'Nội dung công việc', 'Ngày giao', 'Hạn hoàn thành', 'Trạng thái']]);
+    sheet.autoResizeColumns(1, 6);
+  }
+  return sheet;
+}
+
+function validateDaoTaoViecData_(data) {
+  if (!String(data.khuVuc || '').trim()) throw new Error('Vui lòng chọn Khu vực.');
+  if (!String(data.ten || '').trim()) throw new Error('Vui lòng chọn Thành viên.');
+  if (!String(data.noiDung || '').trim()) throw new Error('Vui lòng nhập Nội dung công việc.');
+  const trangThai = String(data.trangThai || '').trim();
+  if (trangThai && DAOTAO_VIEC_TRANGTHAI_LIST_.indexOf(trangThai) === -1) throw new Error('Trạng thái không hợp lệ.');
+}
+
+function daoTaoViecRowValues_(data) {
+  return [[
+    String(data.khuVuc || '').trim(),
+    String(data.ten || '').trim(),
+    String(data.noiDung || '').trim(),
+    dateOnly_(data.ngayGiao) || '',
+    dateOnly_(data.hanHoanThanh) || '',
+    String(data.trangThai || '').trim() || DAOTAO_VIEC_TRANGTHAI_LIST_[0]
+  ]];
+}
+
+function addDaoTaoViec(data) {
+  validateDaoTaoViecData_(data);
+  const sheet = ensureDaoTaoViecSheet_();
+  const row = sheet.getLastRow() + 1;
+  sheet.getRange(row, 1, 1, 6).setValues(daoTaoViecRowValues_(data));
+  return { success: true };
+}
+
+function updateDaoTaoViec(row, data) {
+  validateDaoTaoViecData_(data);
+  const sheet = ensureDaoTaoViecSheet_();
+  sheet.getRange(row, 1, 1, 6).setValues(daoTaoViecRowValues_(data));
+  return { success: true };
+}
+
+function deleteDaoTaoViec(row) {
+  const sheet = ensureDaoTaoViecSheet_();
+  sheet.getRange(row, 1, 1, 6).clearContent();
+  return { success: true };
+}
+
+// Danh sách việc đã giao — lọc theo Khu vực (bỏ trống "" = lấy tất cả), sắp
+// xếp theo Hạn hoàn thành rồi Ngày giao, việc đã xóa (clearContent) tự động
+// bị loại vì cột Nội dung công việc rỗng.
+function getDaoTaoViecList(khuVuc) {
+  const sheet = ensureDaoTaoViecSheet_();
+  const lastRow = sheet.getLastRow();
+  const result = [];
+  if (lastRow < 2) return result;
+  const kvFilter = String(khuVuc || '').trim();
+  const rows = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  rows.forEach(function(row, i) {
+    if (!String(row[2] || '').trim()) return;
+    if (kvFilter && String(row[0]).trim() !== kvFilter) return;
+    const ngayGiao = row[3] ? dateOnly_(row[3]) : null;
+    const han = row[4] ? dateOnly_(row[4]) : null;
+    result.push({
+      row: 2 + i,
+      khuVuc: row[0] || '',
+      ten: row[1] || '',
+      noiDung: row[2] || '',
+      ngayGiao: ngayGiao ? formatYMD_(ngayGiao) : '',
+      hanHoanThanh: han ? formatYMD_(han) : '',
+      trangThai: row[5] || DAOTAO_VIEC_TRANGTHAI_LIST_[0]
+    });
+  });
+  result.sort(function(a, b) {
+    const ha = a.hanHoanThanh || '9999-99-99';
+    const hb = b.hanHoanThanh || '9999-99-99';
+    if (ha !== hb) return ha < hb ? -1 : 1;
+    return String(a.ngayGiao || '').localeCompare(String(b.ngayGiao || ''));
+  });
+  return result;
+}
+
+/** =========================================================
+ *  LỄ HỘI — module DÙNG CHUNG cho các sự kiện/lễ hội theo tháng (ví dụ
+ *  "Lễ hội Lời" tháng 8/2026, sau này có thể có "Lễ hội Trudo" tháng 9...).
+ *  Cấu hình từng lễ hội (tên, thời gian, danh sách bài áp dụng, số lần yêu
+ *  cầu/bài) lưu ở sheet cấu hình riêng — có thể thêm lễ hội mới bằng cách
+ *  thêm 1 dòng trong Sheet, KHÔNG cần sửa code, miễn là cùng kiểu "phát biểu
+ *  đủ N lần cho từng bài trong 1 danh sách bài". Roster dùng CHUNG với
+ *  Giáo dục/Đào tạo (getGiaoDucMembers()).
+ *  Mỗi bài cần phát biểu đủ soLanYeuCau lần (vd 3 lần: Lần 1/Lần 2/Lần 3)
+ *  mới tính hoàn thành bài đó; lưu dưới dạng mã "<mã bài>#<lần>",
+ *  ví dụ "4-6#1", "4-6#2", "4-6#3".
+ * ========================================================= */
+const LEHOI_CAUHINH_SHEET = 'Le Hoi Cau Hinh';
+const LEHOI_TIENDO_SHEET = 'Le Hoi Tien Do';
+
+function ensureLeHoiCauHinhSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(LEHOI_CAUHINH_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(LEHOI_CAUHINH_SHEET);
+    sheet.getRange(1, 1, 1, 6).setValues([[
+      'Mã lễ hội', 'Tên lễ hội', 'Ngày bắt đầu', 'Ngày kết thúc',
+      'Danh sách bài (mã Quyển-Bài, cách nhau dấu phẩy)', 'Số lần yêu cầu / bài'
+    ]]);
+    // Tạo sẵn 1 dòng cấu hình cho "Lễ hội Lời" tháng 8/2026 — nội dung là 5
+    // bài Quyển 4 (Bài 6-10), mỗi bài cần phát biểu đủ 3 lần. Anh có thể tự
+    // sửa/thêm dòng khác (ví dụ Lễ hội Trudo tháng 9) trực tiếp trong Sheet.
+    sheet.getRange(2, 1, 1, 6).setValues([[
+      '2026-08-loi', 'Lễ hội Lời', new Date(2026, 7, 1), new Date(2026, 7, 30), '4-6,4-7,4-8,4-9,4-10', 3
+    ]]);
+    sheet.autoResizeColumns(1, 6);
+  }
+  return sheet;
+}
+
+function ensureLeHoiTienDoSheet_() {
+  const ss = getSpreadsheet_();
+  let sheet = ss.getSheetByName(LEHOI_TIENDO_SHEET);
+  if (!sheet) {
+    sheet = ss.insertSheet(LEHOI_TIENDO_SHEET);
+    sheet.getRange(1, 1, 1, 5).setValues([[
+      'Mã lễ hội', 'Khu vực', 'Tên thành viên', 'Đã phát biểu (mã bài#lần, cách nhau dấu phẩy)', 'Ngày hoàn thành'
+    ]]);
+    sheet.autoResizeColumns(1, 5);
+  }
+  // Sheet cũ (tạo trước khi có cột "Ngày hoàn thành") chỉ có 4 cột — bổ sung
+  // tiêu đề cột E nếu còn thiếu, không đụng tới dữ liệu đã có.
+  if (sheet.getLastColumn() < 5 || String(sheet.getRange(1, 5).getValue() || '').trim() === '') {
+    sheet.getRange(1, 5).setValue('Ngày hoàn thành');
+  }
+  // QUAN TRỌNG: ép cột D thành văn bản thuần ('@') — cùng lý do như cột "Bài
+  // đã học" của Đào tạo: tránh Sheets tự hiểu nhầm mã kiểu "4-6#1" là ngày/giờ.
+  sheet.getRange(2, 4, Math.max(sheet.getMaxRows() - 1, 500), 1).setNumberFormat('@');
+  // Cột E ("Ngày hoàn thành") cũng ép về văn bản thuần — nếu không, Sheets sẽ
+  // tự hiểu chuỗi "2026-07-23" (ghi ra từ formatYMD_) thành kiểu Ngày/Date,
+  // khiến lần đọc sau ra 1 object Date thay vì chuỗi "yyyy-mm-dd" như mong đợi.
+  sheet.getRange(2, 5, Math.max(sheet.getMaxRows() - 1, 500), 1).setNumberFormat('@');
+  return sheet;
+}
+
+function parseLeHoiDaPhat_(val) {
+  return String(val || '').split(',').map(function(v) { return v.trim(); }).filter(Boolean);
+}
+
+// Đọc toàn bộ cấu hình lễ hội (mỗi dòng trong sheet = 1 lễ hội), sắp xếp
+// theo ngày bắt đầu.
+function getLeHoiCauHinhList_() {
+  const sheet = ensureLeHoiCauHinhSheet_();
+  const lastRow = sheet.getLastRow();
+  const result = [];
+  if (lastRow < 2) return result;
+  const rows = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
+  rows.forEach(function(row) {
+    const ma = String(row[0] || '').trim();
+    if (!ma) return;
+    result.push({
+      ma: ma,
+      ten: row[1] || '',
+      ngayBatDau: row[2] ? dateOnly_(row[2]) : null,
+      ngayKetThuc: row[3] ? dateOnly_(row[3]) : null,
+      danhSachBai: parseDaoTaoBaiList_(row[4]),
+      soLanYeuCau: Number(row[5]) || 3
+    });
+  });
+  result.sort(function(a, b) {
+    const da = a.ngayBatDau ? a.ngayBatDau.getTime() : 0;
+    const db = b.ngayBatDau ? b.ngayBatDau.getTime() : 0;
+    return da - db;
+  });
+  return result;
+}
+
+function findLeHoiCauHinh_(maLeHoi) {
+  const list = getLeHoiCauHinhList_();
+  const maNorm = String(maLeHoi || '').trim();
+  for (let i = 0; i < list.length; i++) if (list[i].ma === maNorm) return list[i];
+  return null;
+}
+
+// Lễ hội đang diễn ra HÔM NAY (nếu trùng nhiều lễ hội thì lấy cái bắt đầu
+// sớm nhất) — dùng cho banner ở trang Tổng quan + trang nhập liệu Lễ hội.
+// Trả về null nếu hiện không có lễ hội nào đang diễn ra.
+function getLeHoiActive() {
+  const list = getLeHoiCauHinhList_();
+  const today = dateOnly_(new Date());
+  const active = list.filter(function(lh) {
+    return lh.ngayBatDau && lh.ngayKetThuc && today >= lh.ngayBatDau && today <= lh.ngayKetThuc;
+  });
+  if (!active.length) return null;
+  const lh = active[0];
+  return {
+    ma: lh.ma,
+    ten: lh.ten,
+    ngayBatDau: formatYMD_(lh.ngayBatDau),
+    ngayKetThuc: formatYMD_(lh.ngayKetThuc),
+    danhSachBai: lh.danhSachBai,
+    soLanYeuCau: lh.soLanYeuCau
+  };
+}
+
+// Dùng cho banner ở Tổng quan: nếu đang có lễ hội diễn ra thì trả về lễ hội
+// đó (trangThai: 'active'); nếu không, trả về lễ hội SẮP diễn ra gần nhất
+// (trangThai: 'upcoming') để anh vẫn thấy trước lịch; nếu không có lễ hội
+// nào cả đang diễn ra lẫn sắp diễn ra thì trả về null (ẩn banner).
+function getLeHoiBanner() {
+  const list = getLeHoiCauHinhList_();
+  const today = dateOnly_(new Date());
+  const active = list.find(function(lh) {
+    return lh.ngayBatDau && lh.ngayKetThuc && today >= lh.ngayBatDau && today <= lh.ngayKetThuc;
+  });
+  const lh = active || list.filter(function(lh2) {
+    return lh2.ngayBatDau && lh2.ngayBatDau > today;
+  }).sort(function(a, b) { return a.ngayBatDau.getTime() - b.ngayBatDau.getTime(); })[0];
+  if (!lh) return null;
+  return {
+    ma: lh.ma,
+    ten: lh.ten,
+    ngayBatDau: formatYMD_(lh.ngayBatDau),
+    ngayKetThuc: formatYMD_(lh.ngayKetThuc),
+    danhSachBai: lh.danhSachBai,
+    soLanYeuCau: lh.soLanYeuCau,
+    trangThai: active ? 'active' : 'upcoming'
+  };
+}
+
+function findLeHoiTienDoRow_(maLeHoi, khuVuc, ten) {
+  const sheet = ensureLeHoiTienDoSheet_();
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return null;
+  const values = sheet.getRange(2, 1, lastRow - 1, 3).getValues();
+  const maNorm = String(maLeHoi || '').trim();
+  const kvNorm = String(khuVuc || '').trim();
+  const tenNorm = String(ten || '').trim();
+  for (let i = 0; i < values.length; i++) {
+    if (String(values[i][0]).trim() === maNorm && String(values[i][1]).trim() === kvNorm && String(values[i][2]).trim() === tenNorm) return 2 + i;
+  }
+  return null;
+}
+
+// Toàn bộ tiến độ 1 lễ hội, gộp theo Khu vực — trả về
+// { "<Khu vực>": [ {ten, theoBai:{"4-6":2,...}, soLanDaPhat, tongSoLanYeuCau, phanTram} ] }
+// Roster lấy CHUNG từ getGiaoDucMembers() — đúng kiểu tab Đào tạo.
+function getLeHoiTienDoAll(maLeHoi) {
+  const cauHinh = findLeHoiCauHinh_(maLeHoi);
+  if (!cauHinh) throw new Error('Không tìm thấy lễ hội: ' + maLeHoi);
+  const roster = getGiaoDucMembers();
+  const sheet = ensureLeHoiTienDoSheet_();
+  const lastRow = sheet.getLastRow();
+  const progressMap = {}; // "KhuVực||Tên" -> [mã bài#lần, ...]
+  const hoanThanhMap = {}; // "KhuVực||Tên" -> "yyyy-mm-dd"
+  if (lastRow >= 2) {
+    const values = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+    values.forEach(function(v) {
+      if (String(v[0]).trim() !== cauHinh.ma) return;
+      const kv = String(v[1] || '').trim();
+      const ten = String(v[2] || '').trim();
+      if (!kv || !ten) return;
+      progressMap[kv + '||' + ten] = parseLeHoiDaPhat_(v[3]);
+      // Phòng hờ ô "Ngày hoàn thành" lỡ bị Sheets tự hiểu thành kiểu Date
+      // (dữ liệu cũ trước khi ép '@') — vẫn đọc ra đúng chuỗi "yyyy-mm-dd".
+      const rawNgayHT = v[4];
+      hoanThanhMap[kv + '||' + ten] = (Object.prototype.toString.call(rawNgayHT) === '[object Date]')
+        ? formatYMD_(dateOnly_(rawNgayHT))
+        : String(rawNgayHT || '').trim();
+    });
+  }
+  const tongSoLanYeuCau = cauHinh.danhSachBai.length * cauHinh.soLanYeuCau;
+  const result = {};
+  roster.forEach(function(m) {
+    const daPhat = progressMap[m.khuVuc + '||' + m.ten] || [];
+    const theoBai = {};
+    cauHinh.danhSachBai.forEach(function(ma) {
+      let dem = 0;
+      for (let lan = 1; lan <= cauHinh.soLanYeuCau; lan++) {
+        if (daPhat.indexOf(ma + '#' + lan) !== -1) dem++;
+      }
+      theoBai[ma] = dem;
+    });
+    if (!result[m.khuVuc]) result[m.khuVuc] = [];
+    result[m.khuVuc].push({
+      ten: m.ten,
+      theoBai: theoBai,
+      soLanDaPhat: daPhat.length,
+      tongSoLanYeuCau: tongSoLanYeuCau,
+      phanTram: tongSoLanYeuCau ? Math.round((daPhat.length / tongSoLanYeuCau) * 1000) / 10 : 0,
+      ngayHoanThanh: hoanThanhMap[m.khuVuc + '||' + m.ten] || ''
+    });
+  });
+  return result;
+}
+
+// Bảng xếp hạng TOÀN BỘ (gộp mọi Khu vực, giống kiểu "Xếp hạng Anh/Chị dẫn
+// dắt nhiều học viên" ở Tổng quan) — ai hoàn thành đủ (vd 15 lần) trước thì
+// xếp hạng cao hơn (theo Ngày hoàn thành); còn lại xếp theo % tiến độ giảm dần.
+function getLeHoiXepHang(maLeHoi) {
+  const all = getLeHoiTienDoAll(maLeHoi);
+  const flat = [];
+  Object.keys(all).forEach(function(kv) {
+    all[kv].forEach(function(m) {
+      flat.push({
+        ten: m.ten,
+        khuVuc: kv,
+        soLanDaPhat: m.soLanDaPhat,
+        tongSoLanYeuCau: m.tongSoLanYeuCau,
+        phanTram: m.phanTram,
+        ngayHoanThanh: m.ngayHoanThanh
+      });
+    });
+  });
+  flat.sort(function(a, b) {
+    const aDone = !!a.ngayHoanThanh, bDone = !!b.ngayHoanThanh;
+    if (aDone && bDone) {
+      if (a.ngayHoanThanh !== b.ngayHoanThanh) return a.ngayHoanThanh < b.ngayHoanThanh ? -1 : 1;
+    } else if (aDone !== bDone) {
+      return aDone ? -1 : 1;
+    } else {
+      if (b.phanTram !== a.phanTram) return b.phanTram - a.phanTram;
+    }
+    return String(a.ten).localeCompare(String(b.ten));
+  });
+  return flat;
+}
+
+// Tích / bỏ tích 1 ô (1 bài, 1 lần cụ thể) cho 1 thành viên trong 1 lễ hội.
+function toggleLeHoiLan(maLeHoi, khuVuc, ten, maBai, lan, daPhat) {
+  const maLeHoiNorm = String(maLeHoi || '').trim();
+  const khuVucNorm = String(khuVuc || '').trim();
+  const tenNorm = String(ten || '').trim();
+  if (!maLeHoiNorm) throw new Error('Thiếu mã lễ hội.');
+  if (!khuVucNorm) throw new Error('Thiếu Khu vực.');
+  if (!tenNorm) throw new Error('Thiếu tên thành viên.');
+  const cauHinh = findLeHoiCauHinh_(maLeHoiNorm);
+  if (!cauHinh) throw new Error('Không tìm thấy lễ hội: ' + maLeHoiNorm);
+  const ma = String(maBai || '').trim();
+  if (cauHinh.danhSachBai.indexOf(ma) === -1) throw new Error('Bài không thuộc lễ hội này: ' + ma);
+  const lanNum = Number(lan);
+  if (!(lanNum >= 1 && lanNum <= cauHinh.soLanYeuCau)) throw new Error('Lần không hợp lệ: ' + lan);
+  const code = ma + '#' + lanNum;
+  const sheet = ensureLeHoiTienDoSheet_();
+  let row = findLeHoiTienDoRow_(maLeHoiNorm, khuVucNorm, tenNorm);
+  let list;
+  if (!row) {
+    row = sheet.getLastRow() + 1;
+    sheet.getRange(row, 1).setValue(maLeHoiNorm);
+    sheet.getRange(row, 2).setValue(khuVucNorm);
+    sheet.getRange(row, 3).setValue(tenNorm);
+    list = [];
+  } else {
+    list = parseLeHoiDaPhat_(sheet.getRange(row, 4).getValue());
+  }
+  const idx = list.indexOf(code);
+  if (daPhat) {
+    if (idx === -1) list.push(code);
+  } else if (idx !== -1) {
+    list.splice(idx, 1);
+  }
+  sheet.getRange(row, 4).setValue(list.join(','));
+  // Ghi/xoá "Ngày hoàn thành" (cột E): đủ hết soLanYeuCau lần cho MỌI bài
+  // trong danh sách thì coi là hoàn thành lễ hội. Chỉ ghi ngày lần đầu đạt
+  // đủ (không ghi đè nếu đã có), và xoá nếu tích lại xuống dưới mức đủ.
+  const tongSoLanYeuCau = cauHinh.danhSachBai.length * cauHinh.soLanYeuCau;
+  const daXongHet = list.length >= tongSoLanYeuCau;
+  const ngayHoanThanhHienTai = String(sheet.getRange(row, 5).getValue() || '').trim();
+  if (daXongHet && !ngayHoanThanhHienTai) {
+    sheet.getRange(row, 5).setValue(formatYMD_(dateOnly_(new Date())));
+  } else if (!daXongHet && ngayHoanThanhHienTai) {
+    sheet.getRange(row, 5).setValue('');
+  }
+  return { success: true, soLanDaPhat: list.length };
+}
