@@ -1523,7 +1523,7 @@ function addGiaoDucMember(data) {
 // API) — đổi tên các thành viên cũ trong sheet Giáo dục cho khớp đúng tên
 // đầy đủ trong danh sách Người dẫn dắt (Config), theo yêu cầu Trưởng phòng
 // ngày 24/07/2026. Đổi ở MỌI dòng (mọi tháng/tuần) đã nhập của họ.
-function migrateGiaoDucMemberNames_() {
+function runMigrateGiaoDucMemberNamesOnce() {
   const RENAME_MAP = [
     ['K Đức', 'Đ V Tươi', 'Đ Văn Tươi'],
     ['K My', 'LTCTien', 'L T Cẩm Tiên'],
