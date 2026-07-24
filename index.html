@@ -597,11 +597,11 @@
           <div class="toolbar">
             <h3 style="margin:0">Thành viên (<span id="edu_kvName2">—</span>)</h3>
             <div style="display:flex;gap:6px;align-items:center;">
-              <select id="edu_newTen" style="width:auto;min-width:190px;"></select>
+              <input id="edu_newTen" list="nddDatalist" autocomplete="off" placeholder="Gõ để tìm, chỉ chọn trong danh sách" style="width:auto;min-width:220px;">
               <button type="button" onclick="addEduMemberQuick()">+ Thêm</button>
             </div>
           </div>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">% là số lũy kế tính đến tuần đó, cột "Tổng" lấy số lớn nhất đã nhập trong tháng (không cộng dồn). Danh sách tên để thêm lấy từ danh sách Người dẫn dắt (tab Config) — chưa thấy tên cần thêm thì vào Config thêm trước.</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">% là số lũy kế tính đến tuần đó, cột "Tổng" lấy số lớn nhất đã nhập trong tháng (không cộng dồn). Gõ tên rồi chọn đúng gợi ý (lấy từ danh sách Người dẫn dắt ở tab Config) — chưa thấy tên cần thêm thì vào Config thêm trước.</p>
           <div style="overflow-x:auto"><table class="tp-table" id="eduEditTable"></table></div>
         </div>
       </div>
@@ -1098,7 +1098,6 @@ function loadDropdowns(){
     fillSelect(document.getElementById('f_to'), d.toList, '-- Chọn Khu vực --');
     fillSelect(document.getElementById('f_tiendo'), d.tienDoList, '-- Chọn Tiến độ --');
     fillDatalist(document.getElementById('nddDatalist'), nddList);
-    fillSelect(document.getElementById('edu_newTen'), nddList, '-- Chọn tên (từ Config) --');
     fillSelect(document.getElementById('filterTo'), d.toList, '-- Lọc theo Khu vực --', true);
     fillSelect(document.getElementById('log_khuvuc'), d.toList, '-- Chọn Khu vực --', true);
     fillSelect(document.getElementById('lich_khuvuc'), d.toList, '-- Chọn Khu vực --', true);
@@ -2169,8 +2168,9 @@ function recomputeEduMetricTotal_(idx, field){
 function addEduMemberQuick(){
   if (!selectedKV) { showMsg('Vui lòng chọn Khu vực', false); return; }
   const input = document.getElementById('edu_newTen');
-  const ten = input.value;
-  if (!ten) { showMsg('Vui lòng chọn Tên thành viên (lấy từ Config)', false); return; }
+  if (!input.value.trim()) { showMsg('Vui lòng nhập Tên thành viên', false); return; }
+  if (!validateNddInput(input, 'Tên thành viên')) return;
+  const ten = input.value.trim();
   if (eduCurrentList.some(function(m){ return m.ten === ten; })) {
     showMsg('Thành viên "' + ten + '" đã có trong Khu vực này.', false);
     return;
