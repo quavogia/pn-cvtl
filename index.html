@@ -220,7 +220,6 @@
     <button type="button" class="nav-btn active" data-panel="stats" onclick="showPanel('stats')"><span class="nav-icon">📊</span> Tổng quan</button>
     <button type="button" class="nav-btn" data-panel="add" onclick="showPanel('add')"><span class="nav-icon">📝</span> Nhập học viên</button>
     <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
-    <button type="button" class="nav-btn" data-panel="goal" onclick="showPanel('goal')"><span class="nav-icon">🎯</span> Nhập mục tiêu</button>
     <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
     <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
   </div>
@@ -392,50 +391,6 @@
       </div>
     </div>
 
-    <!-- ============ NHẬP MỤC TIÊU ============ -->
-    <div id="panel-goal" class="panel">
-      <h1>Nhập mục tiêu</h1>
-
-      <div class="card">
-        <div class="toolbar">
-          <div style="display:flex;gap:8px;align-items:center;">
-            <label style="margin:0;font-weight:400;">Xem/Nhập mục tiêu tháng:</label>
-            <input type="month" id="goalMonth">
-          </div>
-        </div>
-        <p id="goalPastNotice" style="font-size:12px;color:#dc2626;margin:10px 0 0;display:none;">⚠️ Đang xem tháng đã qua — chỉ xem được, không thể thêm/sửa/xóa mục tiêu của tháng cũ.</p>
-      </div>
-
-      <div class="card">
-        <h3 id="goalFormTitle">Nhập mục tiêu Khu vực</h3>
-        <form id="goalKVForm">
-          <div class="grid">
-            <div><label>Khu vực *</label><select id="gkv_to" required></select></div>
-            <div><label>Mục tiêu Đơn thuần</label><input type="number" id="gkv_donthuan" min="0" value="0"></div>
-            <div><label>Mục tiêu Hữu hiệu</label><input type="number" id="gkv_huuhieu" min="0" value="0"></div>
-            <div><label>Mục tiêu BT (Báp-têm)</label><input type="number" id="gkv_bt" min="0" value="0"></div>
-          </div>
-          <div style="margin-top:10px;">
-            <button type="submit" id="gkvSubmitBtn">Lưu mục tiêu</button>
-          </div>
-        </form>
-
-        <div style="overflow-x:auto;margin-top:16px;">
-        <table>
-          <thead>
-            <tr><th rowspan="2">Khu vực</th><th colspan="3">Đơn thuần</th><th colspan="3">Hữu hiệu</th><th colspan="3">BT</th><th rowspan="2">Thao tác</th></tr>
-            <tr><th>MT</th><th>TT</th><th>%</th><th>MT</th><th>TT</th><th>%</th><th>MT</th><th>TT</th><th>%</th></tr>
-          </thead>
-          <tbody id="goalKVListBody"></tbody>
-        </table>
-        </div>
-        <p style="font-size:12px;color:#64748b;margin-top:8px;">
-          MT = Mục tiêu · TT = Thực tế (tự tính từ tab "Nhập học viên" + nhật ký ở tab "Đơn thuần") · % = TT ÷ MT.
-          Bấm ✏️ để nạp lại vào form phía trên sửa, 🗑️ để đưa mục tiêu Khu vực đó về 0.
-        </p>
-      </div>
-    </div>
-
     <!-- ============ HIỆN TRẠNG KHU VỰC ============ -->
     <div id="panel-kv" class="panel">
       <h1>Hiện trạng các khu vực</h1>
@@ -449,11 +404,76 @@
           </div>
         </div>
         <div class="kv-pills" id="kvSubTabs" style="margin-top:10px;">
+          <button type="button" class="kv-pill" data-kvsub="muctieu" onclick="selectKVSubTab('muctieu')">🎯 Mục tiêu</button>
           <button type="button" class="kv-pill active" data-kvsub="tp" onclick="selectKVSubTab('tp')">TP</button>
           <button type="button" class="kv-pill" data-kvsub="trudo" onclick="selectKVSubTab('trudo')">Trudo</button>
           <button type="button" class="kv-pill" data-kvsub="edu" onclick="selectKVSubTab('edu')">Giáo dục</button>
           <button type="button" class="kv-pill" data-kvsub="daotao" onclick="selectKVSubTab('daotao')">Đào tạo</button>
           <button type="button" class="kv-pill" data-kvsub="lehoi" onclick="selectKVSubTab('lehoi')">🎉 Lễ hội</button>
+        </div>
+      </div>
+
+      <!-- ---- Sub-tab: Mục tiêu (Khu vực + Cá nhân) — scoped theo 1 Khu vực đang chọn ---- -->
+      <div id="kvsub-muctieu" class="kv-subpanel">
+        <div class="card">
+          <h3 style="margin:0 0 10px">Mục tiêu Khu vực — <span id="mtkv_kvName">—</span> (tháng <span id="mtkv_monthLabel"></span>)</h3>
+          <form id="mtkvForm">
+            <div class="grid">
+              <div><label>Mục tiêu Đơn thuần</label><input type="number" id="mtkv_donthuan" min="0" value="0"></div>
+              <div><label>Mục tiêu Hữu hiệu</label><input type="number" id="mtkv_huuhieu" min="0" value="0"></div>
+              <div><label>Mục tiêu BT (Báp-têm)</label><input type="number" id="mtkv_bt" min="0" value="0"></div>
+            </div>
+            <div style="margin-top:10px;">
+              <button type="submit">Lưu mục tiêu Khu vực</button>
+            </div>
+          </form>
+          <table style="margin-top:16px;">
+            <thead><tr><th></th><th>Mục tiêu</th><th>Thực tế</th><th>% hoàn thành</th></tr></thead>
+            <tbody id="mtkvSummaryBody"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 10px">Mục tiêu cá nhân — <span id="mtcn_kvName">—</span></h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Danh sách thành viên lấy từ tab "Giáo dục" — chưa thấy tên cần thêm thì vào đó thêm thành viên trước. Ai cũng nhập/sửa được (Trưởng phòng nhập giúp, hoặc thành viên tự nhập).</p>
+          <p id="mtcnEditingNotice" style="font-size:13px;color:#2563eb;margin:0 0 10px;display:none;">Đang sửa mục tiêu của: <b id="mtcnEditingName"></b> — <button type="button" class="secondary" onclick="resetMtcnForm()">Hủy sửa</button></p>
+          <form id="mtcnForm">
+            <div class="grid">
+              <div><label>Thành viên *</label><select id="mtcn_ten" required></select></div>
+              <div><label>Mục tiêu Đơn thuần</label><input type="number" id="mtcn_donthuan" min="0" value="0"></div>
+              <div><label>Mục tiêu Hữu hiệu</label><input type="number" id="mtcn_huuhieu" min="0" value="0"></div>
+              <div><label>Mục tiêu BT</label><input type="number" id="mtcn_bt" min="0" value="0"></div>
+              <div><label>Mục tiêu EDU LMS (%)</label><input type="number" id="mtcn_edulms" min="0" max="100" value="0"></div>
+              <div><label>Mục tiêu Truyền giáo 127 (%)</label><input type="number" id="mtcn_truyen127" min="0" max="100" value="0"></div>
+            </div>
+            <div style="margin-top:10px;">
+              <button type="submit">Lưu mục tiêu cá nhân</button>
+            </div>
+          </form>
+
+          <div style="overflow-x:auto;margin-top:16px;">
+            <table>
+              <thead>
+                <tr>
+                  <th rowspan="2">Thành viên</th>
+                  <th colspan="3">Đơn thuần</th><th colspan="3">Hữu hiệu</th><th colspan="3">BT</th>
+                  <th colspan="3">EDU LMS</th><th colspan="3">Truyền giáo 127</th>
+                  <th rowspan="2">Thao tác</th>
+                </tr>
+                <tr>
+                  <th>MT</th><th>TT</th><th>%</th>
+                  <th>MT</th><th>TT</th><th>%</th>
+                  <th>MT</th><th>TT</th><th>%</th>
+                  <th>MT</th><th>TT</th><th>%</th>
+                  <th>MT</th><th>TT</th><th>%</th>
+                </tr>
+              </thead>
+              <tbody id="mtcnListBody"></tbody>
+            </table>
+          </div>
+          <p style="font-size:12px;color:#64748b;margin-top:8px;">
+            MT = Mục tiêu tự đặt · TT = Thực tế (Đơn thuần/Hữu hiệu/BT tự tính từ các học viên/nhật ký có tên thành viên này ở "Người dẫn dắt"; EDU LMS/Truyền giáo 127 lấy % lớn nhất đã nhập ở tab "Giáo dục") · % = TT ÷ MT.
+          </p>
         </div>
       </div>
 
@@ -740,7 +760,7 @@
 const API_BASE = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
 const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
   'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs', 'getTopNguoiDanDat',
-  'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan',
+  'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan', 'getPersonalGoalsAllKhuVuc',
   'getDaoTaoTienDoAll', 'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner', 'getLeHoiXepHang', 'checkAccess']);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
@@ -1073,7 +1093,6 @@ function loadDropdowns(){
     fillSelect(document.getElementById('f_tiendo'), d.tienDoList, '-- Chọn Tiến độ --');
     fillDatalist(document.getElementById('nddDatalist'), nddList);
     fillSelect(document.getElementById('filterTo'), d.toList, '-- Lọc theo Khu vực --', true);
-    fillSelect(document.getElementById('gkv_to'), d.toList, '-- Chọn Khu vực --');
     fillSelect(document.getElementById('log_khuvuc'), d.toList, '-- Chọn Khu vực --', true);
     fillSelect(document.getElementById('lich_khuvuc'), d.toList, '-- Chọn Khu vực --', true);
     renderKVPills();
@@ -1469,31 +1488,12 @@ document.getElementById('ov_dangnghe_card').addEventListener('click', function()
   el.style.display = (el.style.display === 'none' || !el.style.display) ? 'block' : 'none';
 });
 
-/** ---------- NHẬP MỤC TIÊU ---------- */
-// Tháng đang xem/sửa mục tiêu (lấy từ ô #goalMonth, mặc định tháng hiện tại).
-function goalMonthKey(){
-  return document.getElementById('goalMonth').value || currentMonthKey();
-}
-
-// Đã MỞ KHÓA cho phép sửa/nhập bù mục tiêu của tháng đã qua (trước đây hàm
-// này so sánh monthKey < currentMonthKey() để khóa — nay luôn trả về false).
-function isPastGoalMonth(monthKey){
-  return false;
-}
-
-// Khóa/mở form nhập mục tiêu + nút Sửa/Xóa tùy theo tháng đang xem là quá khứ
-// hay hiện tại/tương lai — tháng đã qua chỉ xem, không cho sửa.
-function updateGoalMonthUI(){
-  const past = isPastGoalMonth(goalMonthKey());
-  document.getElementById('goalPastNotice').style.display = past ? 'block' : 'none';
-  ['gkv_to', 'gkv_donthuan', 'gkv_huuhieu', 'gkv_bt', 'gkvSubmitBtn'].forEach(function(id){
-    document.getElementById(id).disabled = past;
-  });
-  return past;
-}
-
-window._goalKVList = [];
-
+/** ---------- MỤC TIÊU (Khu vực + Cá nhân) ----------
+ * Đã chuyển từ mục riêng "Nhập mục tiêu" ở sidebar vào thành 1 tab con trong
+ * "Hiện trạng khu vực" (tab "🎯 Mục tiêu") — dùng chung tháng (#kvMonth) +
+ * Khu vực đang chọn (selectedKV/kvPills) của cả panel đó thay vì có ô tháng/
+ * dropdown Khu vực riêng như trước.
+ */
 // PHẢI khớp CHÍNH XÁC công thức pct_() bên Code.gs (Math.round(actual/target*1000)/10,
 // null nếu target = 0) — dùng để tính % ngay trên trình duyệt cho LƯU LẠC
 // QUAN (không chờ server tính lại % mục tiêu).
@@ -1502,121 +1502,133 @@ function pctClient_(actual, target){
   return Math.round((actual / target) * 1000) / 10;
 }
 
-function renderGoalKVList_(list, past){
-  document.getElementById('goalKVListBody').innerHTML = list.map(function(s){
-    const actions = past
-      ? '<span style="color:#94a3b8;">— (tháng đã qua)</span>'
-      : '<button class="icon-btn" title="Sửa" onclick="editGoalKV(\'' + s.khuVuc + '\',' + s.goal.donThuan + ',' + s.goal.huuHieu + ',' + s.goal.bt + ')">✏️</button>' +
-        '<button class="icon-btn" title="Xóa (đưa về 0)" onclick="deleteGoalKV(\'' + s.khuVuc + '\')">🗑️</button>';
-    return '<tr>' +
-      '<td>' + esc(s.khuVuc) + '</td>' +
-      '<td>' + esc(s.goal.donThuan) + '</td><td>' + esc(s.actual.donThuan) + '</td><td>' + pctText(s.percent.donThuan) + '</td>' +
-      '<td>' + esc(s.goal.huuHieu) + '</td><td>' + esc(s.actual.huuHieu) + '</td><td>' + pctText(s.percent.huuHieu) + '</td>' +
-      '<td>' + esc(s.goal.bt) + '</td><td>' + esc(s.actual.bt) + '</td><td>' + pctText(s.percent.bt) + '</td>' +
-      '<td class="actions">' + actions + '</td>' +
-    '</tr>';
-  }).join('');
-}
+// Nạp cả 2 phần (Mục tiêu Khu vực + Mục tiêu cá nhân) khi vào tab con "Mục
+// tiêu", hoặc khi đổi Khu vực/tháng đang xem. getAllKhuVucOverview đã được
+// tab "Trụ đỡ" gọi + cache sẵn (key không phụ thuộc Khu vực) nên phần Khu vực
+// thường không tốn thêm lượt gọi mạng nào; getPersonalGoalsAllKhuVuc cũng gộp
+// cả 6 Khu vực trong 1 lượt, đổi Khu vực sau đó chỉ đọc lại đúng nhánh đã có.
+window._mtcnList = [];
+function loadMucTieuPanel(){
+  if (!selectedKV) return;
+  const monthKey = kvMonthKey();
+  document.getElementById('mtkv_kvName').textContent = selectedKV;
+  document.getElementById('mtkv_monthLabel').textContent = monthKey;
+  document.getElementById('mtcn_kvName').textContent = selectedKV;
 
-function loadGoalKVList(){
-  const monthKey = goalMonthKey();
-  const past = updateGoalMonthUI();
   google.script.run.withSuccessHandler(function(list){
-    window._goalKVList = list;
-    renderGoalKVList_(list, past);
+    const o = list.find(function(r){ return r.khuVuc === selectedKV; }) ||
+      { goalSummary: { goal: { donThuan: 0, huuHieu: 0, bt: 0 }, actual: { donThuan: 0, huuHieu: 0, bt: 0 }, percent: {} } };
+    const gs = o.goalSummary || { goal: { donThuan: 0, huuHieu: 0, bt: 0 }, actual: { donThuan: 0, huuHieu: 0, bt: 0 }, percent: {} };
+    document.getElementById('mtkv_donthuan').value = gs.goal.donThuan;
+    document.getElementById('mtkv_huuhieu').value = gs.goal.huuHieu;
+    document.getElementById('mtkv_bt').value = gs.goal.bt;
+    document.getElementById('mtkvSummaryBody').innerHTML = renderGoalRows(gs);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải mục tiêu Khu vực: ' + err.message, false);
-  }).getMonthlySummaryByKV(monthKey);
+  }).getAllKhuVucOverview(monthKey);
+
+  google.script.run.withSuccessHandler(function(map){
+    const list = map[selectedKV] || [];
+    window._mtcnList = list;
+    renderMtcnSelect_(list);
+    renderMtcnList_(list);
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải mục tiêu cá nhân: ' + err.message, false);
+  }).getPersonalGoalsAllKhuVuc(monthKey);
 }
 
-document.getElementById('goalMonth').addEventListener('change', function(){
-  resetGoalForm();
-  loadGoalKVList();
+document.getElementById('mtkvForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const monthKey = kvMonthKey();
+  const data = {
+    donThuan: Number(document.getElementById('mtkv_donthuan').value) || 0,
+    huuHieu: Number(document.getElementById('mtkv_huuhieu').value) || 0,
+    bt: Number(document.getElementById('mtkv_bt').value) || 0
+  };
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã lưu mục tiêu Khu vực', true);
+    loadMucTieuPanel();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).saveGoalKV(monthKey, selectedKV, data);
 });
 
-function resetGoalForm(){
-  document.getElementById('goalKVForm').reset();
-  document.getElementById('goalFormTitle').textContent = 'Nhập mục tiêu Khu vực (' + goalMonthKey() + ')';
+function renderMtcnSelect_(list){
+  const sel = document.getElementById('mtcn_ten');
+  const current = sel.value;
+  sel.innerHTML = '<option value="">-- Chọn thành viên --</option>' +
+    list.map(function(m){ return '<option value="' + esc(m.ten) + '">' + esc(m.ten) + '</option>'; }).join('');
+  if (current) sel.value = current;
 }
 
-function editGoalKV(khuVuc, donThuan, huuHieu, bt){
-  if (isPastGoalMonth(goalMonthKey())) return;
-  showPanel('goal');
-  document.getElementById('gkv_to').value = khuVuc;
-  document.getElementById('gkv_donthuan').value = donThuan;
-  document.getElementById('gkv_huuhieu').value = huuHieu;
-  document.getElementById('gkv_bt').value = bt;
-  document.getElementById('goalFormTitle').textContent = 'Sửa mục tiêu: ' + khuVuc + ' (' + goalMonthKey() + ')';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+function mtcnRowHtml_(m){
+  return '<tr>' +
+    '<td>' + esc(m.ten) + '</td>' +
+    '<td>' + esc(m.goal.donThuan) + '</td><td>' + esc(m.actual.donThuan) + '</td><td>' + pctText(m.percent.donThuan) + '</td>' +
+    '<td>' + esc(m.goal.huuHieu) + '</td><td>' + esc(m.actual.huuHieu) + '</td><td>' + pctText(m.percent.huuHieu) + '</td>' +
+    '<td>' + esc(m.goal.bt) + '</td><td>' + esc(m.actual.bt) + '</td><td>' + pctText(m.percent.bt) + '</td>' +
+    '<td>' + esc(m.goal.eduLms) + '</td><td>' + esc(m.actual.eduLms) + '</td><td>' + pctText(m.percent.eduLms) + '</td>' +
+    '<td>' + esc(m.goal.truc127) + '</td><td>' + esc(m.actual.truc127) + '</td><td>' + pctText(m.percent.truc127) + '</td>' +
+    '<td class="actions">' +
+      '<button type="button" class="edit" onclick="editMtcn(\'' + esc(m.ten).replace(/'/g, "\\'") + '\')">Sửa</button>' +
+      '<button type="button" class="danger" onclick="deleteMtcn(\'' + esc(m.ten).replace(/'/g, "\\'") + '\')">Xóa</button>' +
+    '</td></tr>';
 }
 
-function deleteGoalKV(khuVuc){
-  if (isPastGoalMonth(goalMonthKey())) return;
-  if (!confirm('Đưa mục tiêu của "' + khuVuc + '" (tháng ' + goalMonthKey() + ') về 0?')) return;
-  const monthKey = goalMonthKey();
-  const past = isPastGoalMonth(monthKey);
-  const idx = window._goalKVList.findIndex(function(s){ return s.khuVuc === khuVuc; });
-  let backup = null;
-  if (idx > -1) {
-    backup = window._goalKVList[idx];
-    window._goalKVList[idx] = {
-      khuVuc: khuVuc,
-      goal: { donThuan: 0, huuHieu: 0, bt: 0 },
-      actual: backup.actual,
-      percent: { donThuan: null, huuHieu: null, bt: null }
-    };
-    renderGoalKVList_(window._goalKVList, past);
-  }
-  showMsg('Đã xóa mục tiêu', true);
+function renderMtcnList_(list){
+  document.getElementById('mtcnListBody').innerHTML = list.length ? list.map(mtcnRowHtml_).join('') :
+    '<tr><td colspan="16" style="color:#94a3b8;">Chưa có thành viên nào trong tab "Giáo dục" của Khu vực này</td></tr>';
+}
+
+function editMtcn(ten){
+  const m = window._mtcnList.find(function(r){ return r.ten === ten; });
+  if (!m) return;
+  document.getElementById('mtcn_ten').value = ten;
+  document.getElementById('mtcn_donthuan').value = m.goal.donThuan;
+  document.getElementById('mtcn_huuhieu').value = m.goal.huuHieu;
+  document.getElementById('mtcn_bt').value = m.goal.bt;
+  document.getElementById('mtcn_edulms').value = m.goal.eduLms;
+  document.getElementById('mtcn_truyen127').value = m.goal.truc127;
+  document.getElementById('mtcnEditingName').textContent = ten;
+  document.getElementById('mtcnEditingNotice').style.display = 'block';
+  document.getElementById('mtcnForm').scrollIntoView({ block: 'center', behavior: 'smooth' });
+}
+
+function resetMtcnForm(){
+  document.getElementById('mtcnForm').reset();
+  document.getElementById('mtcnEditingNotice').style.display = 'none';
+}
+
+function deleteMtcn(ten){
+  if (!confirm('Xóa mục tiêu cá nhân của "' + ten + '"?')) return;
+  const monthKey = kvMonthKey();
   google.script.run.withSuccessHandler(function(){
-    loadOverallGoal();
+    showMsg('Đã xóa', true);
+    loadMucTieuPanel();
   }).withFailureHandler(function(err){
-    if (idx > -1 && backup) { window._goalKVList[idx] = backup; renderGoalKVList_(window._goalKVList, past); }
     showMsg('Lỗi: ' + err.message, false);
-  }).deleteGoalKV(monthKey, khuVuc);
+  }).deleteGoalCaNhan(monthKey, selectedKV, ten);
 }
 
-document.getElementById('goalKVForm').addEventListener('submit', function(e){
+document.getElementById('mtcnForm').addEventListener('submit', function(e){
   e.preventDefault();
-  const monthKey = goalMonthKey();
-  if (isPastGoalMonth(monthKey)) { showMsg('Không thể sửa mục tiêu của tháng đã qua', false); return; }
-  const khuVuc = document.getElementById('gkv_to').value;
-  if (!khuVuc) { showMsg('Vui lòng chọn Khu vực', false); return; }
+  const monthKey = kvMonthKey();
+  const ten = document.getElementById('mtcn_ten').value;
+  if (!ten) { showMsg('Vui lòng chọn Thành viên.', false); return; }
   const data = {
-    donThuan: Number(document.getElementById('gkv_donthuan').value) || 0,
-    huuHieu: Number(document.getElementById('gkv_huuhieu').value) || 0,
-    bt: Number(document.getElementById('gkv_bt').value) || 0
+    donThuan: Number(document.getElementById('mtcn_donthuan').value) || 0,
+    huuHieu: Number(document.getElementById('mtcn_huuhieu').value) || 0,
+    bt: Number(document.getElementById('mtcn_bt').value) || 0,
+    eduLms: Number(document.getElementById('mtcn_edulms').value) || 0,
+    truc127: Number(document.getElementById('mtcn_truyen127').value) || 0
   };
-
-  // LƯU LẠC QUAN: cập nhật bảng mục tiêu + % NGAY (tính lại % ngay trên trình
-  // duyệt bằng pctClient_, khớp công thức server) — không chờ mạng.
-  const past = isPastGoalMonth(monthKey);
-  const idx = window._goalKVList.findIndex(function(s){ return s.khuVuc === khuVuc; });
-  let backup = null;
-  if (idx > -1) {
-    backup = window._goalKVList[idx];
-    const actual = backup.actual;
-    window._goalKVList[idx] = {
-      khuVuc: khuVuc,
-      goal: data,
-      actual: actual,
-      percent: {
-        donThuan: pctClient_(actual.donThuan, data.donThuan),
-        huuHieu: pctClient_(actual.huuHieu, data.huuHieu),
-        bt: pctClient_(actual.bt, data.bt)
-      }
-    };
-    renderGoalKVList_(window._goalKVList, past);
-  }
-  resetGoalForm();
-  showMsg('Đã lưu mục tiêu', true);
-
   google.script.run.withSuccessHandler(function(){
-    loadOverallGoal();
+    showMsg('Đã lưu mục tiêu cá nhân', true);
+    resetMtcnForm();
+    loadMucTieuPanel();
   }).withFailureHandler(function(err){
-    if (idx > -1 && backup) { window._goalKVList[idx] = backup; renderGoalKVList_(window._goalKVList, past); }
     showMsg('Lỗi: ' + err.message, false);
-  }).saveGoalKV(monthKey, khuVuc, data);
+  }).saveGoalCaNhan(monthKey, selectedKV, ten, data);
 });
 
 window._logsCurrentList = [];
@@ -1630,6 +1642,7 @@ function renderLogsTable_(list){
 }
 function loadLogs(){
   const monthKey = currentMonthKey();
+  document.getElementById('goalCurMonthLabel2').textContent = monthKey;
   google.script.run.withSuccessHandler(function(list){
     window._logsCurrentList = list;
     renderLogsTable_(list);
@@ -1668,7 +1681,6 @@ document.getElementById('logForm').addEventListener('submit', function(e){
 
   google.script.run.withSuccessHandler(function(){
     loadLogs();
-    loadGoalKVList();
     loadOverallGoal();
   }).withFailureHandler(function(err){
     window._logsCurrentList = window._logsCurrentList.filter(function(l){ return l !== optimisticLog; });
@@ -1685,21 +1697,11 @@ function removeLog(row){
   renderLogsTable_(window._logsCurrentList);
   showMsg('Đã xóa', true);
   google.script.run.withSuccessHandler(function(){
-    loadGoalKVList();
     loadOverallGoal();
   }).withFailureHandler(function(err){
     if (backup) { window._logsCurrentList.splice(idx, 0, backup); renderLogsTable_(window._logsCurrentList); }
     showMsg('Lỗi: ' + err.message, false);
   }).deleteDonThuanLog(row);
-}
-
-function loadGoalPanel(){
-  const mk = currentMonthKey();
-  if (!document.getElementById('goalMonth').value) document.getElementById('goalMonth').value = mk;
-  document.getElementById('goalFormTitle').textContent = 'Nhập mục tiêu Khu vực (' + goalMonthKey() + ')';
-  document.getElementById('goalCurMonthLabel2').textContent = mk;
-  loadGoalKVList();
-  loadLogs();
 }
 
 /** ---------- HIỆN TRẠNG KHU VỰC ----------
@@ -1747,7 +1749,8 @@ function selectKVSubTab(name){
 // Nạp lại đúng dữ liệu của tab con đang mở (gọi khi đổi Khu vực, đổi tháng,
 // hoặc lần đầu vào tab "Hiện trạng khu vực").
 function loadKVSubTab(){
-  if (kvActiveSubTab === 'tp') loadTPPanel();
+  if (kvActiveSubTab === 'muctieu') loadMucTieuPanel();
+  else if (kvActiveSubTab === 'tp') loadTPPanel();
   else if (kvActiveSubTab === 'trudo') loadKVOverview();
   else if (kvActiveSubTab === 'edu') loadEduPanel();
   else if (kvActiveSubTab === 'daotao') loadDaoTaoPanel();
@@ -2907,7 +2910,8 @@ function loadAll(){
   loadStudents();
   if (!document.getElementById('kvMonth').value) document.getElementById('kvMonth').value = currentMonthKey();
   loadStatsPanel();
-  loadGoalPanel();
+  loadLogs();
+  loadKVSubTab();
   loadLichTuan();
   setTimeout(function(){
     const el = document.getElementById('loadingOverlay');
