@@ -2714,7 +2714,7 @@ function toggleLeHoiLan_(btn){
  *  LỊCH LÀM VIỆC TUẦN — bảng lịch Thứ 2 - Chủ nhật, cả nhóm cùng xem, mỗi
  *  tuần tự nhập lại từ đầu (KHÔNG lặp lại tự động từ tuần trước).
  * ========================================================= */
-let lichWeekStart = null;   // Date, luôn là Thứ 2 00:00 của tuần đang xem
+let lichWeekStart = null;   // Date, luôn là Chủ nhật 00:00 của tuần đang xem
 let lichEditRow = null;     // null = đang thêm mới; số = đang sửa dòng đó
 let lichThamGiaList = [];   // mảng tên Người tham gia đang chọn
 
@@ -2743,13 +2743,14 @@ function removeLichThamGia(idx){
   lichThamGiaList.splice(idx, 1);
   renderLichThamGiaChips();
 }
-const LICH_DAY_NAMES_ = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+const LICH_DAY_NAMES_ = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
 
-function mondayOf_(d){
+// Trả về Chủ nhật (00:00) của tuần chứa ngày d — dùng làm ngày đầu tuần cho
+// lưới Lịch làm việc (Chủ nhật hiển thị đầu tiên, theo yêu cầu Trưởng phòng).
+function sundayOf_(d){
   const r = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const day = r.getDay(); // 0 = Chủ nhật
-  const diff = (day === 0 ? -6 : 1) - day;
-  r.setDate(r.getDate() + diff);
+  r.setDate(r.getDate() - day);
   return r;
 }
 
@@ -2762,7 +2763,7 @@ function fmtVNDate_(d){
 }
 
 function initLichWeek_(){
-  if (!lichWeekStart) lichWeekStart = mondayOf_(new Date());
+  if (!lichWeekStart) lichWeekStart = sundayOf_(new Date());
 }
 
 function shiftLichWeek(days){
@@ -2772,7 +2773,7 @@ function shiftLichWeek(days){
 }
 
 function goToCurrentLichWeek(){
-  lichWeekStart = mondayOf_(new Date());
+  lichWeekStart = sundayOf_(new Date());
   loadLichTuan();
 }
 
@@ -2780,7 +2781,7 @@ document.getElementById('lich_jumpDate').addEventListener('change', function(){
   const v = this.value;
   if (!v) return;
   const parts = v.split('-');
-  lichWeekStart = mondayOf_(new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
+  lichWeekStart = sundayOf_(new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2])));
   loadLichTuan();
 });
 
