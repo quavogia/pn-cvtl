@@ -2106,12 +2106,33 @@ function updateLichEvent(row, data) {
   validateLichData_(data);
   const sheet = ensureLichSheet_();
   sheet.getRange(row, 1, 1, 9).setValues(lichRowValues_(data));
+  // Báo Telegram khi sửa — bọc try/catch để lỗi gửi thông báo KHÔNG làm hỏng
+  // việc lưu lịch (giống addLichEvent).
+  try { notifyLichEventSua_(data); } catch (err) { Logger.log('Lỗi gửi thông báo Lịch (sửa): ' + err.message); }
   return { success: true };
 }
 
 function deleteLichEvent(row) {
   const sheet = ensureLichSheet_();
+  // Đọc dữ liệu TRƯỚC khi xóa để còn nội dung gửi thông báo.
+  const oldValues = sheet.getRange(row, 1, 1, 9).getValues()[0];
   sheet.getRange(row, 1, 1, 9).clearContent();
+  try {
+    const noiDungCu = String(oldValues[3] || '').trim();
+    // Chỉ báo nếu dòng thực sự có dữ liệu (tránh báo khi xóa dòng đã trống sẵn).
+    if (noiDungCu) {
+      notifyLichEventXoa_({
+        ngay: oldValues[0],
+        gioBatDau: oldValues[1],
+        gioKetThuc: oldValues[2],
+        noiDung: oldValues[3],
+        nguoiPhuTrach: oldValues[4],
+        khuVuc: oldValues[5],
+        diaDiem: oldValues[6],
+        nguoiThamGia: oldValues[8]
+      });
+    }
+  } catch (err) { Logger.log('Lỗi gửi thông báo Lịch (xóa): ' + err.message); }
   return { success: true };
 }
 
@@ -2198,35 +2219,52 @@ function sendTelegramNotify_(text) {
   }
 }
 
-// Mẫu tin nhắn CỐ ĐỊNH theo yêu cầu Trưởng phòng (24/07/2026) — dùng riêng cho
-// thông báo "công việc mới" (KHÔNG áp dụng cho digest tổng hợp ngày mai, vì
-// digest liệt kê nhiều công việc cùng lúc nên cần dạng danh sách riêng).
-function notifyLichEventMoi_(data) {
+// Dựng các dòng "thông tin buổi học" DÙNG CHUNG cho cả 3 loại thông báo (thêm
+// mới / sửa / xóa) — mỗi hạng mục có ICON riêng theo mẫu cố định của Trưởng
+// phòng (24/07/2026). Khu vực và Phụ trách CHỈ thêm vào khi có dữ liệu.
+function buildLichThongTinLines_(data) {
   const d = dateOnly_(data.ngay);
   const gio = String(data.gioBatDau || '').trim() + (data.gioKetThuc ? ' - ' + String(data.gioKetThuc).trim() : '');
   const thamGia = parseThamGiaList_(data.nguoiThamGia).join(', ');
   const khuVuc = String(data.khuVuc || '').trim();
   const phuTrach = String(data.nguoiPhuTrach || '').trim();
   const lines = [
-    'Cpn các Ace ạ ~~',
-    '',
-    'Xin gửi thông tin lớp học Kinh Thánh: ',
-    '',
     '⏰ Thời gian: ' + formatDateVN_(d),
     '⏳ Thời lượng: ' + gio,
     '✅ Nội dung: ' + escapeHtml_(String(data.noiDung || '').trim())
   ];
-  // Khu vực và Phụ trách chỉ thêm vào tin nhắn khi có dữ liệu (không bắt buộc).
   if (khuVuc) lines.push('🗺️ Khu vực: ' + escapeHtml_(khuVuc));
   if (phuTrach) lines.push('👤 Phụ trách: ' + escapeHtml_(phuTrach));
   lines.push(
     '🖥️ Địa điểm: ' + escapeHtml_(String(data.diaDiem || '').trim()),
-    '🧑‍🧑‍🧒 Tham gia: ' + escapeHtml_(thamGia),
-    '',
-    'Xin cảm ơn',
-    '',
-    'CPN'
+    '🧑‍🧑‍🧒 Tham gia: ' + escapeHtml_(thamGia)
   );
+  return lines;
+}
+
+// Báo khi THÊM MỚI 1 công việc vào Lịch làm việc.
+function notifyLichEventMoi_(data) {
+  const lines = ['Cpn các Ace ạ ~~', '', 'Xin gửi thông tin lớp học Kinh Thánh: ', '']
+    .concat(buildLichThongTinLines_(data))
+    .concat(['', 'Xin cảm ơn', '', 'CPN']);
+  sendTelegramNotify_(lines.join('\n'));
+}
+
+// Báo khi SỬA 1 công việc đã có sẵn trong Lịch làm việc — gửi thông tin MỚI
+// NHẤT (sau khi sửa), không so sánh cũ/mới để tránh phức tạp không cần thiết.
+function notifyLichEventSua_(data) {
+  const lines = ['Cpn các Ace ạ ~~', '', '✏️ Thông tin lớp học Kinh Thánh đã được CẬP NHẬT: ', '']
+    .concat(buildLichThongTinLines_(data))
+    .concat(['', 'Xin cảm ơn', '', 'CPN']);
+  sendTelegramNotify_(lines.join('\n'));
+}
+
+// Báo khi XÓA 1 công việc khỏi Lịch làm việc — dùng dữ liệu đọc được TRƯỚC
+// khi xóa (deleteLichEvent phải đọc rồi mới clearContent).
+function notifyLichEventXoa_(data) {
+  const lines = ['Cpn các Ace ạ ~~', '', '❌ Lớp học Kinh Thánh sau đã bị HỦY (xóa khỏi lịch): ', '']
+    .concat(buildLichThongTinLines_(data))
+    .concat(['', 'Xin cảm ơn', '', 'CPN']);
   sendTelegramNotify_(lines.join('\n'));
 }
 
