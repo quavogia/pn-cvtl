@@ -2096,6 +2096,9 @@ function addLichEvent(data) {
   const sheet = ensureLichSheet_();
   const row = sheet.getLastRow() + 1;
   sheet.getRange(row, 1, 1, 9).setValues(lichRowValues_(data));
+  // Báo Telegram ngay khi có công việc mới — bọc try/catch để lỗi gửi thông
+  // báo (ví dụ chưa cấu hình Script Properties) KHÔNG làm hỏng việc lưu lịch.
+  try { notifyLichEventMoi_(data); } catch (err) { Logger.log('Lỗi gửi thông báo Lịch: ' + err.message); }
   return { success: true };
 }
 
@@ -2147,6 +2150,88 @@ function getLichTuan(ngayBatDau) {
     return String(a.gioBatDau).localeCompare(String(b.gioBatDau));
   });
   return result;
+}
+
+/** =========================================================
+ *  THÔNG BÁO TELEGRAM — báo ngay khi thêm công việc mới vào Lịch làm việc,
+ *  và tổng hợp lịch ngày mai gửi vào 20:00 tối hôm trước (chạy qua trigger
+ *  định kỳ "sendLichNgayMaiDigest", KHÔNG tự động tạo — Trưởng phòng cần tự
+ *  thiết lập trigger 1 lần trong Apps Script, xem hướng dẫn đã gửi).
+ *
+ *  Token/Chat ID KHÔNG được ghi cứng trong file này (file này đồng bộ lên
+ *  GitHub công khai) — phải lưu trong Cài đặt dự án > Thuộc tính tập lệnh
+ *  (Script Properties) với 2 khóa: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID.
+ *  Nếu chưa cấu hình, hàm tự bỏ qua (ghi log cảnh báo) chứ không báo lỗi.
+ * ========================================================= */
+const VN_DAY_NAMES_ = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+
+function formatDateVN_(d) {
+  if (!d) return '';
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear() +
+    ' (' + VN_DAY_NAMES_[d.getDay()] + ')';
+}
+
+function sendTelegramNotify_(text) {
+  const props = PropertiesService.getScriptProperties();
+  const token = props.getProperty('TELEGRAM_BOT_TOKEN');
+  const chatId = props.getProperty('TELEGRAM_CHAT_ID');
+  if (!token || !chatId) {
+    Logger.log('Chưa cấu hình TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID trong Script Properties — bỏ qua gửi thông báo.');
+    return;
+  }
+  const res = UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' }),
+    muteHttpExceptions: true
+  });
+  const code = res.getResponseCode();
+  if (code < 200 || code >= 300) {
+    Logger.log('Gửi Telegram thất bại (' + code + '): ' + res.getContentText());
+  }
+}
+
+function notifyLichEventMoi_(data) {
+  const d = dateOnly_(data.ngay);
+  const lines = [
+    '🗓 <b>Công việc mới trong Lịch làm việc</b>',
+    'Ngày: ' + formatDateVN_(d)
+  ];
+  const gio = String(data.gioBatDau || '').trim() + (data.gioKetThuc ? ' - ' + String(data.gioKetThuc).trim() : '');
+  if (gio.trim()) lines.push('Giờ: ' + gio.trim());
+  lines.push('Nội dung: ' + String(data.noiDung || '').trim());
+  if (data.khuVuc) lines.push('Khu vực: ' + String(data.khuVuc).trim());
+  if (data.nguoiPhuTrach) lines.push('Phụ trách: ' + String(data.nguoiPhuTrach).trim());
+  if (data.diaDiem) lines.push('Địa điểm: ' + String(data.diaDiem).trim());
+  sendTelegramNotify_(lines.join('\n'));
+}
+
+// Chạy qua trigger định kỳ hằng ngày (20:00) — tổng hợp toàn bộ công việc của
+// NGÀY MAI trong Lịch làm việc, gửi 1 tin Telegram duy nhất. Không có công
+// việc nào thì bỏ qua, không gửi tin trống. Tên hàm KHÔNG có dấu "_" để hiện
+// trong danh sách "Chạy" và danh sách chọn hàm khi tạo trigger.
+function sendLichNgayMaiDigest() {
+  const today = new Date();
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const list = getLichTuan(formatYMD_(tomorrow)).filter(function(it) {
+    return it.ngay === formatYMD_(tomorrow);
+  });
+  if (!list.length) {
+    Logger.log('Ngày mai (' + formatYMD_(tomorrow) + ') không có công việc trong Lịch làm việc — không gửi digest.');
+    return;
+  }
+  const lines = ['📋 <b>Lịch làm việc ngày mai — ' + formatDateVN_(tomorrow) + '</b>', ''];
+  list.forEach(function(it, i) {
+    const gio = String(it.gioBatDau || '').trim() + (it.gioKetThuc ? '-' + String(it.gioKetThuc).trim() : '');
+    let line = (i + 1) + '. ' + (gio.trim() ? gio.trim() + ' — ' : '') + it.noiDung;
+    const meta = [];
+    if (it.khuVuc) meta.push('KV: ' + it.khuVuc);
+    if (it.nguoiPhuTrach) meta.push('PT: ' + it.nguoiPhuTrach);
+    if (it.diaDiem) meta.push('tại ' + it.diaDiem);
+    if (meta.length) line += ' (' + meta.join(', ') + ')';
+    lines.push(line);
+  });
+  sendTelegramNotify_(lines.join('\n'));
 }
 
 /** =========================================================
