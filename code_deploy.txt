@@ -2171,6 +2171,13 @@ function formatDateVN_(d) {
     ' (' + VN_DAY_NAMES_[d.getDay()] + ')';
 }
 
+// Escape ký tự đặc biệt của HTML trước khi chèn vào tin Telegram (đang gửi ở
+// chế độ parse_mode: 'HTML') — tránh lỗi/gãy định dạng nếu Nội dung, Địa điểm,
+// Tham gia... vô tình chứa dấu <, >, & (ví dụ gõ nhầm hoặc copy-paste).
+function escapeHtml_(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function sendTelegramNotify_(text) {
   const props = PropertiesService.getScriptProperties();
   const token = props.getProperty('TELEGRAM_BOT_TOKEN');
@@ -2191,18 +2198,28 @@ function sendTelegramNotify_(text) {
   }
 }
 
+// Mẫu tin nhắn CỐ ĐỊNH theo yêu cầu Trưởng phòng (24/07/2026) — dùng riêng cho
+// thông báo "công việc mới" (KHÔNG áp dụng cho digest tổng hợp ngày mai, vì
+// digest liệt kê nhiều công việc cùng lúc nên cần dạng danh sách riêng).
 function notifyLichEventMoi_(data) {
   const d = dateOnly_(data.ngay);
-  const lines = [
-    '🗓 <b>Công việc mới trong Lịch làm việc</b>',
-    'Ngày: ' + formatDateVN_(d)
-  ];
   const gio = String(data.gioBatDau || '').trim() + (data.gioKetThuc ? ' - ' + String(data.gioKetThuc).trim() : '');
-  if (gio.trim()) lines.push('Giờ: ' + gio.trim());
-  lines.push('Nội dung: ' + String(data.noiDung || '').trim());
-  if (data.khuVuc) lines.push('Khu vực: ' + String(data.khuVuc).trim());
-  if (data.nguoiPhuTrach) lines.push('Phụ trách: ' + String(data.nguoiPhuTrach).trim());
-  if (data.diaDiem) lines.push('Địa điểm: ' + String(data.diaDiem).trim());
+  const thamGia = parseThamGiaList_(data.nguoiThamGia).join(', ');
+  const lines = [
+    'Cpn các Ace ạ ~~',
+    '',
+    'Xin gửi thông tin lớp học Kinh Thánh: ',
+    '',
+    '⏰ Thời gian: ' + formatDateVN_(d),
+    '⏳ Thời lượng: ' + gio,
+    '✅ Nội dung: ' + escapeHtml_(String(data.noiDung || '').trim()),
+    '🖥️ Địa điểm: ' + escapeHtml_(String(data.diaDiem || '').trim()),
+    '🧑‍🧑‍🧒 Tham gia: ' + escapeHtml_(thamGia),
+    '',
+    'Xin cảm ơn',
+    '',
+    'CPN'
+  ];
   sendTelegramNotify_(lines.join('\n'));
 }
 
@@ -2223,11 +2240,11 @@ function sendLichNgayMaiDigest() {
   const lines = ['📋 <b>Lịch làm việc ngày mai — ' + formatDateVN_(tomorrow) + '</b>', ''];
   list.forEach(function(it, i) {
     const gio = String(it.gioBatDau || '').trim() + (it.gioKetThuc ? '-' + String(it.gioKetThuc).trim() : '');
-    let line = (i + 1) + '. ' + (gio.trim() ? gio.trim() + ' — ' : '') + it.noiDung;
+    let line = (i + 1) + '. ' + (gio.trim() ? gio.trim() + ' — ' : '') + escapeHtml_(it.noiDung);
     const meta = [];
-    if (it.khuVuc) meta.push('KV: ' + it.khuVuc);
-    if (it.nguoiPhuTrach) meta.push('PT: ' + it.nguoiPhuTrach);
-    if (it.diaDiem) meta.push('tại ' + it.diaDiem);
+    if (it.khuVuc) meta.push('KV: ' + escapeHtml_(it.khuVuc));
+    if (it.nguoiPhuTrach) meta.push('PT: ' + escapeHtml_(it.nguoiPhuTrach));
+    if (it.diaDiem) meta.push('tại ' + escapeHtml_(it.diaDiem));
     if (meta.length) line += ' (' + meta.join(', ') + ')';
     lines.push(line);
   });
