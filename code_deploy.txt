@@ -85,7 +85,7 @@ const API_READ_FNS_ = ['getDropdownOptions', 'getStudents', 'getStats', 'getProg
   'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs',
   'getTopNguoiDanDat', 'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan',
   'getDaoTaoTienDoAll', 'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner', 'getLeHoiXepHang', 'checkAccess',
-  'getPersonalGoalsAllKhuVuc'];
+  'getPersonalGoalsAllKhuVuc', 'getKVTongSummary'];
 const API_WRITE_FNS_ = ['addStudent', 'updateStudent', 'deleteStudent', 'saveGoalKV',
   'deleteGoalKV', 'addDonThuanLog', 'deleteDonThuanLog', 'saveTPWeek',
   'addGiaoDucMember', 'deleteGiaoDucMember', 'saveGiaoDucWeek',
@@ -375,6 +375,7 @@ function apiFnMap_(name) {
     getDonThuanLogs: getDonThuanLogs,
     getTopNguoiDanDat: getTopNguoiDanDat,
     getTPSummary: getTPSummary,
+    getKVTongSummary: getKVTongSummary,
     getGiaoDucMembers: getGiaoDucMembers,
     getGiaoDucWeekly: getGiaoDucWeekly,
     getGiaoDucWeeklyAll: getGiaoDucWeeklyAll,
@@ -1447,6 +1448,35 @@ function getTPSummary(monthKey) {
       fourLan: { prevMonthTotal: prev4.total, weeks: cur4.weeks, total: cur4.total }
     };
   });
+}
+
+// Số liệu "Tổng" gộp TẤT CẢ Khu vực, dùng cho chip "Tổng" ở đầu tab "Hiện
+// trạng khu vực" (thay cho việc xem từng Khu vực riêng lẻ): tổng TP ≥1 lần,
+// tổng TP ≥4 lần, EDU LMS trung bình toàn bộ, và số người đã được cấp chứng
+// chỉ (hoàn thành phát biểu) Giáo trình ELOHIM ACADEMY (70 bài Đứng lớp).
+function getKVTongSummary(monthKey) {
+  const tpList = getTPSummary(monthKey);
+  let tpOneLan = 0, tpFourLan = 0;
+  tpList.forEach(function(r) {
+    tpOneLan += r.oneLan.total;
+    tpFourLan += r.fourLan.total;
+  });
+  const eduLms = getEduLmsOverallActual_(monthKey);
+  const daoTao = getDaoTaoTienDoAll();
+  let certCount = 0;
+  Object.keys(daoTao).forEach(function(kv) {
+    (daoTao[kv] || []).forEach(function(p) {
+      if (p.ngayCapChungChi) certCount++;
+    });
+  });
+  return {
+    monthKey: monthKey,
+    tpOneLan: tpOneLan,
+    tpFourLan: tpFourLan,
+    eduLmsAvg: eduLms.avg,
+    eduLmsCount: eduLms.count,
+    certCount: certCount
+  };
 }
 
 /** =========================================================

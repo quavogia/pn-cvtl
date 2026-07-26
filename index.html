@@ -419,6 +419,32 @@
         </div>
       </div>
 
+      <!-- ---- Sub-tab: Tổng — số liệu gộp toàn bộ khu vực, thay cho các sub-tab thường khi chọn chip "Tổng" ---- -->
+      <div id="kvsub-tong" class="kv-subpanel">
+        <div class="card">
+          <h3 style="margin-top:0;">Tổng hợp toàn bộ khu vực — <span id="kvtong_monthLabel"></span></h3>
+          <div class="stat-cards" style="margin-bottom:0;">
+            <div class="stat-card">
+              <div class="label">TP ≥ 1 lần</div>
+              <div class="value" id="kvtong_tp1">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">TP ≥ 4 lần</div>
+              <div class="value" id="kvtong_tp4">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Giáo dục EDU LMS (TB)</div>
+              <div class="value" id="kvtong_edulms">—</div>
+              <div class="sub" id="kvtong_edulms_sub"></div>
+            </div>
+            <div class="stat-card">
+              <div class="label">Hoàn thành phát biểu<br>(Giáo trình ELOHIM ACADEMY)</div>
+              <div class="value" id="kvtong_cert">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- ---- Sub-tab: Mục tiêu (Khu vực + Cá nhân) — scoped theo 1 Khu vực đang chọn ---- -->
       <div id="kvsub-muctieu" class="kv-subpanel">
         <div class="card">
@@ -1723,6 +1749,7 @@ function removeLog(row){
  * dung mỗi hạng mục chỉ hiện dữ liệu của đúng Khu vực đang chọn.
  */
 let kvActiveSubTab = 'tp';
+let kvTongMode = false; // true khi chip "Tổng" đang được chọn (thay cho selectedKV cụ thể)
 
 function kvMonthKey(){
   return document.getElementById('kvMonth').value || currentMonthKey();
@@ -1738,16 +1765,50 @@ function prevMonthKeyOf_(monthKey){
 function renderKVPills(){
   if (!selectedKV && khuVucList.length) selectedKV = khuVucList[0];
   const pills = document.getElementById('kvPills');
-  pills.innerHTML = khuVucList.map(function(kv){
-    return '<button type="button" class="kv-pill' + (kv === selectedKV ? ' active' : '') + '" onclick="selectKV(\'' + kv + '\')">' + esc(kv) + '</button>';
+  let html = '<button type="button" class="kv-pill' + (kvTongMode ? ' active' : '') + '" onclick="selectKVTong()">📊 Tổng</button>';
+  html += khuVucList.map(function(kv){
+    return '<button type="button" class="kv-pill' + (!kvTongMode && kv === selectedKV ? ' active' : '') + '" onclick="selectKV(\'' + kv + '\')">' + esc(kv) + '</button>';
   }).join('');
+  pills.innerHTML = html;
 }
 
 // Đổi Khu vực đang xem -> nạp lại dữ liệu của BẤT KỲ hạng mục nào đang mở.
 function selectKV(kv){
   selectedKV = kv;
+  const wasTong = kvTongMode;
+  kvTongMode = false;
   renderKVPills();
-  loadKVSubTab();
+  if (wasTong) {
+    document.getElementById('kvSubTabs').style.display = '';
+    selectKVSubTab(kvActiveSubTab);
+  } else {
+    loadKVSubTab();
+  }
+}
+
+// Chọn chip "Tổng" -> ẩn các sub-tab thường (Mục tiêu/TP/Trudo/Giáo dục/Đào
+// tạo/Lễ hội) và hiện panel tổng hợp 4 số liệu gộp toàn bộ khu vực.
+function selectKVTong(){
+  kvTongMode = true;
+  renderKVPills();
+  document.getElementById('kvSubTabs').style.display = 'none';
+  document.querySelectorAll('.kv-subpanel').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('kvsub-tong').classList.add('active');
+  loadKVTongPanel();
+}
+
+function loadKVTongPanel(){
+  const monthKey = kvMonthKey();
+  document.getElementById('kvtong_monthLabel').textContent = monthKey;
+  google.script.run.withSuccessHandler(function(d){
+    document.getElementById('kvtong_tp1').textContent = d.tpOneLan;
+    document.getElementById('kvtong_tp4').textContent = d.tpFourLan;
+    document.getElementById('kvtong_edulms').textContent = (d.eduLmsAvg === null || d.eduLmsAvg === undefined) ? '—' : d.eduLmsAvg;
+    document.getElementById('kvtong_edulms_sub').textContent = d.eduLmsCount ? d.eduLmsCount + ' người' : '';
+    document.getElementById('kvtong_cert').textContent = d.certCount;
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải Tổng: ' + err.message, false);
+  }).getKVTongSummary(monthKey);
 }
 
 function selectKVSubTab(name){
@@ -1762,6 +1823,7 @@ function selectKVSubTab(name){
 // Nạp lại đúng dữ liệu của tab con đang mở (gọi khi đổi Khu vực, đổi tháng,
 // hoặc lần đầu vào tab "Hiện trạng khu vực").
 function loadKVSubTab(){
+  if (kvTongMode) { loadKVTongPanel(); return; }
   if (kvActiveSubTab === 'muctieu') loadMucTieuPanel();
   else if (kvActiveSubTab === 'tp') loadTPPanel();
   else if (kvActiveSubTab === 'trudo') loadKVOverview();
