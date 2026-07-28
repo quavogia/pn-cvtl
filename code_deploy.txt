@@ -2312,36 +2312,47 @@ function sendLichNgayMaiDigest() {
 /** =========================================================
  *  THÔNG BÁO TELEGRAM — HỌC VIÊN: báo khi THÊM học viên mới, và khi Tiến độ
  *  (tình trạng học) của 1 học viên đã có thay đổi (sửa các trường khác như
- *  Địa chỉ/Đánh giá... mà KHÔNG đổi Tiến độ thì không báo, tránh spam).
+ *  Địa chỉ/Đánh giá... mà KHÔNG đổi Tiến độ thì không báo, tránh spam). Cả 2
+ *  loại thông báo đều giữ đầy đủ: Khu vực, Người dẫn dắt, Ngày chia sẻ cuối
+ *  cùng, Địa chỉ, Tiến độ, Đánh giá (theo yêu cầu Trưởng phòng 28/07/2026).
  * ========================================================= */
-function notifyStudentMoi_(data) {
+// "yyyy-MM-dd" (frontend gửi lên, từ input type="date") -> "dd/MM/yyyy". Trả
+// về '' nếu không parse được, để lines.push có thể bỏ qua dòng này khi trống.
+function formatYMDVN_(s) {
+  const d = dateOnly_(s);
+  if (!d) return '';
+  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + d.getFullYear();
+}
+
+// Các dòng thông tin DÙNG CHUNG cho cả 2 loại thông báo học viên (KHÔNG gồm
+// dòng Tên/Tiến độ/Đánh giá vì 2 hàm gọi cần trình bày khác nhau).
+function buildStudentThongTinLines_(data) {
   const ndd = [data.ndd1, data.ndd2, data.ndd3]
     .map(function(v) { return String(v || '').trim(); })
     .filter(String)
     .join(', ');
-  const lines = [
-    '🆕 <b>Học viên mới</b>',
-    '',
-    '👤 Tên: ' + escapeHtml_(String(data.ten || '').trim()),
-    '🗺️ Khu vực: ' + escapeHtml_(String(data.to || '').trim()),
-    '🧑‍🏫 Người dẫn dắt: ' + escapeHtml_(ndd),
-    '📊 Tiến độ: ' + escapeHtml_(String(data.tienDo || '').trim())
-  ];
+  const lines = ['🗺️ Khu vực: ' + escapeHtml_(String(data.to || '').trim())];
+  if (ndd) lines.push('🧑‍🏫 Người dẫn dắt: ' + escapeHtml_(ndd));
+  const ngayVN = formatYMDVN_(data.ngay);
+  if (ngayVN) lines.push('📅 Ngày chia sẻ cuối cùng: ' + ngayVN);
   const diaChi = String(data.diaChi || '').trim();
   if (diaChi) lines.push('🏠 Địa chỉ: ' + escapeHtml_(diaChi));
+  return lines;
+}
+
+function notifyStudentMoi_(data) {
+  const lines = ['🆕 <b>Học viên mới</b>', '', '👤 Tên: ' + escapeHtml_(String(data.ten || '').trim())]
+    .concat(buildStudentThongTinLines_(data));
+  lines.push('📊 Tiến độ: ' + escapeHtml_(String(data.tienDo || '').trim()));
   const danhGia = String(data.danhGia || '').trim();
   if (danhGia) lines.push('📝 Đánh giá: ' + escapeHtml_(danhGia));
   sendTelegramNotify_(lines.join('\n'));
 }
 
 function notifyStudentTienDoSua_(data, tienDoCu) {
-  const lines = [
-    '🔄 <b>Cập nhật tiến độ học viên</b>',
-    '',
-    '👤 Tên: ' + escapeHtml_(String(data.ten || '').trim()),
-    '🗺️ Khu vực: ' + escapeHtml_(String(data.to || '').trim()),
-    '📊 Tiến độ: ' + escapeHtml_(tienDoCu ? tienDoCu : '(trống)') + ' → ' + escapeHtml_(String(data.tienDo || '').trim())
-  ];
+  const lines = ['🔄 <b>Cập nhật tiến độ học viên</b>', '', '👤 Tên: ' + escapeHtml_(String(data.ten || '').trim())]
+    .concat(buildStudentThongTinLines_(data));
+  lines.push('📊 Tiến độ: ' + escapeHtml_(tienDoCu ? tienDoCu : '(trống)') + ' → ' + escapeHtml_(String(data.tienDo || '').trim()));
   const danhGia = String(data.danhGia || '').trim();
   if (danhGia) lines.push('📝 Đánh giá: ' + escapeHtml_(danhGia));
   sendTelegramNotify_(lines.join('\n'));
