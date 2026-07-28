@@ -714,11 +714,17 @@ function validateStudentData_(data) {
       throw new Error('Khu vực/Tổ "' + data.to + '" không hợp lệ. Vui lòng chọn một trong: ' + toList.join(', '));
     }
   }
-  if (data.tienDo) {
-    const tienDoList = getDropdownOptions().tienDoList;
-    if (tienDoList.length && tienDoList.indexOf(data.tienDo) === -1) {
-      throw new Error('Tiến độ "' + data.tienDo + '" không hợp lệ. Vui lòng chọn một trong: ' + tienDoList.join(', '));
-    }
+  // Tiến độ BẮT BUỘC (khớp dấu * trên form) — cột Tiến độ trên Sheet có Xác
+  // thực dữ liệu (chỉ nhận B1..B16/BT) kiểu "Từ chối dữ liệu nhập vào", nếu
+  // để trống thì chính Google Sheets sẽ chặn lệnh setValue() và trả về lỗi
+  // kỹ thuật khó hiểu. Chặn sớm ở đây để báo lỗi tiếng Việt rõ ràng.
+  const tienDo = String(data.tienDo || '').trim();
+  if (!tienDo) {
+    throw new Error('Vui lòng chọn Tiến độ.');
+  }
+  const tienDoList = getDropdownOptions().tienDoList;
+  if (tienDoList.length && tienDoList.indexOf(tienDo) === -1) {
+    throw new Error('Tiến độ "' + tienDo + '" không hợp lệ. Vui lòng chọn một trong: ' + tienDoList.join(', '));
   }
   const nddList = getNddOptions_();
   if (nddList.length) {

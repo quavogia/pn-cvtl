@@ -1313,6 +1313,12 @@ document.getElementById('studentForm').addEventListener('submit', function(e){
   if (!validateNddInput(f_ndd1, 'Người dẫn dắt 1')) return;
   if (!validateNddInput(f_ndd2, 'Người dẫn dắt 2')) return;
   if (!validateNddInput(f_ndd3, 'Người dẫn dắt 3')) return;
+  // Tiến độ bắt buộc (ô có dấu * trong form) — cột "Tiến độ" trên Sheet có
+  // Xác thực dữ liệu chỉ chấp nhận B1..B16/BT, để trống sẽ bị Sheet TỰ CHẶN
+  // và trả về lỗi kỹ thuật khó hiểu ("vi phạm quy tắc xác thực dữ liệu ô Ix")
+  // — chặn ở đây trước để hiện thông báo dễ hiểu, không gọi mạng vô ích.
+  const f_tiendo = document.getElementById('f_tiendo');
+  if (!f_tiendo.value) { showMsg('Vui lòng chọn Tiến độ', false); f_tiendo.focus(); return; }
   const data = {
     ten: document.getElementById('f_ten').value,
     ngay: document.getElementById('f_ngay').value,
