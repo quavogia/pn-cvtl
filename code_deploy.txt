@@ -747,12 +747,19 @@ function addStudent(data) {
   sheet.getRange(row, COL.TIENDO).setValue(data.tienDo || '');
   sheet.getRange(row, COL.DANHGIA).setValue(data.danhGia || '');
   updateStats_();
+  // Báo Telegram ngay khi thêm học viên mới — bọc try/catch để lỗi gửi thông
+  // báo (ví dụ chưa cấu hình Script Properties) KHÔNG làm hỏng việc lưu.
+  try { notifyStudentMoi_(data); } catch (err) { Logger.log('Lỗi gửi thông báo học viên mới: ' + err.message); }
   return { success: true };
 }
 
 function updateStudent(row, data) {
   validateStudentData_(data);
   const sheet = getSheet_();
+  // Đọc Tiến độ CŨ trước khi ghi đè, để biết có thực sự đổi Tiến độ hay
+  // không — chỉ báo Telegram khi Tiến độ (tình trạng học) thay đổi, tránh
+  // spam khi Trưởng phòng chỉ sửa lỗi chính tả Địa chỉ/Đánh giá...
+  const tienDoCu = String(sheet.getRange(row, COL.TIENDO).getValue() || '').trim();
   sheet.getRange(row, COL.TEN).setValue(data.ten || '');
   sheet.getRange(row, COL.NGAY).setValue(data.ngay || '');
   sheet.getRange(row, COL.DIACHI).setValue(data.diaChi || '');
@@ -763,6 +770,12 @@ function updateStudent(row, data) {
   sheet.getRange(row, COL.TIENDO).setValue(data.tienDo || '');
   sheet.getRange(row, COL.DANHGIA).setValue(data.danhGia || '');
   updateStats_();
+  try {
+    const tienDoMoi = String(data.tienDo || '').trim();
+    if (tienDoMoi && tienDoMoi !== tienDoCu) {
+      notifyStudentTienDoSua_(data, tienDoCu);
+    }
+  } catch (err) { Logger.log('Lỗi gửi thông báo cập nhật tiến độ học viên: ' + err.message); }
   return { success: true };
 }
 
@@ -2293,6 +2306,44 @@ function sendLichNgayMaiDigest() {
     if (meta.length) line += ' (' + meta.join(', ') + ')';
     lines.push(line);
   });
+  sendTelegramNotify_(lines.join('\n'));
+}
+
+/** =========================================================
+ *  THÔNG BÁO TELEGRAM — HỌC VIÊN: báo khi THÊM học viên mới, và khi Tiến độ
+ *  (tình trạng học) của 1 học viên đã có thay đổi (sửa các trường khác như
+ *  Địa chỉ/Đánh giá... mà KHÔNG đổi Tiến độ thì không báo, tránh spam).
+ * ========================================================= */
+function notifyStudentMoi_(data) {
+  const ndd = [data.ndd1, data.ndd2, data.ndd3]
+    .map(function(v) { return String(v || '').trim(); })
+    .filter(String)
+    .join(', ');
+  const lines = [
+    '🆕 <b>Học viên mới</b>',
+    '',
+    '👤 Tên: ' + escapeHtml_(String(data.ten || '').trim()),
+    '🗺️ Khu vực: ' + escapeHtml_(String(data.to || '').trim()),
+    '🧑‍🏫 Người dẫn dắt: ' + escapeHtml_(ndd),
+    '📊 Tiến độ: ' + escapeHtml_(String(data.tienDo || '').trim())
+  ];
+  const diaChi = String(data.diaChi || '').trim();
+  if (diaChi) lines.push('🏠 Địa chỉ: ' + escapeHtml_(diaChi));
+  const danhGia = String(data.danhGia || '').trim();
+  if (danhGia) lines.push('📝 Đánh giá: ' + escapeHtml_(danhGia));
+  sendTelegramNotify_(lines.join('\n'));
+}
+
+function notifyStudentTienDoSua_(data, tienDoCu) {
+  const lines = [
+    '🔄 <b>Cập nhật tiến độ học viên</b>',
+    '',
+    '👤 Tên: ' + escapeHtml_(String(data.ten || '').trim()),
+    '🗺️ Khu vực: ' + escapeHtml_(String(data.to || '').trim()),
+    '📊 Tiến độ: ' + escapeHtml_(tienDoCu ? tienDoCu : '(trống)') + ' → ' + escapeHtml_(String(data.tienDo || '').trim())
+  ];
+  const danhGia = String(data.danhGia || '').trim();
+  if (danhGia) lines.push('📝 Đánh giá: ' + escapeHtml_(danhGia));
   sendTelegramNotify_(lines.join('\n'));
 }
 
