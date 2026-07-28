@@ -590,6 +590,29 @@ function fixToValidationOnce() {
   range.setDataValidation(rule);
 }
 
+// Chạy 1 LẦN (từ trình chỉnh sửa Apps Script, nút "Chạy") để đồng bộ lại Xác
+// thực dữ liệu (Data Validation) trên cột "Tiến độ" (I) của sheet DS HV theo
+// ĐÚNG danh sách đang dùng ở tab Config (B1..B16, BT, Tạm nghỉ). Sự cố phát
+// hiện 28/07/2026: cột I chỉ được thiết lập Data Validation gồm B1..B16/BT từ
+// trước, thiếu "Tạm nghỉ" (được thêm vào Config sau này) — khiến việc lưu
+// Tiến độ = "Tạm nghỉ" bị chính Google Sheets CHẶN NGAY tại bước ghi ô (ném
+// lỗi kỹ thuật khó hiểu), làm cả updateStudent dừng giữa chừng nên KHÔNG bao
+// giờ chạy tới đoạn gửi thông báo Telegram. Không nằm trong whitelist API nên
+// không gọi được từ web ngoài.
+function fixTienDoValidationOnce() {
+  const sheet = getSheet_();
+  const tienDoList = getDropdownOptions().tienDoList;
+  const numRows = Math.max(sheet.getMaxRows() - DATA_START_ROW + 1, 1);
+  const range = sheet.getRange(DATA_START_ROW, COL.TIENDO, numRows, 1);
+  const rule = SpreadsheetApp.newDataValidation()
+    .requireValueInList(tienDoList, true)
+    .setAllowInvalid(false)
+    .build();
+  range.setDataValidation(rule);
+  Logger.log('Đã cập nhật Data Validation cột Tiến độ (I): ' + tienDoList.join(', '));
+  return { success: true, tienDoList: tienDoList };
+}
+
 function getDropdownOptions() {
   const sheet = ensureConfigSheet_();
   const lastRow = sheet.getLastRow();
@@ -781,7 +804,9 @@ function updateStudent(row, data) {
     if (tienDoMoi && tienDoMoi !== tienDoCu) {
       notifyStudentTienDoSua_(data, tienDoCu);
     }
-  } catch (err) { Logger.log('Lỗi gửi thông báo cập nhật tiến độ học viên: ' + err.message); }
+  } catch (err) {
+    Logger.log('Lỗi gửi thông báo cập nhật tiến độ học viên: ' + err.message);
+  }
   return { success: true };
 }
 
