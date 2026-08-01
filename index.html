@@ -112,7 +112,11 @@
   .dd-table input{width:44px;padding:5px 3px;text-align:center;font-size:13px;transition:background .3s;}
   .dd-table input.saved{background:#dcfce7;}
   .dd-table td.dd-tk{font-weight:700;color:var(--primary);}
-  .dd-table .dd-week-sep{border-left:2px solid #e2e8f0;}
+  .dd-table .dd-week-sep{border-left:2px solid #cbd5e1;}
+  .dd-table th.dd-week-hdr{font-size:13px;font-weight:800;color:#1e3a8a;padding:6px 2px;letter-spacing:.3px;}
+  .dd-table .dd-week-odd{background:#eff6ff;}
+  .dd-table .dd-week-even{background:#f8fafc;}
+  .dd-table td.dd-week-odd input, .dd-table td.dd-week-even input{background:transparent;}
   .dd-goiy{font-size:11px;color:#94a3b8;display:block;margin-top:2px;}
   .dd-goiy button{font-size:10px;padding:1px 6px;margin-left:4px;background:#e2e8f0;color:#334155;border-radius:6px;}
   .tp-trend.up{color:#16a34a;}
@@ -801,7 +805,7 @@
 
       <div class="card">
         <h3 style="margin:0 0 4px" id="ddNhomTitle">—</h3>
-        <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Tuần 1 chỉ có 3 buổi Chủ nhật; Tuần 2-5 có thêm buổi tối Thứ 3. "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tính ≥1 lần/≥4 lần bên tab TP.</p>
+        <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Chủ nhật). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tính ≥1 lần/≥4 lần bên tab TP.</p>
         <div style="overflow-x:auto;">
           <table class="dd-table" id="ddTable"></table>
         </div>
@@ -2044,10 +2048,13 @@ window._ddRoster = null; // toàn bộ 9 Nhóm, từ getDiemDanhRoster(monthKey)
 
 const DD_TUAN_LIST_ = [1, 2, 3, 4, 5];
 const DD_BUOI_LIST_ = ['T3toi', 'CNsang', 'CNchieu', 'CNtoi'];
-const DD_BUOI_NHAN_ = { T3toi: 'T3 tối', CNsang: 'CN sáng', CNchieu: 'CN chiều', CNtoi: 'CN tối' };
+const DD_BUOI_NHAN_ = { T3toi: 'Tối', CNsang: 'Sáng', CNchieu: 'Chiều', CNtoi: 'Tối' };
 
+// Mọi Tuần (kể cả Tuần 1) đều có đủ 4 buổi (Tối thứ 3 + Sáng/Chiều/Tối Chủ
+// nhật) — không còn ẩn buổi tối Thứ 3 ở Tuần 1 như trước, cho đồng nhất và dễ
+// nhìn hơn.
 function ddBuoiListForTuan_(tuan){
-  return tuan === 1 ? ['CNsang', 'CNchieu', 'CNtoi'] : DD_BUOI_LIST_;
+  return DD_BUOI_LIST_;
 }
 
 function ddMonthKey(){
@@ -2110,9 +2117,10 @@ function renderDDTable_(){
   let theadRow2 = '';
   DD_TUAN_LIST_.forEach(function(tuan){
     const buoiList = ddBuoiListForTuan_(tuan);
-    theadRow1 += '<th colspan="' + buoiList.length + '" class="dd-week-sep">Tuần ' + tuan + '</th>';
+    const parity = tuan % 2 === 0 ? ' dd-week-even' : ' dd-week-odd';
+    theadRow1 += '<th colspan="' + buoiList.length + '" class="dd-week-sep dd-week-hdr' + parity + '">Tuần ' + tuan + '</th>';
     buoiList.forEach(function(b, i){
-      theadRow2 += '<th' + (i === 0 ? ' class="dd-week-sep"' : '') + '>' + DD_BUOI_NHAN_[b] + '</th>';
+      theadRow2 += '<th' + (i === 0 ? ' class="dd-week-sep' + parity + '"' : ' class="' + parity.trim() + '"') + '>' + DD_BUOI_NHAN_[b] + '</th>';
     });
   });
   theadRow1 += '<th rowspan="2">T.K</th>';
@@ -2135,9 +2143,10 @@ function ddRowHtml_(m, isTreEm){
   let cells = '';
   DD_TUAN_LIST_.forEach(function(tuan){
     const buoiList = ddBuoiListForTuan_(tuan);
+    const parity = tuan % 2 === 0 ? ' dd-week-even' : ' dd-week-odd';
     buoiList.forEach(function(b, i){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
-      cells += '<td' + (i === 0 ? ' class="dd-week-sep"' : '') + '><input type="text" value="' + esc(val) +
+      cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(ddNhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
         '" onchange="saveDDCell(this)"></td>';
     });
