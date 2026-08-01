@@ -2125,7 +2125,9 @@ function renderDDTable_(){
   });
   theadRow1 += '<th rowspan="2">T.K</th>';
 
-  const rows = data.thanhVien.map(function(m){ return ddRowHtml_(m, data.isTreEm); }).join('');
+  const rows = data.thanhVien.map(function(m, i){
+    return ddRowHtml_(m, data.isTreEm, i === 0, i === data.thanhVien.length - 1);
+  }).join('');
   table.innerHTML = '<thead><tr>' + theadRow1 + '</tr><tr>' + theadRow2 + '</tr></thead><tbody>' +
     (rows || '<tr><td colspan="99" style="color:#94a3b8;">Chưa có ai trong nhóm này' +
       (data.isTreEm ? ' — thêm ở khung bên dưới' : '') + '</td></tr>') +
@@ -2139,7 +2141,7 @@ function renderDDTable_(){
   }
 }
 
-function ddRowHtml_(m, isTreEm){
+function ddRowHtml_(m, isTreEm, isFirst, isLast){
   let cells = '';
   DD_TUAN_LIST_.forEach(function(tuan){
     const buoiList = ddBuoiListForTuan_(tuan);
@@ -2151,10 +2153,22 @@ function ddRowHtml_(m, isTreEm){
         '" onchange="saveDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
     });
   });
-  let tenLabel = esc(m.ten);
+  const tenSafe = esc(m.ten).replace(/'/g, "\\'");
+  // Nút mũi tên lên/xuống — Trưởng phòng tự sắp xếp lại thứ tự danh sách cho
+  // khớp trang tính giấy, không cần nhờ chỉnh sửa code nữa. Áp dụng cho MỌI
+  // nhóm (không chỉ nhóm trẻ em), vì tất cả 9 nhóm giờ đều dùng chung roster
+  // riêng của Điểm danh.
+  const upStyle = 'font-size:10px;padding:0 4px;background:#e2e8f0;color:#334155;border-radius:4px;' + (isFirst ? 'opacity:.25;cursor:default;' : '');
+  const downStyle = 'font-size:10px;padding:0 4px;margin-left:2px;background:#e2e8f0;color:#334155;border-radius:4px;' + (isLast ? 'opacity:.25;cursor:default;' : '');
+  let moveBtns = '<span class="dd-move-btns" style="white-space:nowrap;margin-right:4px;">' +
+    '<button type="button" title="Lên" onclick="moveDDTreEm(\'' + tenSafe + '\',\'up\')"' +
+    (isFirst ? ' disabled' : '') + ' style="' + upStyle + '">▲</button>' +
+    '<button type="button" title="Xuống" onclick="moveDDTreEm(\'' + tenSafe + '\',\'down\')"' +
+    (isLast ? ' disabled' : '') + ' style="' + downStyle + '">▼</button></span>';
+  let tenLabel = moveBtns + esc(m.ten);
   if (m.phuHuynh) tenLabel += ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">(PH: ' + esc(m.phuHuynh) + ')</span>';
   if (isTreEm) {
-    tenLabel += ' <button type="button" onclick="deleteDDTreEm(\'' + esc(m.ten).replace(/'/g, "\\'") + '\')" ' +
+    tenLabel += ' <button type="button" onclick="deleteDDTreEm(\'' + tenSafe + '\')" ' +
       'style="font-size:10px;padding:0 5px;margin-left:4px;background:#fee2e2;color:#b91c1c;border-radius:4px;">Xóa</button>';
   }
   return '<tr><td>' + tenLabel + '</td>' + cells + '<td class="dd-tk">' + esc(m.tongKet) + '</td></tr>';
@@ -2260,6 +2274,17 @@ function deleteDDTreEm(ten){
   }).withFailureHandler(function(err){
     showMsg('Lỗi: ' + err.message, false);
   }).deleteDiemDanhTreEm(ddNhom, ten);
+}
+
+// Di chuyển 1 người lên/xuống 1 bậc trong danh sách — Trưởng phòng tự sắp xếp
+// lại khớp trang tính giấy, không đụng tới điểm danh đã lưu.
+function moveDDTreEm(ten, direction){
+  if (!ddNhom) return;
+  google.script.run.withSuccessHandler(function(){
+    loadDiemDanhPanel();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi sắp xếp: ' + err.message, false);
+  }).moveDiemDanhTreEm(ddNhom, ten, direction);
 }
 
 document.getElementById('ddMonth').addEventListener('change', loadDiemDanhPanel);
