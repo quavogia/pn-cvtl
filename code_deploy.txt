@@ -1023,20 +1023,28 @@ function getMonthlyGoalKV_(monthKey, khuVuc) {
   return { donThuan: Number(v[2]) || 0, huuHieu: Number(v[3]) || 0, bt: Number(v[4]) || 0 };
 }
 
-// Map[Khu vực] = {donThuan, huuHieu, bt} cho 1 tháng, đọc CẢ sheet mục tiêu
-// bằng 1 lệnh getValues() duy nhất — dùng trong getMonthlySummaryByKV() thay
-// vì gọi getMonthlyGoalKV_()/findGoalKVRow_() riêng cho từng Khu vực (mỗi lần
-// gọi lại quét lại cả sheet, nhân lên rất chậm khi có nhiều Khu vực).
+// Map[Khu vực] = {donThuan, huuHieu, bt} cho 1 tháng — Mục tiêu Khu vực giờ
+// TỰ ĐỘNG CỘNG DỒN từ Mục tiêu cá nhân (sheet Muc Tieu Ca Nhan) của mọi thành
+// viên thuộc khu vực đó, KHÔNG còn nhập tay riêng ở sheet Muc Tieu KV Thang
+// nữa (đổi theo yêu cầu 01/08/2026: trước đó 2 nơi nhập tách biệt khiến Mục
+// tiêu Khu vực bị lệch/= 0 dù đã nhập đủ Mục tiêu cá nhân cho từng người).
+// ensureGoalKVSheet_/saveGoalKV/deleteGoalKV vẫn còn trong file (không xóa)
+// để giữ lại dữ liệu lịch sử đã nhập tay trước đây, nhưng không còn được đọc
+// ở đây nữa.
 function getGoalKVMap_(monthKey) {
-  const sheet = ensureGoalKVSheet_();
+  const sheet = ensureGoalCaNhanSheet_();
   const lastRow = sheet.getLastRow();
   const map = {};
   if (lastRow >= 2) {
-    const values = sheet.getRange(2, 1, lastRow - 1, 5).getValues();
+    const values = sheet.getRange(2, 1, lastRow - 1, 6).getValues();
     values.forEach(function(v) {
-      if (normalizeMonthCell_(v[0]) === monthKey) {
-        map[String(v[1])] = { donThuan: Number(v[2]) || 0, huuHieu: Number(v[3]) || 0, bt: Number(v[4]) || 0 };
-      }
+      if (normalizeMonthCell_(v[0]) !== monthKey) return;
+      const kv = String(v[1] || '');
+      if (!kv) return;
+      if (!map[kv]) map[kv] = { donThuan: 0, huuHieu: 0, bt: 0 };
+      map[kv].donThuan += Number(v[3]) || 0;
+      map[kv].huuHieu += Number(v[4]) || 0;
+      map[kv].bt += Number(v[5]) || 0;
     });
   }
   return map;

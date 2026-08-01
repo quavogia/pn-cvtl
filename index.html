@@ -449,18 +449,9 @@
       <div id="kvsub-muctieu" class="kv-subpanel">
         <div class="card">
           <h3 style="margin:0 0 10px">Mục tiêu Khu vực — <span id="mtkv_kvName">—</span> (tháng <span id="mtkv_monthLabel"></span>)</h3>
-          <form id="mtkvForm">
-            <div class="grid">
-              <div><label>Mục tiêu Đơn thuần</label><input type="number" id="mtkv_donthuan" min="0" value="0"></div>
-              <div><label>Mục tiêu Hữu hiệu</label><input type="number" id="mtkv_huuhieu" min="0" value="0"></div>
-              <div><label>Mục tiêu BT (Báp-têm)</label><input type="number" id="mtkv_bt" min="0" value="0"></div>
-            </div>
-            <div style="margin-top:10px;">
-              <button type="submit">Lưu mục tiêu Khu vực</button>
-            </div>
-          </form>
-          <table style="margin-top:16px;">
-            <thead><tr><th></th><th>Mục tiêu</th><th>Thực tế</th><th>% hoàn thành</th></tr></thead>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Mục tiêu Khu vực <b>tự động cộng dồn</b> từ Mục tiêu cá nhân của các thành viên ở bảng bên dưới — không nhập tay riêng nữa. Muốn thay đổi số này, sửa Mục tiêu cá nhân của từng người.</p>
+          <table style="margin-top:0;">
+            <thead><tr><th></th><th>Mục tiêu (tổng cá nhân)</th><th>Thực tế</th><th>% hoàn thành</th></tr></thead>
             <tbody id="mtkvSummaryBody"></tbody>
           </table>
         </div>
@@ -1564,9 +1555,6 @@ function loadMucTieuPanel(){
     const o = list.find(function(r){ return r.khuVuc === selectedKV; }) ||
       { goalSummary: { goal: { donThuan: 0, huuHieu: 0, bt: 0 }, actual: { donThuan: 0, huuHieu: 0, bt: 0 }, percent: {} } };
     const gs = o.goalSummary || { goal: { donThuan: 0, huuHieu: 0, bt: 0 }, actual: { donThuan: 0, huuHieu: 0, bt: 0 }, percent: {} };
-    document.getElementById('mtkv_donthuan').value = gs.goal.donThuan;
-    document.getElementById('mtkv_huuhieu').value = gs.goal.huuHieu;
-    document.getElementById('mtkv_bt').value = gs.goal.bt;
     document.getElementById('mtkvSummaryBody').innerHTML = renderGoalRows(gs);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải mục tiêu Khu vực: ' + err.message, false);
@@ -1581,22 +1569,6 @@ function loadMucTieuPanel(){
     showMsg('Lỗi tải mục tiêu cá nhân: ' + err.message, false);
   }).getPersonalGoalsAllKhuVuc(monthKey);
 }
-
-document.getElementById('mtkvForm').addEventListener('submit', function(e){
-  e.preventDefault();
-  const monthKey = kvMonthKey();
-  const data = {
-    donThuan: Number(document.getElementById('mtkv_donthuan').value) || 0,
-    huuHieu: Number(document.getElementById('mtkv_huuhieu').value) || 0,
-    bt: Number(document.getElementById('mtkv_bt').value) || 0
-  };
-  google.script.run.withSuccessHandler(function(){
-    showMsg('Đã lưu mục tiêu Khu vực', true);
-    loadMucTieuPanel();
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi: ' + err.message, false);
-  }).saveGoalKV(monthKey, selectedKV, data);
-});
 
 function renderMtcnSelect_(list){
   const sel = document.getElementById('mtcn_ten');
