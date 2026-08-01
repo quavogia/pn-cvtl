@@ -805,7 +805,7 @@
 
       <div class="card">
         <h3 style="margin:0 0 4px" id="ddNhomTitle">—</h3>
-        <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Chủ nhật). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tính ≥1 lần/≥4 lần bên tab TP.</p>
+        <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tính ≥1 lần/≥4 lần bên tab TP.</p>
         <div style="overflow-x:auto;">
           <table class="dd-table" id="ddTable"></table>
         </div>
@@ -2148,7 +2148,7 @@ function ddRowHtml_(m, isTreEm){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
       cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(ddNhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
-        '" onchange="saveDDCell(this)"></td>';
+        '" onchange="saveDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
     });
   });
   let tenLabel = esc(m.ten);
@@ -2158,6 +2158,41 @@ function ddRowHtml_(m, isTreEm){
       'style="font-size:10px;padding:0 5px;margin-left:4px;background:#fee2e2;color:#b91c1c;border-radius:4px;">Xóa</button>';
   }
   return '<tr><td>' + tenLabel + '</td>' + cells + '<td class="dd-tk">' + esc(m.tongKet) + '</td></tr>';
+}
+
+// Di chuyển con trỏ giữa các ô điểm danh bằng phím mũi tên (trái/phải/lên/
+// xuống), giống thao tác trên Google Sheets. Trái/phải chỉ nhảy ô khi con trỏ
+// đã ở đầu/cuối chữ đang gõ (không phá thao tác sửa chữ bình thường trong ô);
+// lên/xuống luôn nhảy sang hàng kế (vì input 1 dòng không có ý nghĩa dọc).
+function ddCellKeyNav(e){
+  const key = e.key;
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown') return;
+  const input = e.target;
+  if (key === 'ArrowLeft' && input.selectionStart !== 0) return;
+  if (key === 'ArrowRight' && input.selectionEnd !== input.value.length) return;
+  const td = input.closest('td');
+  const tr = td.closest('tr');
+  if (!tr) return;
+  const tds = Array.prototype.slice.call(tr.children);
+  const colIndex = tds.indexOf(td);
+  let targetTd = null;
+  if (key === 'ArrowLeft') {
+    targetTd = tds[colIndex - 1];
+  } else if (key === 'ArrowRight') {
+    targetTd = tds[colIndex + 1];
+  } else {
+    const tbody = tr.closest('tbody');
+    const trs = Array.prototype.slice.call(tbody.children);
+    const rowIndex = trs.indexOf(tr);
+    const targetTr = key === 'ArrowUp' ? trs[rowIndex - 1] : trs[rowIndex + 1];
+    if (targetTr) targetTd = targetTr.children[colIndex];
+  }
+  if (!targetTd) return;
+  const targetInput = targetTd.querySelector('input');
+  if (!targetInput) return;
+  e.preventDefault();
+  targetInput.focus();
+  targetInput.select();
 }
 
 // Tự lưu ngay khi rời 1 ô (blur/Enter) — LƯU LẠC QUAN: nhấp nháy xanh + tự
