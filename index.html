@@ -1908,13 +1908,43 @@ function loadTPPanel(){
     showMsg('Lỗi tải bảng TP: ' + err.message, false);
   }).getTPSummary(monthKey);
 
-  // Gợi ý ≥1/≥4 lần tính từ tab Điểm danh — chỉ hiển thị cạnh mỗi ô, KHÔNG tự
-  // ghi đè; đây là tính năng phụ nên lỗi thì âm thầm bỏ qua, không phá luồng
-  // nhập TP tay chính (vẫn hoạt động bình thường dù không có gợi ý).
+  // Số liệu ≥1/≥4 lần tính từ tab Điểm danh — TỰ ĐỘNG điền vào các ô Tuần
+  // đang trống (=0, chưa ai nhập tay), rồi lưu luôn như nhập tay bình thường.
+  // Ô nào Trưởng phòng đã tự nhập số (khác 0) thì KHÔNG bị ghi đè — vẫn có
+  // thể tự sửa tay bất cứ lúc nào, sửa xong thì số đó được giữ nguyên.
+  // Đây là tính năng phụ nên lỗi thì âm thầm bỏ qua, không phá luồng TP chính.
   google.script.run.withSuccessHandler(function(map){
     window._ddTPGoiY = map;
-    if (window._tpCurrentData) renderTPEditTable_(window._tpCurrentData, past);
+    if (window._tpCurrentData) autoFillTPFromGoiY_(monthKey, selectedKV, window._tpCurrentData, map, past);
   }).withFailureHandler(function(err){}).getDiemDanhTPGoiY(monthKey);
+}
+
+// Tự động điền số ≥1/≥4 lần từ Điểm danh vào các ô Tuần đang = 0 (chưa nhập
+// tay), lưu ngay xuống Sheet TP như nhập tay, rồi vẽ lại bảng/biểu đồ. Ô nào
+// đã có số khác 0 (đã nhập tay từ trước) thì bỏ qua, không đụng vào.
+function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
+  const goiy = (map && kv && map[kv]) || null;
+  renderTPEditTable_(row, past); // vẽ trước 1 lần để không bị trống trong lúc chờ
+  if (past || !goiy) return;
+  let changed = false;
+  [['1lan', row.oneLan, goiy.weeks1], ['4lan', row.fourLan, goiy.weeks4]].forEach(function(m){
+    const metric = m[0], data = m[1], goiyWeeks = m[2];
+    if (!goiyWeeks) return;
+    for (let i = 0; i < 5; i++) {
+      const cur = Number(data.weeks[i]) || 0;
+      const suggest = Number(goiyWeeks[i]) || 0;
+      if (cur === 0 && suggest > 0) {
+        data.weeks[i] = suggest;
+        changed = true;
+        google.script.run.withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, i + 1, suggest);
+      }
+    }
+    data.total = Math.max.apply(null, data.weeks);
+  });
+  if (changed) {
+    renderTPChart_(row);
+    renderTPEditTable_(row, past);
+  }
 }
 
 // Tach thanh 2 bieu do rieng canh nhau (trai "≥1 lan", phai "≥4 lan") thay vi
@@ -1941,10 +1971,11 @@ function tpTrendHtml_(diff){
 // Tổng (số lớn nhất trong 5 tuần, hover xem tháng trước).
 function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks){
   const cells = data.weeks.map(function(w, i){
-    const goiyVal = goiyWeeks ? goiyWeeks[i] : null;
-    const goiyHtml = (goiyVal === null || goiyVal === undefined) ? '' :
-      '<span class="dd-goiy">gợi ý ' + goiyVal + (past ? '' :
-        ' <button type="button" onclick="ddApplyTPGoiY(this, ' + goiyVal + ')">Lấy</button>') + '</span>';
+    // Số khớp với gợi ý từ Điểm danh (khác 0) = ô này đang lấy tự động — gắn
+    // nhãn nhỏ để Trưởng phòng biết, vẫn sửa tay bình thường được nếu cần.
+    const goiyVal = goiyWeeks ? Number(goiyWeeks[i]) || 0 : null;
+    const isAuto = goiyVal !== null && goiyVal > 0 && Number(w) === goiyVal;
+    const goiyHtml = isAuto ? '<span class="dd-goiy">● tự động (Điểm danh)</span>' : '';
     return '<td><input type="number" min="0" value="' + esc(w) + '" ' + (past ? 'disabled' : '') +
       ' data-metric="' + metricKey + '" data-week="' + (i + 1) + '" onchange="saveTPCell(this)">' + goiyHtml + '</td>';
   }).join('');
@@ -1956,8 +1987,10 @@ function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks){
   '</tr>';
 }
 
-// Gợi ý lấy từ tab Điểm danh (tính ≥1/≥4 lần dựa trên số buổi đã điểm danh
-// cộng dồn từng tuần) — chỉ tham khảo, không tự ghi đè số đã nhập tay.
+// Số ≥1/≥4 lần tính từ tab Điểm danh (dựa trên số buổi đã điểm danh cộng dồn
+// từng tuần) đã được tự động điền + lưu vào row ở autoFillTPFromGoiY_ trước
+// khi hàm này chạy — ở đây chỉ vẽ bảng, kèm nhãn "tự động" cho ô nào đang lấy
+// nguyên số từ Điểm danh (Trưởng phòng vẫn sửa tay được bất cứ lúc nào).
 function renderTPEditTable_(row, past){
   const el = document.getElementById('tpEditTable');
   const goiy = (window._ddTPGoiY && selectedKV && window._ddTPGoiY[selectedKV]) || null;
@@ -1965,16 +1998,6 @@ function renderTPEditTable_(row, past){
     tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null) +
     tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null) +
   '</tbody>';
-}
-
-// Nút "Lấy" cạnh gợi ý — điền số gợi ý vào ô Tuần tương ứng rồi lưu như bình
-// thường (vẫn qua saveTPCell, không có đường lưu riêng).
-function ddApplyTPGoiY(btnEl, val){
-  const td = btnEl.closest('td');
-  const input = td ? td.querySelector('input') : null;
-  if (!input) return;
-  input.value = val;
-  saveTPCell(input);
 }
 
 // Tự lưu ngay khi rời khỏi 1 ô Tuần (blur/Enter) — không cần nút Lưu riêng.
