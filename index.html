@@ -1898,12 +1898,30 @@ function loadTPPanel(){
   document.getElementById('tpPastNotice').style.display = past ? 'block' : 'none';
   document.getElementById('tp_kvName').textContent = selectedKV;
   document.getElementById('tp_monthLabel').textContent = monthKey;
+
+  // getTPSummary và getDiemDanhTPGoiY chạy song song, KHÔNG đảm bảo cái nào
+  // xong trước — trước đây tự-điền chỉ chạy khi getTPSummary xong TRƯỚC, nên
+  // Khu vực nào getDiemDanhTPGoiY về trước thì bị bỏ lỡ, không tự điền (bug).
+  // Dùng "phiếu" (reqId) + gom đủ cả 2 kết quả rồi mới tự điền, để không phụ
+  // thuộc thứ tự, đồng thời tự bỏ qua nếu Trưởng phòng đã đổi Khu vực/tháng
+  // khác trong lúc đang chờ (tránh gán nhầm dữ liệu cũ).
+  const kv = selectedKV;
+  const reqId = (window._tpLoadSeq_ = (window._tpLoadSeq_ || 0) + 1);
+  const pending = { row: null, goiy: null, goiyReady: false };
+  function tryAutoFill_(){
+    if (reqId !== window._tpLoadSeq_ || !pending.row || !pending.goiyReady) return;
+    autoFillTPFromGoiY_(monthKey, kv, pending.row, pending.goiy, past);
+  }
+
   google.script.run.withSuccessHandler(function(list){
-    const row = list.find(function(r){ return r.khuVuc === selectedKV; }) ||
-      { khuVuc: selectedKV, oneLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, fourLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 } };
+    if (reqId !== window._tpLoadSeq_) return;
+    const row = list.find(function(r){ return r.khuVuc === kv; }) ||
+      { khuVuc: kv, oneLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, fourLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 } };
     window._tpCurrentData = row;
     renderTPChart_(row);
     renderTPEditTable_(row, past);
+    pending.row = row;
+    tryAutoFill_();
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải bảng TP: ' + err.message, false);
   }).getTPSummary(monthKey);
@@ -1914,8 +1932,11 @@ function loadTPPanel(){
   // thể tự sửa tay bất cứ lúc nào, sửa xong thì số đó được giữ nguyên.
   // Đây là tính năng phụ nên lỗi thì âm thầm bỏ qua, không phá luồng TP chính.
   google.script.run.withSuccessHandler(function(map){
+    if (reqId !== window._tpLoadSeq_) return;
     window._ddTPGoiY = map;
-    if (window._tpCurrentData) autoFillTPFromGoiY_(monthKey, selectedKV, window._tpCurrentData, map, past);
+    pending.goiy = map;
+    pending.goiyReady = true;
+    tryAutoFill_();
   }).withFailureHandler(function(err){}).getDiemDanhTPGoiY(monthKey);
 }
 
