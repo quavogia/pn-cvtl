@@ -1942,7 +1942,11 @@ function loadTPPanel(){
 
 // Tự động điền số ≥1/≥4 lần từ Điểm danh vào các ô Tuần đang = 0 (chưa nhập
 // tay), lưu ngay xuống Sheet TP như nhập tay, rồi vẽ lại bảng/biểu đồ. Ô nào
-// đã có số khác 0 (đã nhập tay từ trước) thì bỏ qua, không đụng vào.
+// đã có số khác 0 (đã nhập tay từ trước) thì bỏ qua, không đụng vào. CHỈ điền
+// những Tuần đã thực sự có người được điểm danh (goiy.hasData[i] = true) —
+// không lan số cộng dồn sang các Tuần chưa tới/chưa điểm danh (dù cộng dồn từ
+// tuần trước vẫn > 0), để mỗi Tuần đồng bộ đúng theo tuần đó, không tô hết cả
+// 5 tuần cùng lúc.
 function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
   const goiy = (map && kv && map[kv]) || null;
   renderTPEditTable_(row, past); // vẽ trước 1 lần để không bị trống trong lúc chờ
@@ -1954,7 +1958,8 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
     for (let i = 0; i < 5; i++) {
       const cur = Number(data.weeks[i]) || 0;
       const suggest = Number(goiyWeeks[i]) || 0;
-      if (cur === 0 && suggest > 0) {
+      const hasData = goiy.hasData ? !!goiy.hasData[i] : true;
+      if (cur === 0 && suggest > 0 && hasData) {
         data.weeks[i] = suggest;
         changed = true;
         google.script.run.withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, i + 1, suggest);
@@ -1990,12 +1995,14 @@ function tpTrendHtml_(diff){
 
 // 1 hàng chỉ số (≥1 lần / ≥4 lần): nhãn ngắn + 5 ô Tuần nhập trực tiếp + ô
 // Tổng (số lớn nhất trong 5 tuần, hover xem tháng trước).
-function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks){
+function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
   const cells = data.weeks.map(function(w, i){
-    // Số khớp với gợi ý từ Điểm danh (khác 0) = ô này đang lấy tự động — gắn
-    // nhãn nhỏ để Trưởng phòng biết, vẫn sửa tay bình thường được nếu cần.
+    // Số khớp với gợi ý từ Điểm danh (khác 0) VÀ tuần đó thật sự đã có người
+    // được điểm danh = ô này đang lấy tự động — gắn nhãn nhỏ để Trưởng phòng
+    // biết, vẫn sửa tay bình thường được nếu cần.
     const goiyVal = goiyWeeks ? Number(goiyWeeks[i]) || 0 : null;
-    const isAuto = goiyVal !== null && goiyVal > 0 && Number(w) === goiyVal;
+    const hasData = goiyHasData ? !!goiyHasData[i] : true;
+    const isAuto = goiyVal !== null && goiyVal > 0 && Number(w) === goiyVal && hasData;
     const goiyHtml = isAuto ? '<span class="dd-goiy">● tự động (Điểm danh)</span>' : '';
     return '<td><input type="number" min="0" value="' + esc(w) + '" ' + (past ? 'disabled' : '') +
       ' data-metric="' + metricKey + '" data-week="' + (i + 1) + '" onchange="saveTPCell(this)">' + goiyHtml + '</td>';
@@ -2016,8 +2023,8 @@ function renderTPEditTable_(row, past){
   const el = document.getElementById('tpEditTable');
   const goiy = (window._ddTPGoiY && selectedKV && window._ddTPGoiY[selectedKV]) || null;
   el.innerHTML = '<thead><tr><th></th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>Tổng</th></tr></thead><tbody>' +
-    tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null) +
-    tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null) +
+    tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null) +
+    tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null) +
   '</tbody>';
 }
 
