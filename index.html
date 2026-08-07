@@ -2059,6 +2059,17 @@ function refreshTPFromTable_(){
 
 
 
+const DD_TUAN_LIST_ = [1, 2, 3, 4, 5];
+const DD_BUOI_LIST_ = ['T3toi', 'CNsang', 'CNchieu', 'CNtoi'];
+const DD_BUOI_NHAN_ = { T3toi: 'Tối', CNsang: 'Sáng', CNchieu: 'Chiều', CNtoi: 'Tối' };
+
+// Mọi Tuần (kể cả Tuần 1) đều có đủ 4 buổi (Tối thứ 3 + Sáng/Chiều/Tối Chủ
+// nhật) — không còn ẩn buổi tối Thứ 3 ở Tuần 1 như trước, cho đồng nhất và dễ
+// nhìn hơn.
+function ddBuoiListForTuan_(tuan){
+  return DD_BUOI_LIST_;
+}
+
 window._tpddRoster = null; // toàn bộ Nhóm trả về từ getDiemDanhRoster(monthKey)
 
 // Nạp roster Điểm danh của tháng đang xem (dùng chung khoá tháng với TP) rồi
