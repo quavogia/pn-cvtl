@@ -2207,10 +2207,24 @@ function saveTPDDCell(inputEl){
   }
 
   google.script.run.withSuccessHandler(function(){
+    refreshTPAutoFillAfterDD_(monthKey, nhom);
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu điểm danh: ' + err.message + ' — đang tải lại để đồng bộ.', false);
     loadTPDiemDanh_();
   }).saveDiemDanhCell(monthKey, nhom, ten, tuan, buoi, giaTri);
+}
+
+// Vừa lưu 1 ô Điểm danh xong -> số ≥1/≥4 lần gợi ý ở bảng TP phía trên có thể
+// đã đổi (vd vừa đạt đủ 4 buổi) — tải lại gợi ý và tự điền ngay vào ô Tuần
+// đang = 0 (giống lúc mới mở tab TP), để 2 bảng luôn khớp nhau mà không cần
+// Trưởng phòng rời tab rồi quay lại mới thấy cập nhật.
+function refreshTPAutoFillAfterDD_(monthKey, nhom){
+  if (nhom !== selectedKV || !window._tpCurrentData || monthKey !== kvMonthKey()) return;
+  google.script.run.withSuccessHandler(function(map){
+    if (nhom !== selectedKV || !window._tpCurrentData || monthKey !== kvMonthKey()) return;
+    window._ddTPGoiY = map;
+    autoFillTPFromGoiY_(monthKey, nhom, window._tpCurrentData, map, isPastMonthTP_(monthKey));
+  }).withFailureHandler(function(){}).getDiemDanhTPGoiY(monthKey);
 }
 
 // Tính lại T.K ngay trên trình duyệt (giống hệt cách backend diemDanhTongKet_
