@@ -1025,14 +1025,15 @@ function smoothPathD_(pts){
 // Bieu do dang DUONG thuan (khong con cot) — giong kieu bieu do duong cua Google
 // Sheets: moi Khu vuc/chi so la 1 duong rieng mau, cac duong chong len nhau tai
 // tung moc thoi gian tren cung 1 truc X, co khung vien bao quanh vung ve.
-function renderBarChart_(container, categories, series){
+function renderBarChart_(container, categories, series, forcedMax){
   if (typeof container === 'string') container = document.getElementById(container);
   if (!container) return;
   const CHART_H = 300; // phai khop voi CSS .chart{height:...}
   const PLOT_MAX = 205; // chieu cao toi da cua duong (tinh theo axisMax), chua khoang trong cho nhan gia tri o tren
   let allValues = [0];
   series.forEach(function(s){ allValues = allValues.concat(s.values); });
-  const rawMax = Math.max.apply(null, allValues) || 1;
+  const ownMax = Math.max.apply(null, allValues) || 1;
+  const rawMax = (typeof forcedMax === 'number' && forcedMax > 0) ? Math.max(forcedMax, ownMax) : ownMax;
   const step = niceAxisStep_(rawMax, 4);
   const axisMax = Math.max(step, Math.ceil(rawMax / step) * step);
   const n = categories.length || 1;
@@ -1959,8 +1960,10 @@ function renderTPChart_(row){
   const categories = tpViewMode === 'week' ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['Tháng trước', 'Tháng này'];
   const oneLanValues = tpViewMode === 'week' ? row.oneLan.weeks : [row.oneLan.prevMonthTotal, row.oneLan.total];
   const fourLanValues = tpViewMode === 'week' ? row.fourLan.weeks : [row.fourLan.prevMonthTotal, row.fourLan.total];
-  renderBarChart_(el1, categories, [{ name: '≥1 lần', color: '#2563eb', values: oneLanValues }]);
-  renderBarChart_(el2, categories, [{ name: '≥4 lần', color: '#f59e0b', values: fourLanValues }]);
+  const sharedMax = Math.max(1, oneLanValues.reduce(function(a,b){return Math.max(a, Number(b)||0);}, 0),
+    fourLanValues.reduce(function(a,b){return Math.max(a, Number(b)||0);}, 0));
+  renderBarChart_(el1, categories, [{ name: '≥1 lần', color: '#2563eb', values: oneLanValues }], sharedMax);
+  renderBarChart_(el2, categories, [{ name: '≥4 lần', color: '#f59e0b', values: fourLanValues }], sharedMax);
 }
 
 function tpTrendHtml_(diff){
