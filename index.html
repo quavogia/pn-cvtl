@@ -237,7 +237,6 @@
     <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
     <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
     <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
-    <button type="button" class="nav-btn" data-panel="diemdanh" onclick="showPanel('diemdanh')"><span class="nav-icon">✅</span> Điểm danh</button>
   </div>
 
   <div id="main">
@@ -545,6 +544,15 @@
           <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ số trực tiếp, rời ô là tự lưu. "≥1 lần"/"≥4 lần" = số người đã thờ phượng từ 1/4 lần trở lên tính từ đầu tháng, cột "Tổng" lấy số lớn nhất đã nhập (không cộng dồn) — di chuột vào ô Tổng để xem số của tháng trước.</p>
           <table class="tp-table" id="tpEditTable"></table>
         </div>
+
+        <div class="card">
+          <h3 style="margin:0 0 4px">Điểm danh — <span id="tpdd_kvName">—</span></h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tự động điền số liệu ≥1 lần/≥4 lần ở bảng phía trên.</p>
+          <p id="tpddEmpty" style="color:#94a3b8;font-size:13px;display:none;">Khu vực này chưa có trong danh sách Điểm danh.</p>
+          <div style="overflow-x:auto;">
+            <table class="dd-table" id="tpddTable"></table>
+          </div>
+        </div>
       </div>
 
       <!-- ---- Sub-tab: Trudo (Đơn thuần / học viên đang nghe) ---- -->
@@ -782,47 +790,6 @@
 
       <div class="card">
         <div class="lich-grid" id="lichGrid"></div>
-      </div>
-    </div>
-
-    <!-- ============ ĐIỂM DANH ============ -->
-    <div id="panel-diemdanh" class="panel">
-      <h1>Điểm danh</h1>
-
-      <div class="card">
-        <div class="toolbar">
-          <div class="kv-pills" id="ddGioiTinhPills">
-            <button type="button" class="kv-pill active" data-gt="Nam" onclick="selectDDGioiTinh('Nam')">👨 Nam</button>
-            <button type="button" class="kv-pill" data-gt="Nữ" onclick="selectDDGioiTinh('Nữ')">👩 Nữ</button>
-          </div>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <label style="margin:0;font-weight:400;">Xem tháng:</label>
-            <input type="month" id="ddMonth">
-          </div>
-        </div>
-        <div class="kv-pills" id="ddNhomPills" style="margin-top:10px;"></div>
-      </div>
-
-      <div class="card">
-        <h3 style="margin:0 0 4px" id="ddNhomTitle">—</h3>
-        <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tính ≥1 lần/≥4 lần bên tab TP.</p>
-        <div style="overflow-x:auto;">
-          <table class="dd-table" id="ddTable"></table>
-        </div>
-      </div>
-
-      <div class="card" id="ddTreEmCard" style="display:none;">
-        <h3 style="margin:0 0 10px">Thêm vào danh sách <span id="ddTreEmNhomLabel"></span></h3>
-        <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Nhóm riêng cho con em thành viên, chưa có trong danh sách Giáo dục/Người dẫn dắt chung.</p>
-        <form id="ddTreEmForm">
-          <div class="grid">
-            <div><label>Tên *</label><input type="text" id="ddte_ten" required></div>
-            <div><label>Phụ huynh (không bắt buộc)</label><input type="text" id="ddte_phuhuynh"></div>
-          </div>
-          <div style="margin-top:10px;">
-            <button type="submit">+ Thêm vào danh sách</button>
-          </div>
-        </form>
       </div>
     </div>
 
@@ -1898,6 +1865,7 @@ function loadTPPanel(){
   document.getElementById('tpPastNotice').style.display = past ? 'block' : 'none';
   document.getElementById('tp_kvName').textContent = selectedKV;
   document.getElementById('tp_monthLabel').textContent = monthKey;
+  document.getElementById('tpdd_kvName').textContent = selectedKV;
 
   // getTPSummary và getDiemDanhTPGoiY chạy song song, KHÔNG đảm bảo cái nào
   // xong trước — trước đây tự-điền chỉ chạy khi getTPSummary xong TRƯỚC, nên
@@ -1938,6 +1906,8 @@ function loadTPPanel(){
     pending.goiyReady = true;
     tryAutoFill_();
   }).withFailureHandler(function(err){}).getDiemDanhTPGoiY(monthKey);
+
+  loadTPDiemDanh_();
 }
 
 // Tự động điền số ≥1/≥4 lần từ Điểm danh vào các ô Tuần đang = 0 (chưa nhập
@@ -2087,82 +2057,35 @@ function refreshTPFromTable_(){
   renderTPChart_(window._tpCurrentData);
 }
 
-/** =========================================================
- *  ĐIỂM DANH — 9 Nhóm (7 Khu vực người lớn + 2 nhóm Trẻ em), mỗi Nhóm 1 bảng
- *  Tuần 1-5 x Buổi (T3 tối, CN sáng/chiều/tối; Tuần 1 không có T3 tối). Gõ tự
- *  do (không phải checkbox cố định) rồi rời ô là tự lưu (lưu lạc quan). T.K =
- *  tổng số ô đã điểm danh trong tháng, backend tự tính lại mỗi lần tải.
- * ========================================================= */
-let ddGioiTinh = 'Nam';
-let ddNhom = null;
-window._ddRoster = null; // toàn bộ 9 Nhóm, từ getDiemDanhRoster(monthKey)
 
-const DD_TUAN_LIST_ = [1, 2, 3, 4, 5];
-const DD_BUOI_LIST_ = ['T3toi', 'CNsang', 'CNchieu', 'CNtoi'];
-const DD_BUOI_NHAN_ = { T3toi: 'Tối', CNsang: 'Sáng', CNchieu: 'Chiều', CNtoi: 'Tối' };
 
-// Mọi Tuần (kể cả Tuần 1) đều có đủ 4 buổi (Tối thứ 3 + Sáng/Chiều/Tối Chủ
-// nhật) — không còn ẩn buổi tối Thứ 3 ở Tuần 1 như trước, cho đồng nhất và dễ
-// nhìn hơn.
-function ddBuoiListForTuan_(tuan){
-  return DD_BUOI_LIST_;
-}
+window._tpddRoster = null; // toàn bộ Nhóm trả về từ getDiemDanhRoster(monthKey)
 
-function ddMonthKey(){
-  return document.getElementById('ddMonth').value || currentMonthKey();
-}
-
-function loadDiemDanhPanel(){
-  if (!document.getElementById('ddMonth').value) document.getElementById('ddMonth').value = currentMonthKey();
-  const monthKey = ddMonthKey();
+// Nạp roster Điểm danh của tháng đang xem (dùng chung khoá tháng với TP) rồi
+// vẽ lại đúng bảng của Khu vực đang chọn.
+function loadTPDiemDanh_(){
+  if (!selectedKV) return;
+  const monthKey = kvMonthKey();
   google.script.run.withSuccessHandler(function(list){
-    window._ddRoster = list;
-    renderDDNhomPills_();
-    renderDDTable_();
+    window._tpddRoster = list;
+    renderTPDDTable_();
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Điểm danh: ' + err.message, false);
   }).getDiemDanhRoster(monthKey);
 }
 
-function selectDDGioiTinh(gt){
-  ddGioiTinh = gt;
-  document.querySelectorAll('#ddGioiTinhPills .kv-pill').forEach(function(b){
-    b.classList.toggle('active', b.dataset.gt === gt);
-  });
-  ddNhom = null;
-  renderDDNhomPills_();
-  renderDDTable_();
+function tpddFindGroup_(){
+  if (!window._tpddRoster || !selectedKV) return null;
+  return window._tpddRoster.find(function(g){ return g.nhom === selectedKV; }) || null;
 }
 
-function selectDDNhom(nhom){
-  ddNhom = nhom;
-  renderDDNhomPills_();
-  renderDDTable_();
-}
-
-function renderDDNhomPills_(){
-  const el = document.getElementById('ddNhomPills');
-  if (!window._ddRoster) { el.innerHTML = ''; return; }
-  const groups = window._ddRoster.filter(function(g){ return g.gioiTinh === ddGioiTinh; });
-  if (!ddNhom || !groups.some(function(g){ return g.nhom === ddNhom; })) ddNhom = groups.length ? groups[0].nhom : null;
-  el.innerHTML = groups.map(function(g){
-    return '<button type="button" class="kv-pill' + (g.nhom === ddNhom ? ' active' : '') + '" onclick="selectDDNhom(\'' +
-      esc(g.nhom).replace(/'/g, "\\'") + '\')">' + esc(g.nhom) + (g.isTreEm ? ' 👶' : '') + '</button>';
-  }).join('');
-}
-
-function ddFindNhomData_(){
-  if (!window._ddRoster || !ddNhom) return null;
-  return window._ddRoster.find(function(g){ return g.nhom === ddNhom; }) || null;
-}
-
-function renderDDTable_(){
-  const table = document.getElementById('ddTable');
-  const title = document.getElementById('ddNhomTitle');
-  const treEmCard = document.getElementById('ddTreEmCard');
-  const data = ddFindNhomData_();
-  if (!data) { table.innerHTML = ''; title.textContent = '—'; treEmCard.style.display = 'none'; return; }
-  title.textContent = data.nhom + (data.nhomTuoi ? ' (' + data.nhomTuoi + ')' : '');
+function renderTPDDTable_(){
+  const table = document.getElementById('tpddTable');
+  const empty = document.getElementById('tpddEmpty');
+  if (!table) return;
+  const data = tpddFindGroup_();
+  if (!data) { table.innerHTML = ''; empty.style.display = ''; return; }
+  empty.style.display = 'none';
 
   let theadRow1 = '<th rowspan="2"></th>';
   let theadRow2 = '';
@@ -2177,22 +2100,14 @@ function renderDDTable_(){
   theadRow1 += '<th rowspan="2">T.K</th>';
 
   const rows = data.thanhVien.map(function(m, i){
-    return ddRowHtml_(m, data.isTreEm, i === 0, i === data.thanhVien.length - 1);
+    return tpddRowHtml_(m, data.nhom, i === 0, i === data.thanhVien.length - 1);
   }).join('');
   table.innerHTML = '<thead><tr>' + theadRow1 + '</tr><tr>' + theadRow2 + '</tr></thead><tbody>' +
-    (rows || '<tr><td colspan="99" style="color:#94a3b8;">Chưa có ai trong nhóm này' +
-      (data.isTreEm ? ' — thêm ở khung bên dưới' : '') + '</td></tr>') +
+    (rows || '<tr><td colspan="99" style="color:#94a3b8;">Chưa có ai trong danh sách điểm danh khu vực này</td></tr>') +
   '</tbody>';
-
-  if (data.isTreEm) {
-    treEmCard.style.display = '';
-    document.getElementById('ddTreEmNhomLabel').textContent = data.nhom;
-  } else {
-    treEmCard.style.display = 'none';
-  }
 }
 
-function ddRowHtml_(m, isTreEm, isFirst, isLast){
+function tpddRowHtml_(m, nhom, isFirst, isLast){
   let cells = '';
   DD_TUAN_LIST_.forEach(function(tuan){
     const buoiList = ddBuoiListForTuan_(tuan);
@@ -2200,28 +2115,22 @@ function ddRowHtml_(m, isTreEm, isFirst, isLast){
     buoiList.forEach(function(b, i){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
       cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
-        '" data-nhom="' + esc(ddNhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
-        '" onchange="saveDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
+        '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
+        '" onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
     });
   });
   const tenSafe = esc(m.ten).replace(/'/g, "\\'");
   // Nút mũi tên lên/xuống — Trưởng phòng tự sắp xếp lại thứ tự danh sách cho
-  // khớp trang tính giấy, không cần nhờ chỉnh sửa code nữa. Áp dụng cho MỌI
-  // nhóm (không chỉ nhóm trẻ em), vì tất cả 9 nhóm giờ đều dùng chung roster
-  // riêng của Điểm danh.
+  // khớp trang tính giấy, không cần nhờ chỉnh sửa code nữa.
   const upStyle = 'font-size:10px;padding:0 4px;background:#e2e8f0;color:#334155;border-radius:4px;' + (isFirst ? 'opacity:.25;cursor:default;' : '');
   const downStyle = 'font-size:10px;padding:0 4px;margin-left:2px;background:#e2e8f0;color:#334155;border-radius:4px;' + (isLast ? 'opacity:.25;cursor:default;' : '');
   let moveBtns = '<span class="dd-move-btns" style="white-space:nowrap;margin-right:4px;">' +
-    '<button type="button" title="Lên" onclick="moveDDTreEm(\'' + tenSafe + '\',\'up\')"' +
+    '<button type="button" title="Lên" onclick="moveTPDDMember_(\'' + tenSafe + '\',\'up\')"' +
     (isFirst ? ' disabled' : '') + ' style="' + upStyle + '">▲</button>' +
-    '<button type="button" title="Xuống" onclick="moveDDTreEm(\'' + tenSafe + '\',\'down\')"' +
+    '<button type="button" title="Xuống" onclick="moveTPDDMember_(\'' + tenSafe + '\',\'down\')"' +
     (isLast ? ' disabled' : '') + ' style="' + downStyle + '">▼</button></span>';
   let tenLabel = moveBtns + esc(m.ten);
   if (m.phuHuynh) tenLabel += ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">(PH: ' + esc(m.phuHuynh) + ')</span>';
-  if (isTreEm) {
-    tenLabel += ' <button type="button" onclick="deleteDDTreEm(\'' + tenSafe + '\')" ' +
-      'style="font-size:10px;padding:0 5px;margin-left:4px;background:#fee2e2;color:#b91c1c;border-radius:4px;">Xóa</button>';
-  }
   return '<tr><td>' + tenLabel + '</td>' + cells + '<td class="dd-tk">' + esc(m.tongKet) + '</td></tr>';
 }
 
@@ -2263,8 +2172,8 @@ function ddCellKeyNav(e){
 // Tự lưu ngay khi rời 1 ô (blur/Enter) — LƯU LẠC QUAN: nhấp nháy xanh + tự
 // cộng lại T.K trên trình duyệt ngay, lưu thật chạy ngầm; lỗi thì báo + tải
 // lại toàn panel để đồng bộ.
-function saveDDCell(inputEl){
-  const monthKey = ddMonthKey();
+function saveTPDDCell(inputEl){
+  const monthKey = kvMonthKey();
   const nhom = inputEl.dataset.nhom;
   const ten = inputEl.dataset.ten;
   const tuan = inputEl.dataset.tuan;
@@ -2274,7 +2183,7 @@ function saveDDCell(inputEl){
   inputEl.classList.add('saved');
   setTimeout(function(){ inputEl.classList.remove('saved'); }, 700);
 
-  const data = ddFindNhomData_();
+  const data = tpddFindGroup_();
   if (data) {
     const m = data.thanhVien.find(function(x){ return x.ten === ten; });
     if (m) {
@@ -2289,56 +2198,30 @@ function saveDDCell(inputEl){
   google.script.run.withSuccessHandler(function(){
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu điểm danh: ' + err.message + ' — đang tải lại để đồng bộ.', false);
-    loadDiemDanhPanel();
+    loadTPDiemDanh_();
   }).saveDiemDanhCell(monthKey, nhom, ten, tuan, buoi, giaTri);
 }
 
 // Tính lại T.K ngay trên trình duyệt (giống hệt cách backend diemDanhTongKet_
-// tính) để không phải chờ tải lại cả panel sau mỗi ô lưu.
+// tính) để không phải chờ tải lại cả bảng sau mỗi ô lưu.
 function diemDanhTongKetClient_(diemDanh){
   let count = 0;
   Object.keys(diemDanh || {}).forEach(function(tuan){ count += Object.keys(diemDanh[tuan]).length; });
   return count;
 }
 
-document.getElementById('ddTreEmForm').addEventListener('submit', function(e){
-  e.preventDefault();
-  if (!ddNhom) return;
-  const ten = document.getElementById('ddte_ten').value.trim();
-  const phuHuynh = document.getElementById('ddte_phuhuynh').value.trim();
-  if (!ten) return;
+// Di chuyển 1 người lên/xuống 1 bậc trong danh sách của Khu vực đang chọn —
+// Trưởng phòng tự sắp xếp lại khớp trang tính giấy, không đụng tới điểm danh
+// đã lưu.
+function moveTPDDMember_(ten, direction){
+  if (!selectedKV) return;
   google.script.run.withSuccessHandler(function(){
-    showMsg('Đã thêm vào danh sách', true);
-    document.getElementById('ddTreEmForm').reset();
-    loadDiemDanhPanel();
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi: ' + err.message, false);
-  }).addDiemDanhTreEm(ddNhom, ten, phuHuynh);
-});
-
-function deleteDDTreEm(ten){
-  if (!ddNhom) return;
-  if (!confirm('Xóa "' + ten + '" khỏi danh sách "' + ddNhom + '"?')) return;
-  google.script.run.withSuccessHandler(function(){
-    showMsg('Đã xóa', true);
-    loadDiemDanhPanel();
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi: ' + err.message, false);
-  }).deleteDiemDanhTreEm(ddNhom, ten);
-}
-
-// Di chuyển 1 người lên/xuống 1 bậc trong danh sách — Trưởng phòng tự sắp xếp
-// lại khớp trang tính giấy, không đụng tới điểm danh đã lưu.
-function moveDDTreEm(ten, direction){
-  if (!ddNhom) return;
-  google.script.run.withSuccessHandler(function(){
-    loadDiemDanhPanel();
+    loadTPDiemDanh_();
   }).withFailureHandler(function(err){
     showMsg('Lỗi sắp xếp: ' + err.message, false);
-  }).moveDiemDanhTreEm(ddNhom, ten, direction);
+  }).moveDiemDanhTreEm(selectedKV, ten, direction);
 }
 
-document.getElementById('ddMonth').addEventListener('change', loadDiemDanhPanel);
 
 /** ---------- Trudo — 1 Khu vực đang chọn, 3 biểu đồ riêng (Đơn thuần/Hữu
  *  hiệu/BT), có 2 kiểu xem: Theo tuần (Tuần 1-5 trong tháng đang xem) / Theo
@@ -3426,7 +3309,6 @@ function loadAll(){
   loadLogs();
   loadKVSubTab();
   loadLichTuan();
-  loadDiemDanhPanel();
   setTimeout(function(){
     const el = document.getElementById('loadingOverlay');
     if (el) el.style.display = 'none';
