@@ -1917,6 +1917,7 @@ function loadTPPanel(){
 // không lan số cộng dồn sang các Tuần chưa tới/chưa điểm danh (dù cộng dồn từ
 // tuần trước vẫn > 0), để mỗi Tuần đồng bộ đúng theo tuần đó, không tô hết cả
 // 5 tuần cùng lúc.
+window._tpAutoTrack_ = window._tpAutoTrack_ || {};
 function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
   const goiy = (map && kv && map[kv]) || null;
   renderTPEditTable_(row, past); // vẽ trước 1 lần để không bị trống trong lúc chờ
@@ -1929,8 +1930,11 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
       const cur = Number(data.weeks[i]) || 0;
       const suggest = Number(goiyWeeks[i]) || 0;
       const hasData = goiy.hasData ? !!goiy.hasData[i] : true;
-      if (cur === 0 && suggest > 0 && hasData) {
+      const trackKey = kv + '|' + metric + '|' + (i + 1);
+      const wasAuto = cur === 0 || window._tpAutoTrack_[trackKey] === cur;
+      if (wasAuto && suggest > cur && hasData) {
         data.weeks[i] = suggest;
+        window._tpAutoTrack_[trackKey] = suggest;
         changed = true;
         google.script.run.withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, i + 1, suggest);
       }
