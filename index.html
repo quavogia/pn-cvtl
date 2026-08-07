@@ -1932,7 +1932,7 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
       const hasData = goiy.hasData ? !!goiy.hasData[i] : true;
       const trackKey = kv + '|' + metric + '|' + (i + 1);
       const wasAuto = cur === 0 || window._tpAutoTrack_[trackKey] === cur;
-      if (wasAuto && suggest > cur && hasData) {
+      if (wasAuto && hasData && suggest !== cur) {
         data.weeks[i] = suggest;
         window._tpAutoTrack_[trackKey] = suggest;
         changed = true;
