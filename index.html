@@ -122,6 +122,10 @@
   .tp-trend.up{color:#16a34a;}
   .tp-trend.down{color:#dc2626;}
   .tp-trend.flat{color:#94a3b8;}
+  .tp-baocao-cell{vertical-align:top;padding-top:8px !important;}
+  .tp-baocao-btn{font-size:11px;padding:4px 8px;background:#e2e8f0;color:#334155;border-radius:6px;white-space:nowrap;}
+  .tp-baocao-btn.reported{background:#dcfce7;color:#166534;}
+  .tp-baocao-ts{font-size:10px;color:#94a3b8;margin-top:4px;white-space:nowrap;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -1893,7 +1897,7 @@ function loadTPPanel(){
   google.script.run.withSuccessHandler(function(list){
     if (reqId !== window._tpLoadSeq_) return;
     const row = list.find(function(r){ return r.khuVuc === kv; }) ||
-      { khuVuc: kv, oneLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, fourLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 } };
+      { khuVuc: kv, oneLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, fourLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, baoCao: ['','','','',''] };
     window._tpCurrentData = row;
     renderTPChart_(row);
     renderTPEditTable_(row, past);
@@ -2012,7 +2016,47 @@ function renderTPEditTable_(row, past){
   el.innerHTML = '<thead><tr><th></th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>Tổng</th></tr></thead><tbody>' +
     tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null) +
     tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null) +
+    tpBaoCaoRowHtml_(row.baoCao || ['', '', '', '', '']) +
   '</tbody>';
+}
+
+// Hàng "Báo cáo": mỗi Tuần 1 nút riêng — bấm để đánh dấu đã báo cáo xong số
+// liệu TP tuần đó, hiện luôn ngày giờ vừa bấm ngay dưới nút. Bấm lại được
+// (ghi đè thời điểm mới) nếu cần báo cáo lại sau khi sửa số liệu.
+function tpBaoCaoRowHtml_(baoCao){
+  const cells = [1, 2, 3, 4, 5].map(function(w){
+    const ts = baoCao[w - 1] || '';
+    const label = ts ? 'Báo cáo lại' : 'Báo cáo';
+    return '<td class="tp-baocao-cell">' +
+      '<button type="button" class="tp-baocao-btn' + (ts ? ' reported' : '') + '" id="tpBaoCaoBtn_' + w + '" data-week="' + w + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
+      '<div class="tp-baocao-ts" id="tpBaoCaoTs_' + w + '">' + esc(ts) + '</div>' +
+    '</td>';
+  }).join('');
+  return '<tr><td>Báo cáo</td>' + cells + '<td></td></tr>';
+}
+
+// Bấm nút "Báo cáo" của 1 Tuần: gọi lưu mốc thời gian xuống Sheet, xong thì
+// hiện ngay ngày giờ vừa báo cáo dưới nút + đổi nhãn nút thành "Báo cáo lại".
+function saveTPBaoCaoClick(btnEl){
+  const monthKey = kvMonthKey();
+  const week = btnEl.dataset.week;
+  const kv = selectedKV;
+  btnEl.disabled = true;
+  google.script.run.withSuccessHandler(function(res){
+    btnEl.disabled = false;
+    btnEl.textContent = 'Báo cáo lại';
+    btnEl.classList.add('reported');
+    const tsEl = document.getElementById('tpBaoCaoTs_' + week);
+    if (tsEl) tsEl.textContent = res.thoiGian;
+    if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv) {
+      window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || ['', '', '', '', ''];
+      window._tpCurrentData.baoCao[week - 1] = res.thoiGian;
+    }
+    showMsg('Đã báo cáo Tuần ' + week + ' — ' + res.thoiGian, true);
+  }).withFailureHandler(function(err){
+    btnEl.disabled = false;
+    showMsg('Lỗi báo cáo: ' + err.message, false);
+  }).saveTPBaoCao(monthKey, kv, week);
 }
 
 // Tự lưu ngay khi rời khỏi 1 ô Tuần (blur/Enter) — không cần nút Lưu riêng.
