@@ -333,6 +333,7 @@
           <div class="grid">
             <div><label>Tên học viên *</label><input id="f_ten" required></div>
             <div><label>Ngày chia sẻ cuối cùng *</label><input id="f_ngay" type="date" required></div>
+            <div><label>Ngày đầu chia sẻ</label><input id="f_ngaydau" type="date"><small id="f_ngaydau_hint" style="color:#64748b;font-size:12px;display:block;margin-top:2px;">Để trống = lấy theo Ngày chia sẻ cuối cùng. Dùng để tính đúng tháng Hữu hiệu.</small></div>
             <div><label>Địa chỉ *</label><input id="f_diachi" required></div>
             <div><label>Người dẫn dắt 1 *</label><input id="f_ndd1" list="nddDatalist" autocomplete="off" placeholder="Gõ để tìm, chỉ chọn trong danh sách"></div>
             <div><label>Người dẫn dắt 2</label><input id="f_ndd2" list="nddDatalist" autocomplete="off" placeholder="(Không bắt buộc)"></div>
@@ -372,7 +373,7 @@
         </div>
         <div style="overflow-x:auto">
         <table>
-          <thead><tr><th>STT</th><th>Tên</th><th>Ngày chia sẻ</th><th>Địa chỉ</th><th>NDD 1</th><th>NDD 2</th><th>NDD 3</th><th>Khu vực</th><th>Tiến độ</th><th>Đánh giá</th><th>Thao tác</th></tr></thead>
+          <thead><tr><th>STT</th><th>Tên</th><th>Ngày chia sẻ</th><th>Ngày đầu chia sẻ</th><th>Địa chỉ</th><th>NDD 1</th><th>NDD 2</th><th>NDD 3</th><th>Khu vực</th><th>Tiến độ</th><th>Đánh giá</th><th>Thao tác</th></tr></thead>
           <tbody id="studentsBody"></tbody>
         </table>
         </div>
@@ -1187,7 +1188,7 @@ function renderStudents(list){
   document.getElementById('countBadge').textContent = list.length;
   body.innerHTML = list.map(function(s){
     return '<tr>' +
-      '<td>' + esc(s.stt) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.diaChi) + '</td>' +
+      '<td>' + esc(s.stt) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.ngayDau) + '</td><td>' + esc(s.diaChi) + '</td>' +
       '<td>' + esc(s.ndd1) + '</td><td>' + esc(s.ndd2) + '</td><td>' + esc(s.ndd3) + '</td>' +
       '<td>' + esc(s.to) + '</td><td>' + esc(s.tienDo) + '</td>' +
       '<td class="danhgia-cell">' + danhGiaCellHtml_(s.danhGia, s.row) + '</td>' +
@@ -1285,6 +1286,10 @@ function editStudent(row){
   document.getElementById('editRow').value = row;
   document.getElementById('f_ten').value = s.ten || '';
   document.getElementById('f_ngay').value = toDateInputValue_(s.ngay);
+  const f_ngaydauEdit = document.getElementById('f_ngaydau');
+  f_ngaydauEdit.value = toDateInputValue_(s.ngayDau);
+  f_ngaydauEdit.disabled = true;
+  document.getElementById('f_ngaydau_hint').textContent = 'Ngày này đã dùng để tính Hữu hiệu, không thể sửa lại.';
   document.getElementById('f_diachi').value = s.diaChi || '';
   document.getElementById('f_ndd1').value = s.ndd1 || '';
   document.getElementById('f_ndd2').value = s.ndd2 || '';
@@ -1305,6 +1310,8 @@ function resetForm(){
   document.getElementById('formTitle').textContent = 'Thêm học viên mới';
   document.getElementById('submitBtn').textContent = 'Thêm học viên';
   document.getElementById('cancelEditBtn').style.display = 'none';
+  document.getElementById('f_ngaydau').disabled = false;
+  document.getElementById('f_ngaydau_hint').textContent = 'Để trống = lấy theo Ngày chia sẻ cuối cùng. Dùng để tính đúng tháng Hữu hiệu.';
 }
 
 // Kiểm tra giá trị Người dẫn dắt phải khớp đúng (nguyên văn) một tên trong danh sách
@@ -1338,6 +1345,7 @@ document.getElementById('studentForm').addEventListener('submit', function(e){
   const data = {
     ten: document.getElementById('f_ten').value,
     ngay: document.getElementById('f_ngay').value,
+    ngayDau: document.getElementById('f_ngaydau').value,
     diaChi: document.getElementById('f_diachi').value,
     ndd1: f_ndd1.value.trim(),
     ndd2: f_ndd2.value.trim(),
