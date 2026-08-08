@@ -282,7 +282,7 @@
             <div class="sub" id="ovg_edulms_sub"></div>
           </div>
         </div>
-        <p style="font-size:12px;color:#64748b;margin-top:10px;">Đơn thuần/Hữu hiệu/BT: tự cộng dồn ngay khi các Khu vực nhập mục tiêu ở tab "Hiện trạng khu vực" &gt; "🎯 Mục tiêu". EDU LMS: trung bình % thực tế (cao nhất trong 5 tuần) của toàn bộ thành viên mọi Khu vực — không so mục tiêu vì mục tiêu EDU LMS là mục tiêu cá nhân, tùy chọn.</p>
+        <p style="font-size:12px;color:#64748b;margin-top:10px;">Đơn thuần/Hữu hiệu/BT: tự cộng dồn ngay khi các Khu vực nhập mục tiêu ở tab "Hiện trạng khu vực" &gt; "🎯 Mục tiêu". EDU LMS: % thành viên đạt trạng thái "Hoàn thành" (cao nhất trong 5 tuần) trên tổng số thành viên mọi Khu vực.</p>
       </div>
 
       <div class="card">
@@ -452,7 +452,7 @@
               <div class="value" id="kvtong_tp4">—</div>
             </div>
             <div class="stat-card">
-              <div class="label">Giáo dục EDU LMS (TB)</div>
+              <div class="label">Giáo dục EDU LMS (% Hoàn thành)</div>
               <div class="value" id="kvtong_edulms">—</div>
               <div class="sub" id="kvtong_edulms_sub"></div>
             </div>
@@ -485,8 +485,7 @@
               <div><label>Mục tiêu Đơn thuần</label><input type="number" id="mtcn_donthuan" min="0" value="0"></div>
               <div><label>Mục tiêu Hữu hiệu</label><input type="number" id="mtcn_huuhieu" min="0" value="0"></div>
               <div><label>Mục tiêu BT</label><input type="number" id="mtcn_bt" min="0" value="0"></div>
-              <div><label>Mục tiêu EDU LMS (%)</label><input type="number" id="mtcn_edulms" min="0" max="100" value="0"></div>
-              <div><label>Mục tiêu Truyền giáo 127 (%)</label><input type="number" id="mtcn_truyen127" min="0" max="100" value="0"></div>
+              <div><label>Mục tiêu Trực tuyến 127 (ngày)</label><input type="number" id="mtcn_truyen127" min="0" placeholder="127" value=""></div>
             </div>
             <div style="margin-top:10px;">
               <button type="submit">Lưu mục tiêu cá nhân</button>
@@ -499,11 +498,10 @@
                 <tr>
                   <th rowspan="2">Thành viên</th>
                   <th colspan="3">Đơn thuần</th><th colspan="3">Hữu hiệu</th><th colspan="3">BT</th>
-                  <th colspan="3">EDU LMS</th><th colspan="3">Truyền giáo 127</th>
+                  <th rowspan="2">EDU LMS</th><th colspan="3">Trực tuyến 127 (ngày)</th>
                   <th rowspan="2">Thao tác</th>
                 </tr>
                 <tr>
-                  <th>MT</th><th>TT</th><th>%</th>
                   <th>MT</th><th>TT</th><th>%</th>
                   <th>MT</th><th>TT</th><th>%</th>
                   <th>MT</th><th>TT</th><th>%</th>
@@ -514,7 +512,7 @@
             </table>
           </div>
           <p style="font-size:12px;color:#64748b;margin-top:8px;">
-            MT = Mục tiêu tự đặt · TT = Thực tế (Đơn thuần/Hữu hiệu/BT tự tính từ các học viên/nhật ký có tên thành viên này ở "Người dẫn dắt"; EDU LMS/Truyền giáo 127 lấy % lớn nhất đã nhập ở tab "Giáo dục") · % = TT ÷ MT.
+            MT = Mục tiêu tự đặt · TT = Thực tế (Đơn thuần/Hữu hiệu/BT tự tính từ các học viên/nhật ký có tên thành viên này ở "Người dẫn dắt"; Trực tuyến 127 lấy số ngày lớn nhất đã nhập ở tab "Giáo dục") · % = TT ÷ MT. EDU LMS không còn mục tiêu %, chỉ hiện trạng thái (Đang làm/Hoàn thành) cao nhất trong tháng.
           </p>
         </div>
       </div>
@@ -619,11 +617,11 @@
           </div>
           <div class="chart-split">
             <div>
-              <div class="chart-split-title" style="color:#2563eb;">EDU LMS (%)</div>
+              <div class="chart-split-title" style="color:#2563eb;">EDU LMS (mức TB: 0=Chưa bắt đầu, 1=Đang làm, 2=Hoàn thành)</div>
               <div id="eduChartLMS"></div>
             </div>
             <div>
-              <div class="chart-split-title" style="color:#f59e0b;">Trực tuyến 127 (%)</div>
+              <div class="chart-split-title" style="color:#f59e0b;">Trực tuyến 127 (số ngày, TB)</div>
               <div id="eduChartTruc"></div>
             </div>
           </div>
@@ -631,7 +629,7 @@
 
         <div class="card">
           <h3 style="margin:0 0 10px">Tỷ lệ tham gia &amp; hoàn thành (tháng đang xem)</h3>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Tham gia = đã nhập % &gt; 0 trong tháng. Hoàn thành = đã đạt 100% trong tháng. Tự tính từ % đã nhập ở bảng "Thành viên" bên dưới, không cần nhập thêm.</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">EDU LMS — Tham gia = trạng thái "Đang làm" hoặc "Hoàn thành". Hoàn thành = trạng thái "Hoàn thành". Trực tuyến 127 — Tham gia = đã nhập &gt; 0 ngày. Hoàn thành = đạt từ 127 ngày. Tự tính từ dữ liệu đã nhập ở bảng "Thành viên" bên dưới, không cần nhập thêm.</p>
           <table>
             <thead><tr><th></th><th>Tháng này</th><th>Tháng trước</th></tr></thead>
             <tbody id="eduRateBody"></tbody>
@@ -646,7 +644,7 @@
               <button type="button" onclick="addEduMemberQuick()">+ Thêm</button>
             </div>
           </div>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">% là số lũy kế tính đến tuần đó, cột "Tổng" lấy số lớn nhất đã nhập trong tháng (không cộng dồn). Gõ tên rồi chọn đúng gợi ý (lấy từ danh sách Người dẫn dắt ở tab Config) — chưa thấy tên cần thêm thì vào Config thêm trước.</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">EDU LMS: chọn trạng thái Đang làm/Hoàn thành cho từng tuần, cột "Tổng" lấy trạng thái cao nhất trong tháng. Trực tuyến 127: nhập số ngày lũy kế tính đến tuần đó, cột "Tổng" lấy số lớn nhất đã nhập trong tháng (không cộng dồn). Gõ tên rồi chọn đúng gợi ý (lấy từ danh sách Người dẫn dắt ở tab Config) — chưa thấy tên cần thêm thì vào Config thêm trước.</p>
           <div style="overflow-x:auto"><table class="tp-table" id="eduEditTable"></table></div>
         </div>
       </div>
@@ -1429,12 +1427,12 @@ function renderOverallGoalCards(s){
   fill('huuhieu', s.goal.huuHieu, s.actual.huuHieu, s.percent.huuHieu);
   fill('bt', s.goal.bt, s.actual.bt, s.percent.bt);
 
-  // EDU LMS: không phải MT/TT/% như 3 thẻ trên (mục tiêu EDU LMS là mục tiêu
-  // CÁ NHÂN, tùy chọn, không phải Khu vực nào cũng có) — hiện TRUNG BÌNH %
-  // thực tế của toàn bộ thành viên thay vì tỷ lệ so mục tiêu.
-  const el = s.eduLms || { avg: null, count: 0 };
+  // EDU LMS không còn là % nhập tay mà là trạng thái Đang làm/Hoàn thành —
+  // thẻ này hiện % THÀNH VIÊN đạt "Hoàn thành" (cao nhất 5 tuần) trên tổng số
+  // thành viên mọi Khu vực (không so mục tiêu, vì không còn mục tiêu % nữa).
+  const el = s.eduLms || { avg: null, count: 0, hoanThanh: 0, dangLam: 0 };
   document.getElementById('ovg_edulms').textContent = (el.avg === null || el.avg === undefined) ? '—' : el.avg + '%';
-  document.getElementById('ovg_edulms_sub').textContent = 'Trung bình thực tế của ' + el.count + ' thành viên (mọi Khu vực)';
+  document.getElementById('ovg_edulms_sub').textContent = (el.hoanThanh || 0) + '/' + el.count + ' thành viên đã Hoàn thành (' + (el.dangLam || 0) + ' đang làm)';
 }
 
 function loadOverallGoal(){
@@ -1621,7 +1619,7 @@ function mtcnRowHtml_(m){
     '<td>' + esc(m.goal.donThuan) + '</td><td>' + esc(m.actual.donThuan) + '</td><td>' + pctText(m.percent.donThuan) + '</td>' +
     '<td>' + esc(m.goal.huuHieu) + '</td><td>' + esc(m.actual.huuHieu) + '</td><td>' + pctText(m.percent.huuHieu) + '</td>' +
     '<td>' + esc(m.goal.bt) + '</td><td>' + esc(m.actual.bt) + '</td><td>' + pctText(m.percent.bt) + '</td>' +
-    '<td>' + esc(m.goal.eduLms) + '</td><td>' + esc(m.actual.eduLms) + '</td><td>' + pctText(m.percent.eduLms) + '</td>' +
+    '<td>' + esc(m.actual.eduLms || 'Chưa bắt đầu') + '</td>' +
     '<td>' + esc(m.goal.truc127) + '</td><td>' + esc(m.actual.truc127) + '</td><td>' + pctText(m.percent.truc127) + '</td>' +
     '<td class="actions">' +
       '<button type="button" class="edit" onclick="editMtcn(\'' + esc(m.ten).replace(/'/g, "\\'") + '\')">Sửa</button>' +
@@ -1631,7 +1629,7 @@ function mtcnRowHtml_(m){
 
 function renderMtcnList_(list){
   document.getElementById('mtcnListBody').innerHTML = list.length ? list.map(mtcnRowHtml_).join('') :
-    '<tr><td colspan="16" style="color:#94a3b8;">Chưa có thành viên nào trong tab "Giáo dục" của Khu vực này</td></tr>';
+    '<tr><td colspan="15" style="color:#94a3b8;">Chưa có thành viên nào trong tab "Giáo dục" của Khu vực này</td></tr>';
 }
 
 function editMtcn(ten){
@@ -1641,7 +1639,6 @@ function editMtcn(ten){
   document.getElementById('mtcn_donthuan').value = m.goal.donThuan;
   document.getElementById('mtcn_huuhieu').value = m.goal.huuHieu;
   document.getElementById('mtcn_bt').value = m.goal.bt;
-  document.getElementById('mtcn_edulms').value = m.goal.eduLms;
   document.getElementById('mtcn_truyen127').value = m.goal.truc127;
   document.getElementById('mtcnEditingName').textContent = ten;
   document.getElementById('mtcnEditingNotice').style.display = 'block';
@@ -1673,7 +1670,6 @@ document.getElementById('mtcnForm').addEventListener('submit', function(e){
     donThuan: Number(document.getElementById('mtcn_donthuan').value) || 0,
     huuHieu: Number(document.getElementById('mtcn_huuhieu').value) || 0,
     bt: Number(document.getElementById('mtcn_bt').value) || 0,
-    eduLms: Number(document.getElementById('mtcn_edulms').value) || 0,
     truc127: Number(document.getElementById('mtcn_truyen127').value) || 0
   };
   google.script.run.withSuccessHandler(function(){
@@ -1818,8 +1814,8 @@ function loadKVTongPanel(){
   google.script.run.withSuccessHandler(function(d){
     document.getElementById('kvtong_tp1').textContent = d.tpOneLan;
     document.getElementById('kvtong_tp4').textContent = d.tpFourLan;
-    document.getElementById('kvtong_edulms').textContent = (d.eduLmsAvg === null || d.eduLmsAvg === undefined) ? '—' : d.eduLmsAvg;
-    document.getElementById('kvtong_edulms_sub').textContent = d.eduLmsCount ? d.eduLmsCount + ' người' : '';
+    document.getElementById('kvtong_edulms').textContent = (d.eduLmsAvg === null || d.eduLmsAvg === undefined) ? '—' : d.eduLmsAvg + '%';
+    document.getElementById('kvtong_edulms_sub').textContent = d.eduLmsCount ? (d.eduLmsHoanThanh || 0) + '/' + d.eduLmsCount + ' đã Hoàn thành' : '';
     document.getElementById('kvtong_cert').textContent = d.certCount;
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Tổng: ' + err.message, false);
@@ -2426,6 +2422,25 @@ function avgMonthOf_(list, field){
   return [Math.round((sumPrev / list.length) * 10) / 10, Math.round((sumCur / list.length) * 10) / 10];
 }
 
+// EDU LMS giờ là trạng thái (chuỗi), không phải %, nên "trung bình" được tính
+// bằng điểm xếp hạng TB (0-2) rồi quy đổi lại thành chuỗi gần nhất để hiển thị
+// trên biểu đồ cột — 0 = Chưa bắt đầu, 1 = Đang làm, 2 = Hoàn thành.
+const EDU_RANK_LABELS_ = ['Chưa bắt đầu', 'Đang làm', 'Hoàn thành'];
+function eduLmsRankWeeksOf_(list){
+  if (!list.length) return [0, 0, 0, 0, 0];
+  const sums = [0, 0, 0, 0, 0];
+  list.forEach(function(m){
+    m.eduLms.weeks.forEach(function(v, i){ sums[i] += eduStatusRankOf_(v); });
+  });
+  return sums.map(function(s){ return Math.round((s / list.length) * 10) / 10; });
+}
+function eduLmsRankMonthOf_(list){
+  if (!list.length) return [0, 0];
+  let sumPrev = 0, sumCur = 0;
+  list.forEach(function(m){ sumPrev += eduStatusRankOf_(m.eduLms.prevMonthTotal); sumCur += eduStatusRankOf_(m.eduLms.total); });
+  return [Math.round((sumPrev / list.length) * 10) / 10, Math.round((sumCur / list.length) * 10) / 10];
+}
+
 function renderEduChart_(list){
   const elLMS = document.getElementById('eduChartLMS');
   const elTruc = document.getElementById('eduChartTruc');
@@ -2436,16 +2451,17 @@ function renderEduChart_(list){
     return;
   }
   const categories = eduViewMode === 'week' ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['Tháng trước', 'Tháng này'];
-  const eduLmsValues = eduViewMode === 'week' ? avgWeeksOf_(list, 'eduLms') : avgMonthOf_(list, 'eduLms');
+  const eduLmsValues = eduViewMode === 'week' ? eduLmsRankWeeksOf_(list) : eduLmsRankMonthOf_(list);
   const truc127Values = eduViewMode === 'week' ? avgWeeksOf_(list, 'truc127') : avgMonthOf_(list, 'truc127');
-  renderBarChart_(elLMS, categories, [{ name: 'EDU LMS (%)', color: '#2563eb', values: eduLmsValues }]);
-  renderBarChart_(elTruc, categories, [{ name: 'Trực tuyến 127 (%)', color: '#f59e0b', values: truc127Values }]);
+  renderBarChart_(elLMS, categories, [{ name: 'EDU LMS (mức TB: 0-2)', color: '#2563eb', values: eduLmsValues }]);
+  renderBarChart_(elTruc, categories, [{ name: 'Trực tuyến 127 (số ngày)', color: '#f59e0b', values: truc127Values }]);
 }
 
-// Tỷ lệ tham gia (đã nhập % > 0 trong tháng) / tỷ lệ hoàn thành (đạt 100% trong
-// tháng), tính riêng cho Tháng này (total) và Tháng trước (prevMonthTotal) — tự
-// tính thẳng từ % đã nhập của từng thành viên ở bảng "Thành viên" bên dưới,
-// không cần nhập thêm mục tiêu hay số liệu gì khác.
+// Tỷ lệ tham gia / hoàn thành, tính riêng cho Tháng này (total) và Tháng trước
+// (prevMonthTotal) — tự tính thẳng từ dữ liệu đã nhập của từng thành viên ở
+// bảng "Thành viên" bên dưới, không cần nhập thêm mục tiêu hay số liệu gì khác.
+// EDU LMS: predicate so trạng thái (chuỗi). Trực tuyến 127: predicate so số
+// ngày với ngưỡng 127 ngày = hoàn thành (có thể chỉnh nếu mục tiêu khác 127).
 function eduRateOf_(list, field, monthField, predicate){
   const den = list.length;
   const num = list.filter(function(m){ return predicate(m[field][monthField]); }).length;
@@ -2462,10 +2478,10 @@ function renderEduRateTable_(list){
     return;
   }
   const rows = [
-    { label: 'Tham gia EDU LMS', field: 'eduLms', pred: function(v){ return v > 0; } },
-    { label: 'Hoàn thành EDU LMS', field: 'eduLms', pred: function(v){ return v >= 100; } },
+    { label: 'Tham gia EDU LMS', field: 'eduLms', pred: function(v){ return v === 'Đang làm' || v === 'Hoàn thành'; } },
+    { label: 'Hoàn thành EDU LMS', field: 'eduLms', pred: function(v){ return v === 'Hoàn thành'; } },
     { label: 'Tham gia Trực tuyến 127', field: 'truc127', pred: function(v){ return v > 0; } },
-    { label: 'Hoàn thành Trực tuyến 127', field: 'truc127', pred: function(v){ return v >= 100; } }
+    { label: 'Hoàn thành Trực tuyến 127', field: 'truc127', pred: function(v){ return v >= 127; } }
   ];
   body.innerHTML = rows.map(function(r){
     const cur = eduRateOf_(list, r.field, 'total', r.pred);
@@ -2474,14 +2490,31 @@ function renderEduRateTable_(list){
   }).join('');
 }
 
+const EDU_STATUS_OPTIONS_ = ['', 'Đang làm', 'Hoàn thành'];
+// Xếp hạng trạng thái EDU LMS để so sánh "cao nhất" (Hoàn thành > Đang làm >
+// Chưa bắt đầu) — dùng khi tính Tổng tháng và khi vẽ biểu đồ mức độ TB.
+function eduStatusRankOf_(s){ return s === 'Hoàn thành' ? 2 : (s === 'Đang làm' ? 1 : 0); }
+
+function eduStatusSelectHtml_(idx, week, value){
+  const opts = EDU_STATUS_OPTIONS_.map(function(o){
+    return '<option value="' + esc(o) + '"' + (o === value ? ' selected' : '') + '>' + (o || 'Chưa bắt đầu') + '</option>';
+  }).join('');
+  return '<select id="eduInput_' + idx + '_eduLms_' + week + '" ' +
+    'data-idx="' + idx + '" data-field="eduLms" data-week="' + week + '" onchange="saveEduCell(this)">' + opts + '</select>';
+}
+
 function eduMetricRowHtml_(idx, field, label, data){
   const cells = data.weeks.map(function(w, i){
-    return '<td><input type="number" min="0" max="100" value="' + esc(w) + '" id="eduInput_' + idx + '_' + field + '_' + (i + 1) + '" ' +
-      'data-idx="' + idx + '" data-field="' + field + '" data-week="' + (i + 1) + '" onchange="saveEduCell(this)"></td>';
+    const week = i + 1;
+    if (field === 'eduLms') return '<td>' + eduStatusSelectHtml_(idx, week, w) + '</td>';
+    return '<td><input type="number" min="0" value="' + esc(w) + '" id="eduInput_' + idx + '_' + field + '_' + week + '" ' +
+      'data-idx="' + idx + '" data-field="' + field + '" data-week="' + week + '" onchange="saveEduCell(this)"></td>';
   }).join('');
+  const totalText = field === 'eduLms' ? (data.total || 'Chưa bắt đầu') : (esc(data.total) + ' ngày');
+  const prevText = field === 'eduLms' ? (data.prevMonthTotal || 'Chưa bắt đầu') : (esc(data.prevMonthTotal) + ' ngày');
   return '<tr data-prev="' + esc(data.prevMonthTotal) + '">' +
     '<td>' + label + '</td>' + cells +
-    '<td class="tp-total-cell" id="eduTotal_' + idx + '_' + field + '" title="Tháng trước: ' + esc(data.prevMonthTotal) + '">' + esc(data.total) + '%</td>' +
+    '<td class="tp-total-cell" id="eduTotal_' + idx + '_' + field + '" title="Tháng trước: ' + esc(prevText) + '">' + esc(totalText) + '</td>' +
     '<td></td>' +
   '</tr>';
 }
@@ -2493,15 +2526,16 @@ function renderEduEditTable_(list){
     list.map(function(m, idx){
       return '<tr class="edu-member-head"><td colspan="8">' + esc(m.ten) +
         '<button type="button" class="danger" onclick="removeEduMember(' + idx + ')">Xóa</button></td></tr>' +
-        eduMetricRowHtml_(idx, 'eduLms', 'EDU LMS (%)', m.eduLms) +
-        eduMetricRowHtml_(idx, 'truc127', 'Trực tuyến 127 (%)', m.truc127);
+        eduMetricRowHtml_(idx, 'eduLms', 'EDU LMS (Trạng thái)', m.eduLms) +
+        eduMetricRowHtml_(idx, 'truc127', 'Trực tuyến 127 (Số ngày)', m.truc127);
     }).join('') +
   '</tbody>';
 }
 
 function getEduInputValue_(idx, field, week){
   const el = document.getElementById('eduInput_' + idx + '_' + field + '_' + week);
-  return el ? el.value : 0;
+  if (el) return el.value;
+  return field === 'eduLms' ? '' : 0;
 }
 
 // Mỗi thành viên/tuần chỉ có 1 dòng dữ liệu (lưu chung cả EDU LMS lẫn Trực
@@ -2542,6 +2576,21 @@ function saveEduCell(inputEl){
 function recomputeEduMetricTotal_(idx, field){
   const totalCell = document.getElementById('eduTotal_' + idx + '_' + field);
   if (!totalCell) return;
+  if (field === 'eduLms') {
+    let best = '';
+    const weeks = [1, 2, 3, 4, 5].map(function(w){
+      const el = document.getElementById('eduInput_' + idx + '_eduLms_' + w);
+      const v = el ? el.value : '';
+      if (eduStatusRankOf_(v) > eduStatusRankOf_(best)) best = v;
+      return v;
+    });
+    totalCell.textContent = best || 'Chưa bắt đầu';
+    if (eduCurrentList[idx]) {
+      eduCurrentList[idx].eduLms.total = best;
+      eduCurrentList[idx].eduLms.weeks = weeks;
+    }
+    return;
+  }
   let max = 0;
   const weeks = [1, 2, 3, 4, 5].map(function(w){
     const el = document.getElementById('eduInput_' + idx + '_' + field + '_' + w);
@@ -2549,7 +2598,7 @@ function recomputeEduMetricTotal_(idx, field){
     if (v > max) max = v;
     return v;
   });
-  totalCell.textContent = max + '%';
+  totalCell.textContent = max + ' ngày';
   if (eduCurrentList[idx]) {
     eduCurrentList[idx][field].total = max;
     eduCurrentList[idx][field].weeks = weeks;
@@ -2572,7 +2621,7 @@ function addEduMemberQuick(){
   }
   const newMember = {
     ten: ten,
-    eduLms: { prevMonthTotal: 0, weeks: [0, 0, 0, 0, 0], total: 0 },
+    eduLms: { prevMonthTotal: '', weeks: ['', '', '', '', ''], total: '' },
     truc127: { prevMonthTotal: 0, weeks: [0, 0, 0, 0, 0], total: 0 }
   };
   eduCurrentList.push(newMember);
