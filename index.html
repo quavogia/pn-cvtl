@@ -2326,7 +2326,10 @@ function saveTPDDCell(inputEl){
   // phòng thấy đúng ô nào vừa gõ lại sau khi đã báo cáo.
   if (nhom === selectedKV && window._tpCurrentData && window._tpCurrentData.baoCao) {
     const bcItem = window._tpCurrentData.baoCao[Number(tuan) - 1];
-    if (bcItem && bcItem.label) inputEl.classList.add('tp-cell-stale');
+    if (bcItem && bcItem.label) {
+          if (giaTri.trim()) inputEl.classList.add('tp-cell-stale');
+          else inputEl.classList.remove('tp-cell-stale');
+        }
   }
 
   google.script.run.withSuccessHandler(function(){
