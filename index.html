@@ -1948,6 +1948,7 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
         data.weeks[i] = suggest;
         window._tpAutoTrack_[trackKey] = suggest;
         changed = true;
+        markTPBaoCaoStale_(i + 1);
         google.script.run.withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, i + 1, suggest);
       } else if (cur === suggest && hasData) {
         window._tpAutoTrack_[trackKey] = cur;
