@@ -3213,6 +3213,7 @@ document.getElementById('dtViecForm').addEventListener('submit', function(e){
  * ========================================================= */
 let lhActive = null;        // cấu hình lễ hội đang diễn ra (null = không có)
 let lhCurrentList = [];     // [{ten, theoBai, soLanDaPhat, tongSoLanYeuCau, phanTram}, ...] của selectedKV
+let lhActiveKhuVuc = ''; // khu vuc gan voi lhCurrentList (chot luc tai, tranh luu nham khi selectedKV doi)
 let lhSelectedIdx = null;   // idx trong lhCurrentList đang mở lưới, null = đang đóng
 
 function loadLeHoiPanel(){
@@ -3234,6 +3235,7 @@ function loadLeHoiPanel(){
     google.script.run.withSuccessHandler(function(allMap){
       const list = allMap[selectedKV] || [];
       lhCurrentList = list;
+      lhActiveKhuVuc = selectedKV;
       renderLeHoiTable_(list);
       if (lhSelectedIdx !== null && list[lhSelectedIdx]) {
         renderLeHoiGrid_(list[lhSelectedIdx]);
@@ -3326,7 +3328,7 @@ function toggleLeHoiLan_(btn){
   renderLeHoiGrid_(m);
   renderLeHoiTable_(lhCurrentList);
 
-  const leHoiMaSave = lhActive.ma, khuVucSave = selectedKV, tenSave = m.ten;
+  const leHoiMaSave = lhActive.ma, khuVucSave = (lhActiveKhuVuc || selectedKV), tenSave = m.ten;
   const chayLuuLeHoi_ = function(){
     return new Promise(function(resolve){
       google.script.run.withSuccessHandler(function(){
