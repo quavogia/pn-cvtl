@@ -2278,12 +2278,85 @@ window._tpddRoster = null; // toàn bộ Nhóm trả về từ getDiemDanhRoster
 function loadTPDiemDanh_(){
   if (!selectedKV) return;
   const monthKey = kvMonthKey();
+  if (!ddGhiChuLoaded) loadDiemDanhGhiChu_();
   google.script.run.withSuccessHandler(function(list){
     window._tpddRoster = list;
     renderTPDDTable_();
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Điểm danh: ' + err.message, false);
   }).getDiemDanhRoster(monthKey);
+}
+
+function loadDiemDanhGhiChu_(){
+  google.script.run.withSuccessHandler(function(list){
+    ddGhiChuMap = {};
+    list.forEach(function(r){ ddGhiChuMap[r.khuVuc + '||' + r.ten] = r; });
+    ddGhiChuLoaded = true;
+    renderTPDDTable_();
+  }).withFailureHandler(function(err){
+    console.error('Loi tai ghi chu thanh vien: ' + err.message);
+  }).getDiemDanhGhiChuAll();
+}
+
+function ddGhiChuAllCapDo_(){
+  const set = {};
+  Object.keys(ddGhiChuMap).forEach(function(k){
+    const v = ddGhiChuMap[k].capDo;
+    if (v) set[v] = true;
+  });
+  return Object.keys(set).sort();
+}
+
+function ddGhiChuEnsureModal_(){
+  if (document.getElementById('ddGhiChuModal')) return;
+  const html = '<div id="ddGhiChuModal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this) closeDiemDanhGhiChu_()">' +
+    '<div style="background:#fff;border-radius:10px;padding:20px;width:320px;max-width:92vw;box-shadow:0 10px 30px rgba(0,0,0,.25);">' +
+    '<div style="font-weight:700;font-size:15px;margin-bottom:10px;" id="ddGhiChuTitle">Ghi chu thanh vien</div>' +
+    '<label style="font-size:12px;color:#64748b;">Ma cap do</label>' +
+    '<input type="text" id="ddGhiChuCapDo" list="ddGhiChuCapDoList" style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;margin:4px 0 10px;font-size:14px;" placeholder="VD: TDM">' +
+    '<datalist id="ddGhiChuCapDoList"></datalist>' +
+    '<label style="font-size:12px;color:#64748b;">Ghi chu</label>' +
+    '<textarea id="ddGhiChuText" rows="4" style="width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;margin:4px 0 12px;font-size:14px;resize:vertical;" placeholder="Ghi chu tu do..."></textarea>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+    '<button type="button" onclick="closeDiemDanhGhiChu_()" style="padding:6px 14px;border-radius:6px;background:#f1f5f9;border:none;font-size:13px;">Dong</button>' +
+    '<button type="button" onclick="saveDiemDanhGhiChuUI_()" style="padding:6px 14px;border-radius:6px;background:#2563eb;color:#fff;border:none;font-size:13px;">Luu</button>' +
+    '</div></div></div>';
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function openDiemDanhGhiChu_(nhom, ten){
+  ddGhiChuEnsureModal_();
+  ddGhiChuOpenKey = nhom + '||' + ten;
+  const rec = ddGhiChuMap[ddGhiChuOpenKey] || null;
+  document.getElementById('ddGhiChuTitle').textContent = 'Ghi chu: ' + ten;
+  document.getElementById('ddGhiChuCapDo').value = rec ? (rec.capDo || '') : '';
+  document.getElementById('ddGhiChuText').value = rec ? (rec.ghiChu || '') : '';
+  const dl = document.getElementById('ddGhiChuCapDoList');
+  if (dl) dl.innerHTML = ddGhiChuAllCapDo_().map(function(c){ return '<option value="' + esc(c) + '">'; }).join('');
+  document.getElementById('ddGhiChuModal').style.display = 'flex';
+}
+
+function closeDiemDanhGhiChu_(){
+  const modal = document.getElementById('ddGhiChuModal');
+  if (modal) modal.style.display = 'none';
+  ddGhiChuOpenKey = null;
+}
+
+function saveDiemDanhGhiChuUI_(){
+  if (!ddGhiChuOpenKey) return;
+  const sepIdx = ddGhiChuOpenKey.indexOf('||');
+  const nhom = ddGhiChuOpenKey.slice(0, sepIdx);
+  const ten = ddGhiChuOpenKey.slice(sepIdx + 2);
+  const capDo = document.getElementById('ddGhiChuCapDo').value.trim();
+  const ghiChu = document.getElementById('ddGhiChuText').value;
+  google.script.run.withSuccessHandler(function(res){
+    ddGhiChuMap[nhom + '||' + ten] = { khuVuc: nhom, ten: ten, capDo: capDo, ghiChu: ghiChu, ngayCapNhat: res.ngayCapNhat };
+    closeDiemDanhGhiChu_();
+    renderTPDDTable_();
+    showMsg('Da luu ghi chu cho ' + ten, true);
+  }).withFailureHandler(function(err){
+    showMsg('Loi luu ghi chu: ' + err.message, false);
+  }).saveDiemDanhGhiChu(nhom, ten, capDo, ghiChu);
 }
 
 function tpddFindGroup_(){
@@ -2343,7 +2416,9 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
     '<button type="button" title="Xuống" onclick="moveTPDDMember_(\'' + tenSafe + '\',\'down\')"' +
     (isLast ? ' disabled' : '') + ' style="' + downStyle + '">▼</button>' +
     '<button type="button" title="Xóa" onclick="removeTPDDMember_(\'' + tenSafe + '\')" style="' + delStyle + '">✕</button></span>';
-  let tenLabel = moveBtns + esc(m.ten);
+  const ddGC_ = (typeof ddGhiChuMap !== 'undefined' && ddGhiChuMap[nhom + '||' + m.ten]) || null;
+  const ddBadge_ = (ddGC_ && ddGC_.capDo) ? ' <span class="dd-capdo-badge" style="display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:4px;vertical-align:middle;">' + esc(ddGC_.capDo) + '</span>' : '';
+  let tenLabel = moveBtns + '<span class="dd-ten-click" style="cursor:pointer;text-decoration:underline dotted;text-underline-offset:2px;" title="Bấm để xem/sửa ghi chú" onclick="openDiemDanhGhiChu_(\'' + esc(nhom).replace(/'/g,"\\'") + '\',\'' + tenSafe + '\')">' + esc(m.ten) + '</span>' + ddBadge_;
   if (m.phuHuynh) tenLabel += ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">(PH: ' + esc(m.phuHuynh) + ')</span>';
   return '<tr><td>' + tenLabel + '</td>' + cells + '<td class="dd-tk">' + esc(m.tongKet) + '</td></tr>';
 }
@@ -3213,7 +3288,10 @@ document.getElementById('dtViecForm').addEventListener('submit', function(e){
  * ========================================================= */
 let lhActive = null;        // cấu hình lễ hội đang diễn ra (null = không có)
 let lhCurrentList = [];     // [{ten, theoBai, soLanDaPhat, tongSoLanYeuCau, phanTram}, ...] của selectedKV
-let lhActiveKhuVuc = ''; // khu vuc gan voi lhCurrentList (chot luc tai, tranh luu nham khi selectedKV doi)
+let lhActiveKhuVuc = '';
+let ddGhiChuMap = {};   // key: nhom+'||'+ten -> {khuVuc,ten,capDo,ghiChu,ngayCapNhat}
+let ddGhiChuLoaded = false;
+let ddGhiChuOpenKey = null;  // 'nhom||ten' dang mo trong popup // khu vuc gan voi lhCurrentList (chot luc tai, tranh luu nham khi selectedKV doi)
 let lhSelectedIdx = null;   // idx trong lhCurrentList đang mở lưới, null = đang đóng
 
 function loadLeHoiPanel(){
