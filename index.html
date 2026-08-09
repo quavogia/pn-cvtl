@@ -3326,16 +3326,27 @@ function toggleLeHoiLan_(btn){
   renderLeHoiGrid_(m);
   renderLeHoiTable_(lhCurrentList);
 
-  google.script.run.withSuccessHandler(function(){
-    // Bảng xếp hạng ở tab Tổng quan là 1 panel ẩn/hiện bằng CSS (không tự
-    // tải lại khi chuyển tab) -> nếu không chủ động tải lại ở đây, lúc quay
-    // về Tổng quan sẽ vẫn thấy số liệu CŨ dù vừa nhập xong. Tải ngầm lại
-    // ngay sau khi lưu thành công để lần sau xem Tổng quan luôn đúng nhất.
-    if (typeof loadLeHoiXepHang_ === 'function' && lhActive) loadLeHoiXepHang_(lhActive);
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi lưu tiến độ: ' + err.message + ' — đang tải lại để đồng bộ.', false);
-    loadLeHoiPanel();
-  }).toggleLeHoiLan(lhActive.ma, selectedKV, m.ten, ma, lan, willBeDone);
+  const leHoiMaSave = lhActive.ma, khuVucSave = selectedKV, tenSave = m.ten;
+  const chayLuuLeHoi_ = function(){
+    return new Promise(function(resolve){
+      google.script.run.withSuccessHandler(function(){
+        // Bảng xếp hạng ở tab Tổng quan là 1 panel ẩn/hiện bằng CSS (không tự
+        // tải lại khi chuyển tab) -> nếu không chủ động tải lại ở đây, lúc quay
+        // về Tổng quan sẽ vẫn thấy số liệu cũ vừa nhập xong.
+        if (typeof loadLeHoiXepHang_ === 'function' && lhActive) loadLeHoiXepHang_(lhActive);
+        resolve();
+      }).withFailureHandler(function(err){
+        showMsg('Lỗi lưu tiến độ: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+        loadLeHoiPanel();
+        resolve();
+      }).toggleLeHoiLan(leHoiMaSave, khuVucSave, tenSave, ma, lan, willBeDone);
+    });
+  };
+  // Xếp hàng lưu theo TỪNG thành viên: nếu tích liên tiếp nhiều ô nhanh (trước
+  // khi lượt lưu trước đó lưu xong), các yêu cầu lưu sẽ gửi TUẦN TỰ (không
+  // chồng lấn) để tránh xung đột đọc/ghi trên cùng 1 dòng dữ liệu server —
+  // đây là nguyên nhân gây mất dữ liệu khi tích nhiều ô liên tiếp quá nhanh.
+  m._lhSaveQueue = (m._lhSaveQueue || Promise.resolve()).then(chayLuuLeHoi_);
 }
 
 /** =========================================================
