@@ -1956,7 +1956,11 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
         window._tpAutoTrack_[trackKey] = suggest;
         changed = true;
         markTPBaoCaoStale_(i + 1);
-        google.script.run.withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, i + 1, suggest);
+        (function(wk){
+          google.script.run.withSuccessHandler(function(resp){
+            applyTPBaoCaoEditedState_(wk, !!(resp && resp.edited));
+          }).withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, wk, suggest);
+        })(i + 1);
       } else if (cur === suggest && hasData) {
         window._tpAutoTrack_[trackKey] = cur;
       }
@@ -2075,6 +2079,38 @@ function markTPBaoCaoStale_(week, metricToHighlight){
   }
 }
 
+// Dùng kết quả trả về từ backend (saveTPWeek trả edited=true/false) để đồng bộ
+// ngay UI mà KHÔNG cần tải lại trang: nếu số liệu đã quay về đúng như lúc
+// Báo cáo thì tự bỏ vàng + bỏ cảnh báo; nếu vẫn khác thì giữ nguyên cảnh báo.
+function applyTPBaoCaoEditedState_(week, edited) {
+  if (!window._tpCurrentData || !window._tpCurrentData.baoCao) return;
+  const item = window._tpCurrentData.baoCao[week - 1];
+  if (!item || !item.label) return;
+  item.edited = edited;
+  const btn = document.getElementById('tpBaoCaoBtn_' + week);
+  const warn = document.getElementById('tpBaoCaoWarn_' + week);
+  if (edited) {
+    if (btn) {
+      btn.classList.add('stale');
+      const cell = btn.closest('.tp-baocao-cell');
+      if (cell && !warn) {
+        const w = document.createElement('div');
+        w.className = 'tp-baocao-warn';
+        w.id = 'tpBaoCaoWarn_' + week;
+        w.textContent = '⚠️ Đã sửa sau báo cáo';
+        cell.appendChild(w);
+      }
+    }
+  } else {
+    if (btn) btn.classList.remove('stale');
+    if (warn) warn.remove();
+    ['1lan', '4lan'].forEach(function(m) {
+      const inp = document.getElementById('tpCellInput_' + m + '_' + week);
+      if (inp) inp.classList.remove('tp-cell-stale');
+    });
+  }
+}
+
 // Bấm nút "Báo cáo" của 1 Tuần: gọi lưu mốc thời gian xuống Sheet, xong thì
 // hiện ngay ngày giờ vừa báo cáo dưới nút + đổi nhãn nút thành "Báo cáo lại".
 function saveTPBaoCaoClick(btnEl){
@@ -2130,7 +2166,8 @@ function saveTPCell(inputEl){
   refreshTPFromTable_();
   markTPBaoCaoStale_(Number(week), metric);
 
-  google.script.run.withSuccessHandler(function(){
+  google.script.run.withSuccessHandler(function(resp){
+    applyTPBaoCaoEditedState_(Number(week), !!(resp && resp.edited));
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu TP: ' + err.message + ' — đang tải lại để đồng bộ.', false);
     loadTPPanel();
