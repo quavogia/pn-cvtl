@@ -465,6 +465,24 @@
             </div>
           </div>
         </div>
+        <div class="card" style="margin-top:16px;">
+          <h3 style="margin:0 0 4px 0;">Thành viên giảm thờ phượng so với tháng trước</h3>
+          <div style="color:#64748b;font-size:13px;margin-bottom:10px;">So sánh tổng số buổi thờ phượng (Sáng/Chiều/Tối) đã điểm danh trong tháng, so với tháng trước.</div>
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <thead>
+              <tr style="text-align:left;border-bottom:1px solid #e2e8f0;">
+                <th style="padding:6px 8px;">Tên</th>
+                <th style="padding:6px 8px;">Khu vực</th>
+                <th style="padding:6px 8px;text-align:center;">Tháng này</th>
+                <th style="padding:6px 8px;text-align:center;">Tháng trước</th>
+                <th style="padding:6px 8px;text-align:center;">Chênh lệch</th>
+              </tr>
+            </thead>
+            <tbody id="kvtong_decreased_tbody">
+              <tr><td colspan="5" style="padding:10px 8px;color:#94a3b8;">Đang tải…</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- ---- Sub-tab: Mục tiêu (Khu vực + Cá nhân) — scoped theo 1 Khu vực đang chọn ---- -->
@@ -1829,6 +1847,37 @@ function loadKVTongPanel(){
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Tổng: ' + err.message, false);
   }).getKVTongSummary(monthKey);
+  loadTPDecreasedPanel();
+}
+
+function loadTPDecreasedPanel(){
+  const monthKey = kvMonthKey();
+  const tbody = document.getElementById('kvtong_decreased_tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:10px 8px;color:#94a3b8;">Đang tải…</td></tr>';
+  google.script.run.withSuccessHandler(function(list){
+    if (!list || !list.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:10px 8px;color:#94a3b8;">Không có ai giảm thờ phượng so với tháng trước.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = list.map(function(x){
+      return '<tr style="border-bottom:1px solid #f1f5f9;">' +
+        '<td style="padding:6px 8px;">' + escTP_(x.ten) + '</td>' +
+        '<td style="padding:6px 8px;">' + escTP_(x.khuVuc) + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;">' + x.thangNay + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;">' + x.thangTruoc + '</td>' +
+        '<td style="padding:6px 8px;text-align:center;color:#dc2626;font-weight:600;">' + x.chenhLech + '</td>' +
+        '</tr>';
+    }).join('');
+  }).withFailureHandler(function(err){
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:10px 8px;color:#dc2626;">Lỗi tải dữ liệu: ' + err.message + '</td></tr>';
+  }).getMembersDecreasedTP(monthKey);
+}
+
+function escTP_(s){
+  return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
 }
 
 function selectKVSubTab(name){
