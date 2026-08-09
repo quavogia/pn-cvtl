@@ -125,7 +125,9 @@
   .tp-baocao-cell{vertical-align:top;padding-top:8px !important;}
   .tp-baocao-btn{font-size:11px;padding:4px 8px;background:#e2e8f0;color:#334155;border-radius:6px;white-space:nowrap;}
   .tp-baocao-btn.reported{background:#dcfce7;color:#166534;}
+  .tp-baocao-btn.stale{background:#fef3c7;color:#92400e;}
   .tp-baocao-ts{font-size:10px;color:#94a3b8;margin-top:4px;white-space:nowrap;}
+  .tp-baocao-warn{font-size:10px;color:#b45309;font-weight:700;margin-top:3px;max-width:100px;white-space:normal;line-height:1.3;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -173,7 +175,7 @@
   @media (max-width: 900px){ .lich-grid{grid-template-columns:1fr;} }
 
   /* ---------- Nhóm thành viên trong bảng nhập Giáo dục theo tuần ---------- */
-  .edu-member-head td{background:#eef2ff;font-weight:800;font-size:16px;color:#1e3a8a;padding-top:12px !important;padding-bottom:12px !important;border-top:2px solid #c7d2fe;}
+  .edu-member-head td{background:#fce7f3;font-weight:800;font-size:16px;color:#831843;padding-top:12px !important;padding-bottom:12px !important;border-top:2px solid #f3c7dd;}
   .edu-member-head .danger{float:right;padding:2px 8px;font-size:11px;font-weight:600;}
 
   /* ---------- Đào tạo: lưới 70 bài (7 quyển x 10 bài) ---------- */
@@ -1893,7 +1895,8 @@ function loadTPPanel(){
   google.script.run.withSuccessHandler(function(list){
     if (reqId !== window._tpLoadSeq_) return;
     const row = list.find(function(r){ return r.khuVuc === kv; }) ||
-      { khuVuc: kv, oneLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, fourLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, baoCao: ['','','','',''] };
+      { khuVuc: kv, oneLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 }, fourLan: { prevMonthTotal: 0, weeks: [0,0,0,0,0], total: 0 },
+        baoCao: [{label:'',edited:false},{label:'',edited:false},{label:'',edited:false},{label:'',edited:false},{label:'',edited:false}] };
     window._tpCurrentData = row;
     renderTPChart_(row);
     renderTPEditTable_(row, past);
@@ -2021,14 +2024,41 @@ function renderTPEditTable_(row, past){
 // (ghi đè thời điểm mới) nếu cần báo cáo lại sau khi sửa số liệu.
 function tpBaoCaoRowHtml_(baoCao){
   const cells = [1, 2, 3, 4, 5].map(function(w){
-    const ts = baoCao[w - 1] || '';
+    const item = baoCao[w - 1] || { label: '', edited: false };
+    const ts = item.label || '';
+    const edited = !!item.edited;
     const label = ts ? 'Báo cáo lại' : 'Báo cáo';
+    const btnClass = 'tp-baocao-btn' + (ts ? ' reported' : '') + (edited ? ' stale' : '');
+    const warnHtml = edited ? '<div class="tp-baocao-warn" id="tpBaoCaoWarn_' + w + '">⚠️ Đã sửa sau báo cáo</div>' : '';
     return '<td class="tp-baocao-cell">' +
-      '<button type="button" class="tp-baocao-btn' + (ts ? ' reported' : '') + '" id="tpBaoCaoBtn_' + w + '" data-week="' + w + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
+      '<button type="button" class="' + btnClass + '" id="tpBaoCaoBtn_' + w + '" data-week="' + w + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
       '<div class="tp-baocao-ts" id="tpBaoCaoTs_' + w + '">' + esc(ts) + '</div>' +
+      warnHtml +
     '</td>';
   }).join('');
   return '<tr><td>Báo cáo</td>' + cells + '<td></td></tr>';
+}
+
+// Đánh dấu ngay trên trình duyệt (không cần tải lại trang) rằng Tuần này đã
+// bị sửa số liệu ≥1/≥4 lần SAU khi đã bấm "Báo cáo" — hiện cảnh báo màu vàng
+// cạnh nút, để Trưởng phòng biết cần "Báo cáo lại" nếu số liệu đã đổi.
+function markTPBaoCaoStale_(week){
+  if (!window._tpCurrentData) return;
+  const arr = window._tpCurrentData.baoCao;
+  if (!arr) return;
+  const item = arr[week - 1];
+  if (!item || !item.label || item.edited) return;
+  item.edited = true;
+  const btn = document.getElementById('tpBaoCaoBtn_' + week);
+  if (btn) btn.classList.add('stale');
+  const cell = btn && btn.closest('.tp-baocao-cell');
+  if (cell && !document.getElementById('tpBaoCaoWarn_' + week)) {
+    const warn = document.createElement('div');
+    warn.className = 'tp-baocao-warn';
+    warn.id = 'tpBaoCaoWarn_' + week;
+    warn.textContent = '⚠️ Đã sửa sau báo cáo';
+    cell.appendChild(warn);
+  }
 }
 
 // Bấm nút "Báo cáo" của 1 Tuần: gọi lưu mốc thời gian xuống Sheet, xong thì
@@ -2042,11 +2072,14 @@ function saveTPBaoCaoClick(btnEl){
     btnEl.disabled = false;
     btnEl.textContent = 'Báo cáo lại';
     btnEl.classList.add('reported');
+    btnEl.classList.remove('stale');
     const tsEl = document.getElementById('tpBaoCaoTs_' + week);
     if (tsEl) tsEl.textContent = res.thoiGian;
+    const warnEl = document.getElementById('tpBaoCaoWarn_' + week);
+    if (warnEl) warnEl.remove();
     if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv) {
       window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || ['', '', '', '', ''];
-      window._tpCurrentData.baoCao[week - 1] = res.thoiGian;
+      window._tpCurrentData.baoCao[week - 1] = { label: res.thoiGian, edited: false };
     }
     showMsg('Đã báo cáo Tuần ' + week + ' — ' + res.thoiGian, true);
   }).withFailureHandler(function(err){
@@ -2073,6 +2106,7 @@ function saveTPCell(inputEl){
   window._tpSaveTimer = setTimeout(function(){ indicator.style.display = 'none'; }, 1500);
   recomputeTPMetricTotal_(metric);
   refreshTPFromTable_();
+  markTPBaoCaoStale_(Number(week));
 
   google.script.run.withSuccessHandler(function(){
   }).withFailureHandler(function(err){
