@@ -128,6 +128,7 @@
   .tp-baocao-btn.stale{background:#fef3c7;color:#92400e;}
   .tp-baocao-ts{font-size:10px;color:#94a3b8;margin-top:4px;white-space:nowrap;}
   .tp-baocao-warn{font-size:10px;color:#b45309;font-weight:700;margin-top:3px;max-width:100px;white-space:normal;line-height:1.3;}
+  .tp-cell-stale{background:#fef3c7 !important;border:2px solid #f59e0b !important;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -551,7 +552,13 @@
         </div>
 
         <div class="card">
-          <h3 style="margin:0 0 4px">Điểm danh — <span id="tpdd_kvName">—</span></h3>
+          <div class="toolbar">
+            <h3 style="margin:0 0 4px">Điểm danh — <span id="tpdd_kvName">—</span></h3>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <input id="tpdd_newTen" placeholder="Tên thành viên mới..." style="width:auto;min-width:200px;">
+              <button type="button" onclick="addTPDDMemberQuick()">+ Thêm</button>
+            </div>
+          </div>
           <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tự động điền số liệu ≥1 lần/≥4 lần ở bảng phía trên.</p>
           <p id="tpddEmpty" style="color:#94a3b8;font-size:13px;display:none;">Khu vực này chưa có trong danh sách Điểm danh.</p>
           <div style="overflow-x:auto;">
@@ -1986,7 +1993,7 @@ function tpTrendHtml_(diff){
 
 // 1 hàng chỉ số (≥1 lần / ≥4 lần): nhãn ngắn + 5 ô Tuần nhập trực tiếp + ô
 // Tổng (số lớn nhất trong 5 tuần, hover xem tháng trước).
-function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
+function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData, staleWeeks){
   const cells = data.weeks.map(function(w, i){
     // Số khớp với gợi ý từ Điểm danh (khác 0) VÀ tuần đó thật sự đã có người
     // được điểm danh = ô này đang lấy tự động — gắn nhãn nhỏ để Trưởng phòng
@@ -1995,7 +2002,10 @@ function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
     const hasData = goiyHasData ? !!goiyHasData[i] : true;
     const isAuto = goiyVal !== null && goiyVal > 0 && Number(w) === goiyVal && hasData;
     const goiyHtml = isAuto ? '<span class="dd-goiy">● tự động (Điểm danh)</span>' : '';
+    const isStale = staleWeeks ? !!staleWeeks[i] : false;
     return '<td><input type="number" min="0" value="' + esc(w) + '" ' + (past ? 'disabled' : '') +
+      ' id="tpCellInput_' + metricKey + '_' + (i + 1) + '"' +
+      (isStale ? ' class="tp-cell-stale"' : '') +
       ' data-metric="' + metricKey + '" data-week="' + (i + 1) + '" onchange="saveTPCell(this)">' + goiyHtml + '</td>';
   }).join('');
   return '<tr data-prev="' + esc(data.prevMonthTotal) + '">' +
@@ -2013,10 +2023,12 @@ function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
 function renderTPEditTable_(row, past){
   const el = document.getElementById('tpEditTable');
   const goiy = (window._ddTPGoiY && selectedKV && window._ddTPGoiY[selectedKV]) || null;
+  const baoCao = row.baoCao || [1, 2, 3, 4, 5].map(function(){ return { label: '', edited: false }; });
+  const staleWeeks = baoCao.map(function(item){ return !!(item && item.edited); });
   el.innerHTML = '<thead><tr><th></th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>Tổng</th></tr></thead><tbody>' +
-    tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null) +
-    tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null) +
-    tpBaoCaoRowHtml_(row.baoCao || ['', '', '', '', '']) +
+    tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null, staleWeeks) +
+    tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null, staleWeeks) +
+    tpBaoCaoRowHtml_(baoCao) +
   '</tbody>';
 }
 
@@ -2060,6 +2072,10 @@ function markTPBaoCaoStale_(week){
     warn.textContent = '⚠️ Đã sửa sau báo cáo';
     cell.appendChild(warn);
   }
+  ['1lan', '4lan'].forEach(function(mk){
+    const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
+    if (inp) inp.classList.add('tp-cell-stale');
+  });
 }
 
 // Bấm nút "Báo cáo" của 1 Tuần: gọi lưu mốc thời gian xuống Sheet, xong thì
@@ -2078,6 +2094,10 @@ function saveTPBaoCaoClick(btnEl){
     if (tsEl) tsEl.textContent = res.thoiGian;
     const warnEl = document.getElementById('tpBaoCaoWarn_' + week);
     if (warnEl) warnEl.remove();
+    ['1lan', '4lan'].forEach(function(mk){
+      const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
+      if (inp) inp.classList.remove('tp-cell-stale');
+    });
     if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv) {
       window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || ['', '', '', '', ''];
       window._tpCurrentData.baoCao[week - 1] = { label: res.thoiGian, edited: false };
@@ -2227,11 +2247,13 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
   // khớp trang tính giấy, không cần nhờ chỉnh sửa code nữa.
   const upStyle = 'font-size:10px;padding:0 4px;background:#e2e8f0;color:#334155;border-radius:4px;' + (isFirst ? 'opacity:.25;cursor:default;' : '');
   const downStyle = 'font-size:10px;padding:0 4px;margin-left:2px;background:#e2e8f0;color:#334155;border-radius:4px;' + (isLast ? 'opacity:.25;cursor:default;' : '');
+  const delStyle = 'font-size:10px;padding:0 4px;margin-left:2px;background:#fee2e2;color:#991b1b;border-radius:4px;';
   let moveBtns = '<span class="dd-move-btns" style="white-space:nowrap;margin-right:4px;">' +
     '<button type="button" title="Lên" onclick="moveTPDDMember_(\'' + tenSafe + '\',\'up\')"' +
     (isFirst ? ' disabled' : '') + ' style="' + upStyle + '">▲</button>' +
     '<button type="button" title="Xuống" onclick="moveTPDDMember_(\'' + tenSafe + '\',\'down\')"' +
-    (isLast ? ' disabled' : '') + ' style="' + downStyle + '">▼</button></span>';
+    (isLast ? ' disabled' : '') + ' style="' + downStyle + '">▼</button>' +
+    '<button type="button" title="Xóa" onclick="removeTPDDMember_(\'' + tenSafe + '\')" style="' + delStyle + '">✕</button></span>';
   let tenLabel = moveBtns + esc(m.ten);
   if (m.phuHuynh) tenLabel += ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">(PH: ' + esc(m.phuHuynh) + ')</span>';
   return '<tr><td>' + tenLabel + '</td>' + cells + '<td class="dd-tk">' + esc(m.tongKet) + '</td></tr>';
@@ -2337,6 +2359,33 @@ function moveTPDDMember_(ten, direction){
   }).withFailureHandler(function(err){
     showMsg('Lỗi sắp xếp: ' + err.message, false);
   }).moveDiemDanhTreEm(selectedKV, ten, direction);
+}
+
+// Thêm nhanh 1 người vào danh sách Điểm danh của Khu vực đang chọn.
+function addTPDDMemberQuick(){
+  if (!selectedKV) return;
+  const inp = document.getElementById('tpdd_newTen');
+  const ten = (inp.value || '').trim();
+  if (!ten) { showMsg('Chưa nhập tên', false); return; }
+  inp.value = '';
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã thêm ' + ten, true);
+    loadTPDiemDanh_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi thêm: ' + err.message, false);
+    inp.value = ten;
+  }).addDiemDanhTreEm(selectedKV, ten, '');
+}
+
+// Xóa 1 người khỏi danh sách Điểm danh của Khu vực đang chọn.
+function removeTPDDMember_(ten){
+  if (!selectedKV) return;
+  if (!confirm('Xóa "' + ten + '" khỏi danh sách Điểm danh?')) return;
+  google.script.run.withSuccessHandler(function(){
+    loadTPDiemDanh_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi xóa: ' + err.message, false);
+  }).deleteDiemDanhTreEm(selectedKV, ten);
 }
 
 
