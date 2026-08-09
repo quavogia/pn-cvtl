@@ -1993,7 +1993,7 @@ function tpTrendHtml_(diff){
 
 // 1 hàng chỉ số (≥1 lần / ≥4 lần): nhãn ngắn + 5 ô Tuần nhập trực tiếp + ô
 // Tổng (số lớn nhất trong 5 tuần, hover xem tháng trước).
-function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData, staleWeeks){
+function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
   const cells = data.weeks.map(function(w, i){
     // Số khớp với gợi ý từ Điểm danh (khác 0) VÀ tuần đó thật sự đã có người
     // được điểm danh = ô này đang lấy tự động — gắn nhãn nhỏ để Trưởng phòng
@@ -2002,10 +2002,8 @@ function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData, 
     const hasData = goiyHasData ? !!goiyHasData[i] : true;
     const isAuto = goiyVal !== null && goiyVal > 0 && Number(w) === goiyVal && hasData;
     const goiyHtml = isAuto ? '<span class="dd-goiy">● tự động (Điểm danh)</span>' : '';
-    const isStale = staleWeeks ? !!staleWeeks[i] : false;
     return '<td><input type="number" min="0" value="' + esc(w) + '" ' + (past ? 'disabled' : '') +
       ' id="tpCellInput_' + metricKey + '_' + (i + 1) + '"' +
-      (isStale ? ' class="tp-cell-stale"' : '') +
       ' data-metric="' + metricKey + '" data-week="' + (i + 1) + '" onchange="saveTPCell(this)">' + goiyHtml + '</td>';
   }).join('');
   return '<tr data-prev="' + esc(data.prevMonthTotal) + '">' +
@@ -2024,10 +2022,9 @@ function renderTPEditTable_(row, past){
   const el = document.getElementById('tpEditTable');
   const goiy = (window._ddTPGoiY && selectedKV && window._ddTPGoiY[selectedKV]) || null;
   const baoCao = row.baoCao || [1, 2, 3, 4, 5].map(function(){ return { label: '', edited: false }; });
-  const staleWeeks = baoCao.map(function(item){ return !!(item && item.edited); });
   el.innerHTML = '<thead><tr><th></th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>Tổng</th></tr></thead><tbody>' +
-    tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null, staleWeeks) +
-    tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null, staleWeeks) +
+    tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null) +
+    tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null) +
     tpBaoCaoRowHtml_(baoCao) +
   '</tbody>';
 }
@@ -2055,12 +2052,12 @@ function tpBaoCaoRowHtml_(baoCao){
 // Đánh dấu ngay trên trình duyệt (không cần tải lại trang) rằng Tuần này đã
 // bị sửa số liệu ≥1/≥4 lần SAU khi đã bấm "Báo cáo" — hiện cảnh báo màu vàng
 // cạnh nút, để Trưởng phòng biết cần "Báo cáo lại" nếu số liệu đã đổi.
-function markTPBaoCaoStale_(week){
+function markTPBaoCaoStale_(week, metricToHighlight){
   if (!window._tpCurrentData) return;
   const arr = window._tpCurrentData.baoCao;
   if (!arr) return;
   const item = arr[week - 1];
-  if (!item || !item.label || item.edited) return;
+  if (!item || !item.label) return;
   item.edited = true;
   const btn = document.getElementById('tpBaoCaoBtn_' + week);
   if (btn) btn.classList.add('stale');
@@ -2072,10 +2069,10 @@ function markTPBaoCaoStale_(week){
     warn.textContent = '⚠️ Đã sửa sau báo cáo';
     cell.appendChild(warn);
   }
-  ['1lan', '4lan'].forEach(function(mk){
-    const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
+  if (metricToHighlight) {
+    const inp = document.getElementById('tpCellInput_' + metricToHighlight + '_' + week);
     if (inp) inp.classList.add('tp-cell-stale');
-  });
+  }
 }
 
 // Bấm nút "Báo cáo" của 1 Tuần: gọi lưu mốc thời gian xuống Sheet, xong thì
@@ -2097,6 +2094,10 @@ function saveTPBaoCaoClick(btnEl){
     ['1lan', '4lan'].forEach(function(mk){
       const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
       if (inp) inp.classList.remove('tp-cell-stale');
+    });
+    // Bỏ vàng luôn các ô Điểm danh của đúng Tuần này (đã bôi vàng lúc sửa).
+    document.querySelectorAll('#tpddTable input[data-tuan="' + week + '"]').forEach(function(inp){
+      inp.classList.remove('tp-cell-stale');
     });
     if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv) {
       window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || ['', '', '', '', ''];
@@ -2127,7 +2128,7 @@ function saveTPCell(inputEl){
   window._tpSaveTimer = setTimeout(function(){ indicator.style.display = 'none'; }, 1500);
   recomputeTPMetricTotal_(metric);
   refreshTPFromTable_();
-  markTPBaoCaoStale_(Number(week));
+  markTPBaoCaoStale_(Number(week), metric);
 
   google.script.run.withSuccessHandler(function(){
   }).withFailureHandler(function(err){
@@ -2318,6 +2319,14 @@ function saveTPDDCell(inputEl){
       const row = inputEl.closest('tr');
       if (row) { const tk = row.querySelector('.dd-tk'); if (tk) tk.textContent = m.tongKet; }
     }
+  }
+
+  // Nếu Tuần này đã "Báo cáo" rồi thì bôi vàng ngay chính ô Điểm danh vừa sửa
+  // (không phải ô ≥1/≥4 lần phía trên, vì đó chỉ là số tự tính ra) — để Trưởng
+  // phòng thấy đúng ô nào vừa gõ lại sau khi đã báo cáo.
+  if (nhom === selectedKV && window._tpCurrentData && window._tpCurrentData.baoCao) {
+    const bcItem = window._tpCurrentData.baoCao[Number(tuan) - 1];
+    if (bcItem && bcItem.label) inputEl.classList.add('tp-cell-stale');
   }
 
   google.script.run.withSuccessHandler(function(){
