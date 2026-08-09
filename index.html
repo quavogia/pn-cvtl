@@ -1840,7 +1840,9 @@ function loadKVTongPanel(){
   document.getElementById('kvtong_monthLabel').textContent = monthKey;
   google.script.run.withSuccessHandler(function(d){
     document.getElementById('kvtong_tp1').textContent = d.tpOneLan;
+    document.getElementById('kvtong_tp1').insertAdjacentHTML('beforeend', tpTrendHtml_(d.tpOneLan - d.tpOneLanPrev));
     document.getElementById('kvtong_tp4').textContent = d.tpFourLan;
+    document.getElementById('kvtong_tp4').insertAdjacentHTML('beforeend', tpTrendHtml_(d.tpFourLan - d.tpFourLanPrev));
     document.getElementById('kvtong_edulms').textContent = (d.eduLmsAvg === null || d.eduLmsAvg === undefined) ? '—' : d.eduLmsAvg + '%';
     document.getElementById('kvtong_edulms_sub').textContent = d.eduLmsCount ? (d.eduLmsHoanThanh || 0) + '/' + d.eduLmsCount + ' đã Hoàn thành' : '';
     document.getElementById('kvtong_cert').textContent = d.certCount;
