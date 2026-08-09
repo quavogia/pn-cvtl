@@ -3293,10 +3293,11 @@ function renderLeHoiGrid_(m){
     '</tr></thead><tbody>';
   lhActive.danhSachBai.forEach(function(ma){
     const demDaPhat = (m.theoBai && m.theoBai[ma]) || 0;
+    const lansDone_ = (m.theoBaiLan && m.theoBaiLan[ma]) || null;
     const rowDone = demDaPhat >= soLan;
     html += '<tr class="' + (rowDone ? 'lh-row-done' : '') + '"><td>' + esc(ma) + '</td>';
     for (let lan = 1; lan <= soLan; lan++) {
-      const done = lan <= demDaPhat;
+      const done = lansDone_ ? (lansDone_.indexOf(lan) !== -1) : (lan <= demDaPhat);
       html += '<td><button type="button" class="lh-check' + (done ? ' done' : '') +
         '" data-mabai="' + ma + '" data-lan="' + lan + '" onclick="toggleLeHoiLan_(this)">' + (done ? '✓' : '') + '</button></td>';
     }
@@ -3322,6 +3323,11 @@ function toggleLeHoiLan_(btn){
   const demSau = willBeDone ? Math.max(demTruoc, lan) : Math.min(demTruoc, lan - 1);
   const delta = demSau - demTruoc;
   m.theoBai[ma] = demSau;
+  if (!m.theoBaiLan) m.theoBaiLan = {};
+  if (!m.theoBaiLan[ma]) m.theoBaiLan[ma] = [];
+  const idxLan_ = m.theoBaiLan[ma].indexOf(lan);
+  if (willBeDone) { if (idxLan_ === -1) m.theoBaiLan[ma].push(lan); }
+  else if (idxLan_ !== -1) { m.theoBaiLan[ma].splice(idxLan_, 1); }
   m.soLanDaPhat = Math.max(0, m.soLanDaPhat + delta);
   m.phanTram = m.tongSoLanYeuCau ? Math.round((m.soLanDaPhat / m.tongSoLanYeuCau) * 1000) / 10 : 0;
 
