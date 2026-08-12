@@ -12,3 +12,5 @@ nên giao diện web chỉ cần đổi 1 dòng địa chỉ.
 ## Chạy kiểm thử (không cần mạng)
     node scripts/kiem-thu.mjs
     node scripts/kiem-thu-giao-thuc.mjs
+
+<!-- Kich hoat ban dung dau tien -->
