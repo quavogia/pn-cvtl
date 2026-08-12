@@ -1,8 +1,0 @@
-name = "cvtl-api"
-main = "src/index.js"
-compatibility_date = "2026-08-01"
-
-[[d1_databases]]
-binding = "DB"
-database_name = "cvtl-db"
-database_id = "74e2ab5b-b246-497b-b706-be58d3015493"
