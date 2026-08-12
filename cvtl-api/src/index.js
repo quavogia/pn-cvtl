@@ -51,6 +51,46 @@ export default {
         });
       }
 
+      // Nhập dữ liệu từ hệ thống cũ sang. Chỉ dùng lúc chuyển đổi.
+      // Body: {"bang":"diem_danh","cot":["thang",...],"dong":[[...],[...]]}
+      if (url.pathname === '/nhap-du-lieu') {
+        if (!env.MA_CAI_DAT || url.searchParams.get('ma') !== env.MA_CAI_DAT) {
+          return json({ error: 'Sai mã cài đặt.' }, 403);
+        }
+        let goi;
+        try {
+          goi = await request.json();
+        } catch {
+          return json({ error: 'Nội dung gửi lên không phải JSON hợp lệ.' });
+        }
+        const bang = String(goi.bang || '');
+        const cot = Array.isArray(goi.cot) ? goi.cot : [];
+        const dong = Array.isArray(goi.dong) ? goi.dong : [];
+        if (!/^[a-z_]+$/.test(bang)) return json({ error: 'Tên bảng không hợp lệ.' });
+        if (!cot.length || !cot.every((c) => /^[a-z_0-9]+$/.test(c))) {
+          return json({ error: 'Danh sách cột không hợp lệ.' });
+        }
+        if (!dong.length) return json({ result: { daNhap: 0 } });
+
+        const sql =
+          'INSERT OR REPLACE INTO ' + bang + ' (' + cot.join(',') + ') VALUES (' +
+          cot.map(() => '?').join(',') + ')';
+
+        let daNhap = 0;
+        const loi = [];
+        // Chia lô để tránh vượt giới hạn một lần gửi.
+        for (let i = 0; i < dong.length; i += 50) {
+          const lo = dong.slice(i, i + 50);
+          try {
+            await env.DB.batch(lo.map((d) => env.DB.prepare(sql).bind(...d)));
+            daNhap += lo.length;
+          } catch (e) {
+            loi.push({ tuDong: i, loi: e.message });
+          }
+        }
+        return json({ result: { bang, daNhap, tongGui: dong.length, loi } });
+      }
+
       const yeuCau = await parseRequest(request);
       if (yeuCau.error) return json({ error: yeuCau.error });
 
