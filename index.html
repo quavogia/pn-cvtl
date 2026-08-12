@@ -3850,7 +3850,13 @@ window._authEmail = '';
 // Ghi nhớ đăng nhập: lưu token vào localStorage của trình duyệt để lần sau
 // mở lại trang KHÔNG phải bấm đăng nhập lại (trừ khi token hết hạn ~1 giờ
 // và trình duyệt cũng không còn phiên Google nào để tự đăng nhập ngầm).
-const AUTH_LS_KEY = 'pnc_auth_token_v1';
+// ⚠️ MỖI MÁY CHỦ MỘT CHỖ NHỚ ĐĂNG NHẬP RIÊNG.
+// Hai máy chủ cấp hai loại mã phiên khác nhau, không dùng chung được. Nếu
+// dùng chung một chỗ nhớ thì chỉ cần thử máy chủ mới một lần là mã phiên của
+// máy chủ cũ bị xoá mất, lần sau vào bản cũ phải đăng nhập lại — chuyện này
+// ĐÃ XẢY RA THẬT trong lúc chạy thử. Tách ra thì đổi qua đổi lại thoải mái,
+// không bên nào ảnh hưởng bên nào.
+const AUTH_LS_KEY = (_mayChuDangDung === 'moi') ? 'pnc_auth_token_moi_v1' : 'pnc_auth_token_v1';
 
 function saveAuthToken_(token){
   try { localStorage.setItem(AUTH_LS_KEY, token); } catch(e){}
