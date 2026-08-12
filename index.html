@@ -123,6 +123,8 @@
   .tp-trend.down{color:#dc2626;}
   .tp-trend.flat{color:#94a3b8;}
   .tp-baocao-cell{vertical-align:top;padding-top:8px !important;}
+  .tp-baocao-group{margin-bottom:6px;}
+  .tp-baocao-group:last-child{margin-bottom:0;}
   .tp-baocao-btn{font-size:11px;padding:4px 8px;background:#e2e8f0;color:#334155;border-radius:6px;white-space:nowrap;}
   .tp-baocao-btn.reported{background:#dcfce7;color:#166534;}
   .tp-baocao-btn.stale{background:#fef3c7;color:#92400e;}
@@ -2088,18 +2090,23 @@ function renderTPEditTable_(row, past){
 // liệu TP tuần đó, hiện luôn ngày giờ vừa bấm ngay dưới nút. Bấm lại được
 // (ghi đè thời điểm mới) nếu cần báo cáo lại sau khi sửa số liệu.
 function tpBaoCaoRowHtml_(baoCao){
+  const groups = ['T3', 'T7'];
   const cells = [1, 2, 3, 4, 5].map(function(w){
-    const item = baoCao[w - 1] || { label: '', edited: false };
-    const ts = item.label || '';
-    const edited = !!item.edited;
-    const label = ts ? 'Báo cáo lại' : 'Báo cáo';
-    const btnClass = 'tp-baocao-btn' + (ts ? ' reported' : '') + (edited ? ' stale' : '');
-    const warnHtml = edited ? '<div class="tp-baocao-warn" id="tpBaoCaoWarn_' + w + '">⚠️ Đã sửa sau báo cáo</div>' : '';
-    return '<td class="tp-baocao-cell">' +
-      '<button type="button" class="' + btnClass + '" id="tpBaoCaoBtn_' + w + '" data-week="' + w + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
-      '<div class="tp-baocao-ts" id="tpBaoCaoTs_' + w + '">' + esc(ts) + '</div>' +
-      warnHtml +
-    '</td>';
+    const item = baoCao[w - 1] || { T3: { label: '', edited: false }, T7: { label: '', edited: false } };
+    const groupsHtml = groups.map(function(gKey){
+      const sub = item[gKey] || { label: '', edited: false };
+      const ts = sub.label || '';
+      const edited = !!sub.edited;
+      const label = (ts ? 'Báo cáo lại ' : 'Báo cáo ') + gKey;
+      const btnClass = 'tp-baocao-btn' + (ts ? ' reported' : '') + (edited ? ' stale' : '');
+      const warnHtml = edited ? '<div class="tp-baocao-warn" id="tpBaoCaoWarn_' + gKey + '_' + w + '">⚠️ Đã sửa sau báo cáo</div>' : '';
+      return '<div class="tp-baocao-group">' +
+        '<button type="button" class="' + btnClass + '" id="tpBaoCaoBtn_' + gKey + '_' + w + '" data-week="' + w + '" data-nhom="' + gKey + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
+        '<div class="tp-baocao-ts" id="tpBaoCaoTs_' + gKey + '_' + w + '">' + esc(ts) + '</div>' +
+        warnHtml +
+      '</div>';
+    }).join('');
+    return '<td class="tp-baocao-cell">' + groupsHtml + '</td>';
   }).join('');
   return '<tr><td>Báo cáo</td>' + cells + '<td></td></tr>';
 }
@@ -2112,18 +2119,23 @@ function markTPBaoCaoStale_(week, metricToHighlight){
   const arr = window._tpCurrentData.baoCao;
   if (!arr) return;
   const item = arr[week - 1];
-  if (!item || !item.label) return;
-  item.edited = true;
-  const btn = document.getElementById('tpBaoCaoBtn_' + week);
-  if (btn) btn.classList.add('stale');
-  const cell = btn && btn.closest('.tp-baocao-cell');
-  if (cell && !document.getElementById('tpBaoCaoWarn_' + week)) {
-    const warn = document.createElement('div');
-    warn.className = 'tp-baocao-warn';
-    warn.id = 'tpBaoCaoWarn_' + week;
-    warn.textContent = '⚠️ Đã sửa sau báo cáo';
-    cell.appendChild(warn);
-  }
+  if (!item) return;
+  ['T3', 'T7'].forEach(function(nhom){
+    const sub = item[nhom];
+    if (!sub || !sub.label) return;
+    if (nhom === 'T3' && item.T7 && item.T7.label) return;
+    sub.edited = true;
+    const btn = document.getElementById('tpBaoCaoBtn_' + nhom + '_' + week);
+    if (btn) btn.classList.add('stale');
+    const cell = btn && btn.closest('.tp-baocao-group');
+    if (cell && !document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week)) {
+      const warn = document.createElement('div');
+      warn.className = 'tp-baocao-warn';
+      warn.id = 'tpBaoCaoWarn_' + nhom + '_' + week;
+      warn.textContent = '⚠️ Đã sửa sau báo cáo';
+      cell.appendChild(warn);
+    }
+  });
   if (metricToHighlight) {
     const inp = document.getElementById('tpCellInput_' + metricToHighlight + '_' + week);
     if (inp) inp.classList.add('tp-cell-stale');
@@ -2167,34 +2179,49 @@ function applyTPBaoCaoEditedState_(week, edited) {
 function saveTPBaoCaoClick(btnEl){
   const monthKey = kvMonthKey();
   const week = btnEl.dataset.week;
+  const nhom = btnEl.dataset.nhom;
   const kv = selectedKV;
+  const nhomLabel = nhom === 'T3' ? 'Thứ 3' : 'Thứ 7';
   btnEl.disabled = true;
   google.script.run.withSuccessHandler(function(res){
     btnEl.disabled = false;
-    btnEl.textContent = 'Báo cáo lại';
+    btnEl.textContent = 'Báo cáo lại ' + nhom;
     btnEl.classList.add('reported');
     btnEl.classList.remove('stale');
-    const tsEl = document.getElementById('tpBaoCaoTs_' + week);
+    const tsEl = document.getElementById('tpBaoCaoTs_' + nhom + '_' + week);
     if (tsEl) tsEl.textContent = res.thoiGian;
-    const warnEl = document.getElementById('tpBaoCaoWarn_' + week);
+    const warnEl = document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week);
     if (warnEl) warnEl.remove();
     ['1lan', '4lan'].forEach(function(mk){
       const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
       if (inp) inp.classList.remove('tp-cell-stale');
     });
-    // Bỏ vàng luôn các ô Điểm danh của đúng Tuần này (đã bôi vàng lúc sửa).
-    document.querySelectorAll('#tpddTable input[data-tuan="' + week + '"]').forEach(function(inp){
-      inp.classList.remove('tp-cell-stale');
+    const buoiList = nhom === 'T3' ? ['T3toi'] : ['CNsang', 'CNchieu', 'CNtoi'];
+    buoiList.forEach(function(b){
+      document.querySelectorAll('#tpddTable input[data-tuan="' + week + '"][data-buoi="' + b + '"]').forEach(function(inp){
+        inp.classList.remove('tp-cell-stale');
+      });
     });
     if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv) {
-      window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || ['', '', '', '', ''];
-      window._tpCurrentData.baoCao[week - 1] = { label: res.thoiGian, edited: false };
+      window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || [1, 2, 3, 4, 5].map(function(){ return { T3: { label: '', edited: false }, T7: { label: '', edited: false } }; });
+      window._tpCurrentData.baoCao[week - 1] = window._tpCurrentData.baoCao[week - 1] || { T3: { label: '', edited: false }, T7: { label: '', edited: false } };
+      window._tpCurrentData.baoCao[week - 1][nhom] = { label: res.thoiGian, edited: false };
+      if (nhom === 'T7') {
+        const t3Btn = document.getElementById('tpBaoCaoBtn_T3_' + week);
+        if (t3Btn) t3Btn.classList.remove('stale');
+        const t3Warn = document.getElementById('tpBaoCaoWarn_T3_' + week);
+        if (t3Warn) t3Warn.remove();
+        if (window._tpCurrentData.baoCao[week - 1].T3) window._tpCurrentData.baoCao[week - 1].T3.edited = false;
+        document.querySelectorAll('#tpddTable input[data-tuan="' + week + '"][data-buoi="T3toi"]').forEach(function(inp){
+          inp.classList.remove('tp-cell-stale');
+        });
+      }
     }
-    showMsg('Đã báo cáo Tuần ' + week + ' — ' + res.thoiGian, true);
+    showMsg('Đã báo cáo ' + nhomLabel + ' Tuần ' + week + ' — ' + res.thoiGian, true);
   }).withFailureHandler(function(err){
     btnEl.disabled = false;
     showMsg('Lỗi báo cáo: ' + err.message, false);
-  }).saveTPBaoCao(monthKey, kv, week);
+  }).saveTPBaoCao(monthKey, kv, week, nhom);
 }
 
 // Tự lưu ngay khi rời khỏi 1 ô Tuần (blur/Enter) — không cần nút Lưu riêng.
@@ -2489,10 +2516,15 @@ function saveTPDDCell(inputEl){
   // phòng thấy đúng ô nào vừa gõ lại sau khi đã báo cáo.
   if (nhom === selectedKV && window._tpCurrentData && window._tpCurrentData.baoCao) {
     const bcItem = window._tpCurrentData.baoCao[Number(tuan) - 1];
-    if (bcItem && bcItem.label) {
-          if (giaTri.trim()) inputEl.classList.add('tp-cell-stale');
-          else inputEl.classList.remove('tp-cell-stale');
-        }
+    const buoiNhom = (buoi === 'T3toi') ? 'T3' : 'T7';
+    const bcSub = bcItem && bcItem[buoiNhom];
+    const supersededT3 = buoiNhom === 'T3' && bcItem && bcItem.T7 && bcItem.T7.label;
+    if (bcSub && bcSub.label && !supersededT3) {
+      if (giaTri.trim()) inputEl.classList.add('tp-cell-stale');
+      else inputEl.classList.remove('tp-cell-stale');
+    } else {
+      inputEl.classList.remove('tp-cell-stale');
+    }
   }
 
   google.script.run.withSuccessHandler(function(){
