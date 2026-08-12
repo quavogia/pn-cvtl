@@ -131,6 +131,8 @@
   .tp-baocao-ts{font-size:10px;color:#94a3b8;margin-top:4px;white-space:nowrap;}
   .tp-baocao-warn{font-size:10px;color:#b45309;font-weight:700;margin-top:3px;max-width:100px;white-space:normal;line-height:1.3;}
   .tp-cell-stale{background:#fef3c7 !important;border:2px solid #f59e0b !important;}
+  .dd-cell-locked{background:#e5e7eb !important;}
+  .dd-cell-locked input{background:#e5e7eb !important;color:#6b7280 !important;cursor:not-allowed !important;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -2206,6 +2208,7 @@ function saveTPBaoCaoClick(btnEl){
       window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || [1, 2, 3, 4, 5].map(function(){ return { T3: { label: '', edited: false }, T7: { label: '', edited: false } }; });
       window._tpCurrentData.baoCao[week - 1] = window._tpCurrentData.baoCao[week - 1] || { T3: { label: '', edited: false }, T7: { label: '', edited: false } };
       window._tpCurrentData.baoCao[week - 1][nhom] = { label: res.thoiGian, edited: false };
+      renderTPDDTable_();
       if (nhom === 'T7') {
         const t3Btn = document.getElementById('tpBaoCaoBtn_T3_' + week);
         if (t3Btn) t3Btn.classList.remove('stale');
@@ -2426,9 +2429,12 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
     const parity = tuan % 2 === 0 ? ' dd-week-even' : ' dd-week-odd';
     buoiList.forEach(function(b, i){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
-      cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
+      const nhomBuoiLock_ = (b === 'T3toi') ? 'T3' : 'T7';
+      const bcWeek_ = window._tpCurrentData && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[tuan - 1];
+      const isLocked_ = !!(bcWeek_ && bcWeek_[nhomBuoiLock_] && bcWeek_[nhomBuoiLock_].label) && window._authEmail !== 'rise.shine1948@gmail.com';
+      cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + (isLocked_ ? ' dd-cell-locked' : '') + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
-        '" onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
+        '"' + (isLocked_ ? ' disabled title="Đã báo cáo — chỉ tài khoản chủ mới được sửa."' : '') + ' onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
     });
   });
   const tenSafe = esc(m.ten).replace(/'/g, "\\'");
