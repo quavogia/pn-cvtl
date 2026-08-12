@@ -3880,7 +3880,18 @@ function isTokenExpired_(token){
   try {
     if (token.indexOf('SESS.') === 0) {
       const payloadB64 = token.slice('SESS.'.length).split('.')[0];
-      const payload = JSON.parse(base64UrlDecode_(payloadB64));
+      let payload;
+      try {
+        payload = JSON.parse(base64UrlDecode_(payloadB64));
+      } catch(e){
+        // Mã phiên của MÁY CHỦ MỚI là chuỗi ngẫu nhiên, không chứa thông tin
+        // gì để đọc ra hạn — hạn nằm trong CSDL của máy chủ. Không đọc được
+        // thì coi như CÒN HẠN và để máy chủ tự phán xử; nếu hết hạn thật, máy
+        // chủ sẽ trả authError và giao diện hiện lại màn hình đăng nhập.
+        // (Trước đây chỗ này coi là "hết hạn" -> lần nào vào cũng bắt đăng
+        //  nhập lại khi dùng máy chủ mới.)
+        return false;
+      }
       if (!payload.exp) return false;
       return Date.now() > payload.exp;
     }

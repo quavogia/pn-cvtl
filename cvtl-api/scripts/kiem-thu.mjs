@@ -73,6 +73,38 @@ console.log('1) Cấu hình');
   kiem('getDropdownOptions có trường nddList', Array.isArray(r.result?.nddList));
 }
 
+console.log('\n1b) Đăng nhập — mã Google nằm ở ô "token", KHÔNG nằm trong args');
+{
+  // Giao diện gọi checkAccess() rỗng tay, mã đăng nhập đi ở ô token.
+  // Nếu handler chỉ đọc tham số thứ nhất thì luôn báo "Mã đăng nhập không hợp
+  // lệ." và KHÔNG AI ĐĂNG NHẬP ĐƯỢC. Đã xảy ra thật ngày 12/08/2026.
+  const { DANH_MUC: DM } = await import(join(goc, 'src/registry.js'));
+  const chay = async (token) => {
+    try {
+      return { result: await DM.checkAccess.fn({ db, env, nguoiGoi: null, token }) };
+    } catch (e) {
+      return { error: e.message };
+    }
+  };
+
+  const khongCoGi = await chay('');
+  kiem('không có mã nào thì báo lỗi rõ ràng',
+    /không hợp lệ/i.test(khongCoGi.result?.error || khongCoGi.error || ''),
+    JSON.stringify(khongCoGi));
+
+  // Mã có đủ 3 phần -> phải đi tiếp tới bước kiểm chữ ký (lỗi khác), chứng tỏ
+  // handler ĐÃ đọc được mã từ ô token.
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const giaMa = b64({ alg: 'RS256', kid: 'test' }) + '.' + b64({ email: 'a@b.c' }) + '.chuky';
+  const coMa = await chay(giaMa);
+  const loiCoMa = coMa.result?.error || coMa.error || '';
+  kiem('mã ở ô token ĐƯỢC đọc (không còn báo "không hợp lệ")',
+    loiCoMa !== '' && !/không hợp lệ/i.test(loiCoMa), 'thực tế: ' + loiCoMa);
+
+  kiem('luôn có trường pending cho giao diện',
+    khongCoGi.result?.pending === false, JSON.stringify(khongCoGi));
+}
+
 console.log('\n2) Điểm danh — ghi và đọc');
 {
   let r = await goi('saveDiemDanhCell', [TH, 'SĐ', 'L H Đức', 3, 'T3toi', '211'], NV);
