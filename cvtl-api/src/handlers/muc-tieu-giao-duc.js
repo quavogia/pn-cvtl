@@ -90,7 +90,22 @@ const EDU_TRANG_THAI = ['', 'Đang làm', 'Hoàn thành'];
 /** Ép giá trị EDU LMS về đúng 1 trong 3 trạng thái; lạ quá thì coi như rỗng. */
 function chuanTrangThaiEdu(v) {
   const s = chuoi(v);
-  return EDU_TRANG_THAI.includes(s) ? s : '';
+  if (EDU_TRANG_THAI.includes(s)) return s;
+
+  // ⚠️ DỮ LIỆU CŨ GHI BẰNG PHẦN TRĂM, KHÔNG PHẢI TRẠNG THÁI.
+  // Sheet cũ có thời kỳ nhập EDU LMS bằng con số (0-100). Lúc đối chiếu hai hệ
+  // thống phát hiện 51 trên 78 ô có giá trị đang ở dạng số này — nếu bỏ qua
+  // thì tab Giáo dục mất sạch số liệu cũ. Quy đổi:
+  //   100 trở lên  -> Hoàn thành
+  //   trên 0       -> Đang làm
+  //   0 / rỗng     -> để trống
+  if (/^\d+([.,]\d+)?%?$/.test(s)) {
+    const n = Number(s.replace('%', '').replace(',', '.'));
+    if (n >= 100) return 'Hoàn thành';
+    if (n > 0) return 'Đang làm';
+    return '';
+  }
+  return '';
 }
 
 /**
@@ -395,12 +410,16 @@ export async function getPersonalGoalsAllKhuVuc({ db }, monthKey) {
       };
       return {
         ten,
-        goal,
+        // Giữ nguyên trường eduLms trong goal/percent cho GIỐNG HỆT bản cũ.
+        // Giao diện đã bỏ ô nhập mục tiêu EDU LMS nên giá trị luôn là 0/null,
+        // nhưng để thiếu hẳn trường thì chỗ nào lỡ đọc tới sẽ ra "undefined".
+        goal: { ...goal, eduLms: 0 },
         actual,
         percent: {
           donThuan: phanTram(actual.donThuan, goal.donThuan),
           huuHieu: phanTram(actual.huuHieu, goal.huuHieu),
           bt: phanTram(actual.bt, goal.bt),
+          eduLms: null,
           truc127: phanTram(actual.truc127, goal.truc127),
         },
       };
