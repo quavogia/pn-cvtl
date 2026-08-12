@@ -547,9 +547,13 @@ console.log('\n7) Giáo dục thành viên');
   kiem('eduLms rác dạng chữ ("abc") → lưu thành ""',
     dem("SELECT COUNT(*) c FROM giao_duc_thanh_vien WHERE thang=? AND ten='A Minh' AND tuan=2 AND edu_lms=''", TH) === 1,
     JSON.stringify(sqlite.prepare("SELECT edu_lms FROM giao_duc_thanh_vien WHERE thang=? AND ten='A Minh' AND tuan=2").get(TH)));
+  // Con số KHÔNG phải rác: sheet cũ có thời kỳ nhập EDU LMS bằng phần trăm.
+  // 50 nghĩa là đang học dở -> "Đang làm". (Trước đây bỏ trắng, làm mất 51/78 ô
+  // số liệu cũ — phát hiện ngày 12/08/2026 khi đối chiếu hai hệ thống.)
   await goi('saveGiaoDucWeek', [TH, 'K My', 'A Minh', 4, 50, 5]);
-  kiem('eduLms rác dạng số (50) → lưu thành ""',
-    dem("SELECT COUNT(*) c FROM giao_duc_thanh_vien WHERE thang=? AND ten='A Minh' AND tuan=4 AND edu_lms=''", TH) === 1);
+  kiem('eduLms kiểu cũ dạng số (50) → hiểu là "Đang làm"',
+    dem("SELECT COUNT(*) c FROM giao_duc_thanh_vien WHERE thang=? AND ten='A Minh' AND tuan=4 AND edu_lms='Đang làm'", TH) === 1,
+    JSON.stringify(sqlite.prepare("SELECT edu_lms FROM giao_duc_thanh_vien WHERE thang=? AND ten='A Minh' AND tuan=4").get(TH)));
   await goi('saveGiaoDucWeek', [TH, 'K My', 'A Minh', 5, '', -8]);
   kiem('số ngày âm → ép về 0',
     dem("SELECT COUNT(*) c FROM giao_duc_thanh_vien WHERE thang=? AND ten='A Minh' AND tuan=5 AND tt127_ngay=0", TH) === 1);
@@ -563,8 +567,11 @@ console.log('\n7) Giáo dục thành viên');
     m?.eduLms.prevMonthTotal === 'Hoàn thành', JSON.stringify(m?.eduLms));
   kiem('prevMonthTotal của 127 lấy đúng tháng trước (max 15 và 11)',
     m?.truc127.prevMonthTotal === 15, JSON.stringify(m?.truc127));
+  // Tháng này chỉ có đúng ô Tuần 4 = "Đang làm" (từ giá trị 50 ở trên),
+  // không được ăn theo "Hoàn thành" và số 15 của tháng trước.
   kiem('số liệu tháng trước KHÔNG lẫn vào tháng này',
-    m?.eduLms.total === '' && m?.truc127.total === 5, JSON.stringify({ e: m?.eduLms, t: m?.truc127 }));
+    m?.eduLms.total === 'Đang làm' && m?.truc127.total === 5,
+    JSON.stringify({ e: m?.eduLms, t: m?.truc127 }));
   r = await goi('getGiaoDucWeeklyAll', [TH]);
   kiem('getGiaoDucWeeklyAll cho kết quả giống getGiaoDucWeekly',
     JSON.stringify(r.result?.['K My']) === JSON.stringify([m]), JSON.stringify(r.result?.['K My']));
@@ -752,6 +759,55 @@ console.log('\n10) Độ phủ');
   const thieu = canPhu.filter((t) => !daGoi.has(t));
   kiem('hai file có đúng 27 hàm', canPhu.length === 27, 'thực tế: ' + canPhu.length);
   kiem('đã kiểm thử đủ 27 hàm', thieu.length === 0, 'còn thiếu: ' + thieu.join(', '));
+}
+
+console.log('\n11) Dữ liệu EDU LMS kiểu CŨ (phần trăm) không được để mất');
+{
+  // Phát hiện ngày 12/08/2026 khi đối chiếu hai hệ thống: 51 trên 78 ô EDU LMS
+  // của sheet cũ đang lưu bằng CON SỐ (0-100) chứ không phải trạng thái.
+  // Trước khi sửa, các ô này bị bỏ trống hết -> tab Giáo dục mất sạch số liệu cũ.
+  taoCSDL();
+  await db.run('INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES (?,?,?)',
+    ['nguoi_dan_dat', 'A Test', 99]);
+  const nap = (tuan, gt) => db.run(
+    'INSERT INTO giao_duc_thanh_vien (thang, khu_vuc, ten, tuan, edu_lms, tt127_ngay) VALUES (?,?,?,?,?,?)',
+    [TRUOC, 'K Long', 'A Test', tuan, gt, 0]
+  );
+  await nap(1, '0');
+  await nap(2, '45');
+  await nap(3, '100');
+  await nap(4, 'Đang làm');
+  await nap(5, 'rác rưởi');
+
+  const r = await goi('getGiaoDucWeeklyAll', [TRUOC]);
+  const nguoi = (r.result?.['K Long'] || []).find((x) => x.ten === 'A Test');
+  const w = nguoi?.eduLms?.weeks || [];
+  kiem('số 0 kiểu cũ -> để trống', w[0] === '', JSON.stringify(w));
+  kiem('số 45 kiểu cũ -> "Đang làm"', w[1] === 'Đang làm', JSON.stringify(w));
+  kiem('số 100 kiểu cũ -> "Hoàn thành"', w[2] === 'Hoàn thành', JSON.stringify(w));
+  kiem('trạng thái mới vẫn giữ nguyên', w[3] === 'Đang làm', JSON.stringify(w));
+  kiem('giá trị rác vẫn bị bỏ trống', w[4] === '', JSON.stringify(w));
+  kiem('tổng tháng lấy trạng thái cao nhất', nguoi?.eduLms?.total === 'Hoàn thành',
+    JSON.stringify(nguoi?.eduLms));
+}
+
+console.log('\n12) Mục tiêu cá nhân giữ đủ trường như bản cũ');
+{
+  // Bản cũ luôn trả goal.eduLms và percent.eduLms (dù giao diện đã bỏ ô nhập).
+  // Thiếu hẳn trường thì chỗ nào lỡ đọc tới sẽ ra "undefined".
+  taoCSDL();
+  await db.run('INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES (?,?,?)',
+    ['nguoi_dan_dat', 'B Test', 99]);
+  await db.run(
+    'INSERT INTO giao_duc_thanh_vien (thang, khu_vuc, ten, tuan, edu_lms, tt127_ngay) VALUES (?,?,?,?,?,?)',
+    [TRUOC, 'K Long', 'B Test', 1, '', 0]
+  );
+  const r = await goi('getPersonalGoalsAllKhuVuc', [TRUOC]);
+  const p = (r.result?.['K Long'] || [])[0];
+  kiem('goal có trường eduLms', p && 'eduLms' in p.goal, JSON.stringify(p?.goal));
+  kiem('percent có trường eduLms', p && 'eduLms' in p.percent, JSON.stringify(p?.percent));
+  kiem('goal.eduLms bằng 0 như bản cũ', p?.goal?.eduLms === 0);
+  kiem('percent.eduLms bằng null như bản cũ', p?.percent?.eduLms === null);
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
