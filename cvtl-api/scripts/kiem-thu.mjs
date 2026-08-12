@@ -66,8 +66,11 @@ console.log('\n=== KIỂM THỬ BACKEND MỚI (offline) ===\n');
 console.log('1) Cấu hình');
 {
   const r = await goi('getDropdownOptions', [], NV);
-  kiem('getDropdownOptions trả đủ 7 khu vực', r.result?.khuVuc?.length === 7, JSON.stringify(r));
-  kiem('getDropdownOptions trả danh sách tiến độ', r.result?.tienDo?.includes('BT'));
+  // Tên trường phải đúng toList / tienDoList / nddList — giao diện đọc đúng ba
+  // tên này (index.html, hàm loadDropdowns). Đổi tên là dropdown trống trơn.
+  kiem('getDropdownOptions trả đủ 7 khu vực', r.result?.toList?.length === 7, JSON.stringify(r));
+  kiem('getDropdownOptions trả danh sách tiến độ', r.result?.tienDoList?.includes('BT'));
+  kiem('getDropdownOptions có trường nddList', Array.isArray(r.result?.nddList));
 }
 
 console.log('\n2) Điểm danh — ghi và đọc');
@@ -136,10 +139,16 @@ console.log('\n6) Chống ghi trùng (điểm yếu chí mạng của bản Goog
   kiem('20 lần ghi đồng thời chỉ sinh ĐÚNG 1 dòng', n === 1, 'thực tế: ' + n + ' dòng');
 }
 
-console.log('\n7) Hàm chưa chuyển phải báo lỗi rõ ràng, không trả HTML');
+console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "chưa được chuyển"');
 {
+  const { DANH_MUC: DM } = await import(join(goc, 'src/registry.js'));
+  const ten = Object.keys(DM);
+  kiem('danh mục đủ 60 hàm', ten.length === 60, 'thực tế: ' + ten.length);
+  const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
+  kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
+
   const r = await goi('getStudents', [], NV);
-  kiem('báo lỗi tiếng Việt rõ ràng', /chưa được chuyển/.test(r.error || ''), JSON.stringify(r));
+  kiem('getStudents chạy thật, không còn báo "chưa được chuyển"', Array.isArray(r.result), JSON.stringify(r));
   const r2 = await goi('hamKhongTonTai', [], NV);
   kiem('hàm lạ bị từ chối', /Không hỗ trợ hàm/.test(r2.error || ''));
 }

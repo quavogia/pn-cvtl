@@ -7,12 +7,19 @@
 //
 // Hàm nào chưa chuyển xong sẽ báo lỗi rõ ràng bằng tiếng Việt,
 // không bao giờ trả về trang HTML.
+//
+// TRẠNG THÁI: đã chuyển xong TOÀN BỘ. Không còn hàm nào báo "chưa được chuyển".
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
 import * as cauHinh from './handlers/cau-hinh.js';
 import * as diemDanh from './handlers/diem-danh.js';
 import * as thoPhuong from './handlers/tho-phuong.js';
+import * as hocVien from './handlers/hoc-vien.js';
+import * as mucTieuGiaoDuc from './handlers/muc-tieu-giao-duc.js';
+import * as daoTaoLeHoi from './handlers/dao-tao-le-hoi.js';
+import * as lich from './handlers/lich-lam-viec.js';
+import * as thongKeTP from './handlers/thong-ke-tp.js';
 
 export const DANH_MUC = {
   // --- Đăng nhập / phân quyền (không yêu cầu đã duyệt) ---
@@ -36,40 +43,69 @@ export const DANH_MUC = {
   getTPSummary:           { doc: true,  fn: thoPhuong.getTPSummary },
   saveTPWeek:             { doc: false, fn: thoPhuong.saveTPWeek },
   saveTPBaoCao:           { doc: false, fn: thoPhuong.saveTPBaoCao },
+  getMembersDecreasedTP:  { doc: true,  fn: thongKeTP.getMembersDecreasedTP },
 
-  // --- Các hàm còn lại: sẽ chuyển ở các bước kế tiếp ---
-  ...taoChoTrong([
-    'getStudents', 'getStats', 'getProgressBreakdown', 'getMonthlySummaryByKV',
-    'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview',
-    'getAllKhuVucWeekly', 'getDonThuanLogs', 'getTopNguoiDanDat', 'getKVTongSummary',
-    'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll',
-    'getPersonalGoalsAllKhuVuc', 'getLichTuan', 'getDaoTaoTienDoAll',
-    'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner',
-    'getLeHoiXepHang', 'getMembersDecreasedTP',
-  ], true),
-  ...taoChoTrong([
-    'addStudent', 'updateStudent', 'deleteStudent', 'saveGoalKV', 'deleteGoalKV',
-    'addDonThuanLog', 'deleteDonThuanLog', 'addGiaoDucMember', 'deleteGiaoDucMember',
-    'saveGiaoDucWeek', 'saveGoalCaNhan', 'deleteGoalCaNhan', 'addLichEvent',
-    'updateLichEvent', 'deleteLichEvent', 'toggleDaoTaoBai', 'setDaoTaoBaiAll',
-    'setDaoTaoQuyenAll', 'capChungChiDaoTao', 'addDaoTaoViec', 'updateDaoTaoViec',
-    'deleteDaoTaoViec', 'toggleLeHoiLan',
-  ], false),
+  // --- Học viên ---
+  getStudents:            { doc: true,  fn: hocVien.getStudents },
+  addStudent:             { doc: false, fn: hocVien.addStudent },
+  updateStudent:          { doc: false, fn: hocVien.updateStudent },
+  deleteStudent:          { doc: false, fn: hocVien.deleteStudent },
+  getStats:               { doc: true,  fn: hocVien.getStats },
+  getProgressBreakdown:   { doc: true,  fn: hocVien.getProgressBreakdown },
+
+  // --- Nhật ký Đơn thuần ---
+  addDonThuanLog:         { doc: false, fn: hocVien.addDonThuanLog },
+  getDonThuanLogs:        { doc: true,  fn: hocVien.getDonThuanLogs },
+  deleteDonThuanLog:      { doc: false, fn: hocVien.deleteDonThuanLog },
+
+  // --- Tổng quan / thống kê ---
+  getMonthlySummaryByKV:   { doc: true, fn: hocVien.getMonthlySummaryByKV },
+  getMonthlySummaryOverall:{ doc: true, fn: hocVien.getMonthlySummaryOverall },
+  getKhuVucOverview:       { doc: true, fn: hocVien.getKhuVucOverview },
+  getAllKhuVucOverview:    { doc: true, fn: hocVien.getAllKhuVucOverview },
+  getAllKhuVucWeekly:      { doc: true, fn: hocVien.getAllKhuVucWeekly },
+  getTopNguoiDanDat:       { doc: true, fn: hocVien.getTopNguoiDanDat },
+  getKVTongSummary:        { doc: true, fn: hocVien.getKVTongSummary },
+
+  // --- Mục tiêu Khu vực / cá nhân ---
+  saveGoalKV:              { doc: false, fn: mucTieuGiaoDuc.saveGoalKV },
+  deleteGoalKV:            { doc: false, fn: mucTieuGiaoDuc.deleteGoalKV },
+  saveGoalCaNhan:          { doc: false, fn: mucTieuGiaoDuc.saveGoalCaNhan },
+  deleteGoalCaNhan:        { doc: false, fn: mucTieuGiaoDuc.deleteGoalCaNhan },
+  getPersonalGoalsAllKhuVuc:{ doc: true, fn: mucTieuGiaoDuc.getPersonalGoalsAllKhuVuc },
+
+  // --- Giáo dục thành viên ---
+  getGiaoDucMembers:       { doc: true,  fn: mucTieuGiaoDuc.getGiaoDucMembers },
+  addGiaoDucMember:        { doc: false, fn: mucTieuGiaoDuc.addGiaoDucMember },
+  deleteGiaoDucMember:     { doc: false, fn: mucTieuGiaoDuc.deleteGiaoDucMember },
+  saveGiaoDucWeek:         { doc: false, fn: mucTieuGiaoDuc.saveGiaoDucWeek },
+  getGiaoDucWeekly:        { doc: true,  fn: mucTieuGiaoDuc.getGiaoDucWeekly },
+  getGiaoDucWeeklyAll:     { doc: true,  fn: mucTieuGiaoDuc.getGiaoDucWeeklyAll },
+
+  // --- Đào tạo ---
+  toggleDaoTaoBai:         { doc: false, fn: daoTaoLeHoi.toggleDaoTaoBai },
+  setDaoTaoBaiAll:         { doc: false, fn: daoTaoLeHoi.setDaoTaoBaiAll },
+  setDaoTaoQuyenAll:       { doc: false, fn: daoTaoLeHoi.setDaoTaoQuyenAll },
+  capChungChiDaoTao:       { doc: false, fn: daoTaoLeHoi.capChungChiDaoTao },
+  getDaoTaoTienDoAll:      { doc: true,  fn: daoTaoLeHoi.getDaoTaoTienDoAll },
+  addDaoTaoViec:           { doc: false, fn: daoTaoLeHoi.addDaoTaoViec },
+  updateDaoTaoViec:        { doc: false, fn: daoTaoLeHoi.updateDaoTaoViec },
+  deleteDaoTaoViec:        { doc: false, fn: daoTaoLeHoi.deleteDaoTaoViec },
+  getDaoTaoViecList:       { doc: true,  fn: daoTaoLeHoi.getDaoTaoViecList },
+
+  // --- Lễ hội ---
+  getLeHoiActive:          { doc: true,  fn: daoTaoLeHoi.getLeHoiActive },
+  getLeHoiBanner:          { doc: true,  fn: daoTaoLeHoi.getLeHoiBanner },
+  getLeHoiTienDoAll:       { doc: true,  fn: daoTaoLeHoi.getLeHoiTienDoAll },
+  getLeHoiXepHang:         { doc: true,  fn: daoTaoLeHoi.getLeHoiXepHang },
+  toggleLeHoiLan:          { doc: false, fn: daoTaoLeHoi.toggleLeHoiLan },
+
+  // --- Lịch làm việc ---
+  getLichTuan:             { doc: true,  fn: lich.getLichTuan },
+  addLichEvent:            { doc: false, fn: lich.addLichEvent },
+  updateLichEvent:         { doc: false, fn: lich.updateLichEvent },
+  deleteLichEvent:         { doc: false, fn: lich.deleteLichEvent },
 };
-
-function taoChoTrong(ten, doc) {
-  const o = {};
-  for (const t of ten) {
-    o[t] = {
-      doc,
-      chuaChuyen: true,
-      fn: async () => {
-        throw new Error('Chức năng "' + t + '" chưa được chuyển sang hệ thống mới.');
-      },
-    };
-  }
-  return o;
-}
 
 export const DANH_SACH_DOC = new Set(
   Object.entries(DANH_MUC).filter(([, v]) => v.doc).map(([k]) => k)

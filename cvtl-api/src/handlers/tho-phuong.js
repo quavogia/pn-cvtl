@@ -38,7 +38,12 @@ export async function getTPSummary({ db }, thang) {
     }
     return weeks;
   };
-  const tong = (w) => w.reduce((a, b) => a + b, 0);
+  // ⚠️ "Tổng" của TP KHÔNG phải cộng 5 tuần.
+  // Số TP là số LŨY KẾ (tuần sau đã bao gồm tuần trước), nên tổng tháng chính
+  // là con số LỚN NHẤT trong 5 tuần. Bản cũ (tpMetricFromMap_) làm đúng như
+  // vậy, và giao diện cũng tự tính lại bằng Math.max — cộng dồn sẽ cho ra số
+  // to gấp mấy lần thực tế.
+  const tong = (w) => Math.max(0, ...w);
 
   return KHU_VUC_LIST.map((kv) => {
     const one = lay(soLieu, kv, '1lan');

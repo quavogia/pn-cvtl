@@ -837,7 +837,74 @@
  *  deploy, dùng interface giống hệt "google.script.run" để tái sử dụng
  *  toàn bộ phần logic phía dưới mà không cần viết lại.
  * ========================================================= */
-const API_BASE = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
+// ---------------------------------------------------------------------
+// CÔNG TẮC ĐỔI MÁY CHỦ (có đường lùi ngay lập tức)
+//
+// Hiện tại mặc định VẪN dùng máy chủ CŨ (Google Apps Script) để mọi người
+// làm việc bình thường. Máy chủ MỚI (Cloudflare) đã sẵn sàng, chạy nhanh
+// hơn khoảng 20-50 lần và không bao giờ trả về lỗi "Unexpected token '<'".
+//
+// CÁCH TỰ THỬ MÁY CHỦ MỚI (chỉ ảnh hưởng đúng máy của mình, không ảnh
+// hưởng ai khác):
+//   Cách 1 — thêm vào cuối địa chỉ trang:  ?mayChu=moi
+//   Cách 2 — mở Console của trình duyệt rồi gõ:  dungMayChuMoi()
+// QUAY VỀ MÁY CHỦ CŨ: gõ  dungMayChuCu()   (hoặc thêm ?mayChu=cu)
+//
+// KHI ĐÃ CHẮC ĂN VÀ MUỐN CẢ PHÒNG DÙNG MÁY CHỦ MỚI:
+//   đổi đúng 1 chữ ở dòng MAC_DINH bên dưới, từ 'cu' thành 'moi'.
+// ---------------------------------------------------------------------
+const MAY_CHU_CU  = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
+const MAY_CHU_MOI = 'https://cvtl-api.rise-shine1948.workers.dev';
+const MAC_DINH    = 'cu';   // <-- đổi thành 'moi' khi muốn chuyển hẳn
+
+const MAY_CHU_LS_KEY = 'cvtl_may_chu_v1';
+
+function dungMayChuMoi(){
+  try { localStorage.setItem(MAY_CHU_LS_KEY, 'moi'); } catch(e){}
+  location.reload();
+}
+function dungMayChuCu(){
+  try { localStorage.setItem(MAY_CHU_LS_KEY, 'cu'); } catch(e){}
+  location.reload();
+}
+window.dungMayChuMoi = dungMayChuMoi;
+window.dungMayChuCu = dungMayChuCu;
+
+const _mayChuDangDung = (function(){
+  // Ưu tiên 1: địa chỉ trang (?mayChu=moi) — tiện gửi link cho người khác thử.
+  try {
+    const q = new URLSearchParams(location.search).get('mayChu');
+    if (q === 'moi' || q === 'cu') {
+      try { localStorage.setItem(MAY_CHU_LS_KEY, q); } catch(e){}
+      return q;
+    }
+  } catch(e){}
+  // Ưu tiên 2: lựa chọn đã lưu trên máy này.
+  try {
+    const luu = localStorage.getItem(MAY_CHU_LS_KEY);
+    if (luu === 'moi' || luu === 'cu') return luu;
+  } catch(e){}
+  // Ưu tiên 3: mặc định chung.
+  return MAC_DINH;
+})();
+
+const API_BASE = (_mayChuDangDung === 'moi') ? MAY_CHU_MOI : MAY_CHU_CU;
+
+// Đang thử máy chủ mới thì hiện một dải nhỏ ở góc để khỏi quên mình đang ở
+// chế độ thử — bấm vào là quay ngay về máy chủ cũ.
+if (_mayChuDangDung === 'moi') {
+  window.addEventListener('DOMContentLoaded', function(){
+    const d = document.createElement('div');
+    d.textContent = '⚡ Đang chạy thử MÁY CHỦ MỚI — bấm để quay lại bản cũ';
+    d.title = 'Chỉ mình bạn đang ở chế độ thử. Người khác vẫn dùng bản cũ.';
+    d.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:99999;background:#0f172a;' +
+      'color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;cursor:pointer;' +
+      'box-shadow:0 2px 10px rgba(0,0,0,.35);font-family:system-ui,sans-serif;';
+    d.onclick = dungMayChuCu;
+    document.body.appendChild(d);
+  });
+}
+console.log('[CVTL] Máy chủ đang dùng:', _mayChuDangDung === 'moi' ? 'MỚI (Cloudflare)' : 'CŨ (Apps Script)');
 const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
   'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs', 'getTopNguoiDanDat',
   'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan', 'getPersonalGoalsAllKhuVuc',
