@@ -258,3 +258,52 @@ CREATE TABLE IF NOT EXISTS phien_dang_nhap (
   het_han_luc INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_phien_email ON phien_dang_nhap (email);
+
+-- ---------------------------------------------------------------------
+-- 19. Sổ mốc Trụ đỡ — Hữu hiệu & Báp-têm   (thêm 13/08/2026)
+--
+-- VÌ SAO CẦN BẢNG NÀY: bảng hoc_vien chỉ giữ TRẠNG THÁI HIỆN TẠI (cột
+-- tien_do). Sửa tiến độ một cái là mất dấu, xoá học viên là mất luôn công
+-- của người dẫn dắt. Muốn báo cáo 6 tháng / 1 năm và khen thưởng công bằng
+-- thì phải có sổ ghi riêng, ghi rồi nằm đó.
+--
+-- Tên người và tên người dẫn dắt được CHÉP CỨNG vào đây tại thời điểm đạt
+-- mốc — không trỏ tới hoc_vien — để sau này ai sửa/xoá hồ sơ thì sổ vẫn đúng.
+--
+-- Khoá duy nhất (moc, ten, khu_vuc): MỖI NGƯỜI CHỈ GHI SỔ MỘT LẦN cho mỗi
+-- mốc. Không có ràng buộc này thì sửa tiến độ B2 -> B1 -> B2 ba lần là thành
+-- 3 ca hữu hiệu, tức +300 điểm khống.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS so_moc (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  moc        TEXT NOT NULL,
+  ngay       TEXT NOT NULL,
+  thang      TEXT NOT NULL,
+  ten        TEXT NOT NULL,
+  khu_vuc    TEXT NOT NULL,
+  ndd1       TEXT,
+  ndd2       TEXT,
+  ndd3       TEXT,
+  ghi_chu    TEXT,
+  nguoi_ghi  TEXT,
+  tao_luc    INTEGER NOT NULL,
+  UNIQUE (moc, ten, khu_vuc)
+);
+CREATE INDEX IF NOT EXISTS ix_so_moc_ngay  ON so_moc (ngay, moc);
+CREATE INDEX IF NOT EXISTS ix_so_moc_thang ON so_moc (thang, moc);
+
+-- ---------------------------------------------------------------------
+-- 20. Chốt kỳ khen thưởng   (thêm 13/08/2026)
+-- Đóng băng bảng xếp hạng của một kỳ sau khi đã phát thưởng, để sau này ai
+-- sửa sổ thì bảng đã chốt vẫn giữ nguyên con số lúc trao giải.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chot_ky (
+  ky           TEXT PRIMARY KEY,
+  tu_ngay      TEXT NOT NULL,
+  den_ngay     TEXT NOT NULL,
+  khu_vuc      TEXT,
+  bang_json    TEXT NOT NULL,
+  tom_tat_json TEXT,
+  nguoi_chot   TEXT,
+  chot_luc     INTEGER NOT NULL
+);
