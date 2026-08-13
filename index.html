@@ -304,7 +304,7 @@
           <div class="stat-card"><div class="label">BT tháng này</div><div class="value" id="ov_bt">—</div></div>
         </div>
         <p style="font-size:12px;color:#64748b;margin-top:10px;">
-          "Tổng học viên" tính cả người Tạm nghỉ. "Đang nghe" = học viên có Tiến độ từ B1 đến BT (không tính Tạm nghỉ), lấy từ bảng học viên khi các Khu vực nhập vào tab "Nhập học viên". "Đơn thuần/Hữu hiệu/BT tháng này" là % hoàn thành mục tiêu của tháng hiện tại.
+          "Tổng học viên" tính cả người Tạm nghỉ. "Đang nghe" = học viên có Tiến độ từ B1 đến B16 (không tính Tạm nghỉ và không tính người đã BT — đã BT nghĩa là đã hoàn tất, không còn "đang nghe" nữa), lấy từ bảng học viên khi các Khu vực nhập vào tab "Nhập học viên". "Đơn thuần/Hữu hiệu/BT tháng này" là % hoàn thành mục tiêu của tháng hiện tại.
         </p>
 
         <div id="dangNgheTable" style="display:none;margin-top:14px;overflow-x:auto;">
@@ -318,7 +318,7 @@
       <div class="card">
         <h3>🏆 Xếp hạng Anh/Chị dẫn dắt nhiều học viên đang nghe nhất (tháng <span id="ov_rankMonthLabel"></span>)</h3>
         <div id="topNguoiDanDat"></div>
-        <p style="font-size:12px;color:#64748b;margin-top:10px;">Xếp hạng theo số học viên "Đang nghe" (Tiến độ B1–BT, không tính Tạm nghỉ) có "Ngày chia sẻ cuối cùng" trong tháng này, nhóm theo "Người dẫn dắt".</p>
+        <p style="font-size:12px;color:#64748b;margin-top:10px;">Xếp hạng theo số học viên "Đang nghe" (Tiến độ B1–B16, không tính Tạm nghỉ và không tính người đã BT) có "Ngày chia sẻ cuối cùng" trong tháng này, nhóm theo "Người dẫn dắt".</p>
       </div>
 
       <div class="card" id="lehoiXepHangCard" style="display:none;">
@@ -1307,13 +1307,21 @@ function isTamNghi(tienDo){
   return String(tienDo || '').trim() === 'Tạm nghỉ';
 }
 
+// "Đang nghe" = có Tiến độ, không phải Tạm nghỉ, và CHƯA Báp-têm (BT).
+// (sửa 13/08/2026: trước đây học viên đã BT vẫn bị tính là "đang nghe" — anh
+// Rise chỉ ra là vô lý, vì BT nghĩa là đã hoàn tất, không còn "đang nghe" nữa.)
+function isDangNghe(tienDo){
+  var s = String(tienDo || '').trim();
+  return s !== 'Tạm nghỉ' && s !== 'BT';
+}
+
 // Vẽ lại toàn bộ giao diện học viên (thẻ Tổng/Đang nghe, bảng, bộ lọc) từ
 // mảng allStudents ĐANG CÓ trên trình duyệt — không gọi mạng. Dùng chung cho
 // cả loadStudents() (dữ liệu thật từ server) lẫn các thao tác LƯU LẠC QUAN
 // (thêm/sửa/xóa cập nhật allStudents trước, rồi gọi hàm này để hiện ngay).
 function refreshStudentsUI_(){
   document.getElementById('ov_total').textContent = allStudents.length;
-  document.getElementById('ov_dangnghe').textContent = allStudents.filter(function(s){ return !isTamNghi(s.tienDo); }).length;
+  document.getElementById('ov_dangnghe').textContent = allStudents.filter(function(s){ return isDangNghe(s.tienDo); }).length;
   renderDangNgheTable();
   applyFilter();
 }
@@ -1645,7 +1653,7 @@ function loadTopNguoiDanDat(){
 // Bảng "ai đang nghe, nghe đến đâu" — bấm vào thẻ "Đang nghe" để bật/tắt.
 function renderDangNgheTable(){
   const list = allStudents
-    .filter(function(s){ return !isTamNghi(s.tienDo); })
+    .filter(function(s){ return isDangNghe(s.tienDo); })
     .slice()
     .sort(function(a, b){
       if (a.to !== b.to) return String(a.to).localeCompare(String(b.to));
