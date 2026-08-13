@@ -14,8 +14,8 @@
 //     Ví dụ: 1 báp-têm có 3 người dẫn dắt -> mỗi người 1000 / 3 = 333,33.
 //
 // Nhờ chia đều, tổng điểm toàn phòng luôn khớp số ca thật, không phồng lên.
-// Riêng cột "số ca" thì mỗi người vẫn được tính 1 — hai con số nói hai chuyện
-// khác nhau: số ca cho biết ai tham gia bao nhiêu ca, điểm dùng để khen thưởng.
+// Cột "Đơn thuần" hiện SỐ LƯỢNG đã chia đều (1 dòng ghi 100 cho 2 người -> 50).
+// Cột "Hữu hiệu" / "Báp-têm" đếm số HỌC VIÊN nên mỗi người dẫn dắt vẫn tính 1.
 // =====================================================================
 
 import {
@@ -283,7 +283,15 @@ export async function mocVuaDat(ctx, tienDoCu, hocVien) {
 // C. TÍNH ĐIỂM & XẾP HẠNG
 // =====================================================================
 
-function themVao(bang, ten, moc, diem) {
+/**
+ * Cộng một phần đóng góp vào bảng.
+ *
+ * @param soCaThem  Số ca cộng thêm. Hữu hiệu / Báp-têm luôn là 1 (một dòng sổ =
+ *   một học viên). Đơn thuần thì truyền **số lượng đã chia cho số người dẫn dắt**,
+ *   chứ KHÔNG phải 1 — vì một dòng nhật ký có thể ghi 100 đơn thuần, hiện "1"
+ *   ở cột Đơn thuần là sai (anh Rise phát hiện 13/08/2026).
+ */
+function themVao(bang, ten, moc, diem, soCaThem = 1) {
   const khoa = ten.toLowerCase();
   if (!bang[khoa]) {
     bang[khoa] = {
@@ -292,7 +300,7 @@ function themVao(bang, ten, moc, diem) {
       diem: 0,
     };
   }
-  bang[khoa].soCa[moc] += 1;
+  bang[khoa].soCa[moc] += soCaThem;
   bang[khoa].diem += diem;
 }
 
@@ -304,7 +312,10 @@ function themVao(bang, ten, moc, diem) {
  *     người dẫn dắt của dòng đó.
  *   - Hữu hiệu / Báp-têm: mỗi dòng sổ được 100 / 1000 điểm, chia đều cho số
  *     người dẫn dắt của học viên đó.
- *   - Cột "số ca" thì mỗi người được tính 1, KHÔNG chia.
+ *   - Cột "Đơn thuần" hiện SỐ LƯỢNG đơn thuần đã chia đều (một dòng nhật ký ghi
+ *     100 đơn thuần cho 2 người thì mỗi người là 50, không phải 1).
+ *   - Cột "Hữu hiệu" / "Báp-têm" đếm số học viên, mỗi người dẫn dắt được tính 1,
+ *     KHÔNG chia — vì đó là số người, không phải số lượng.
  *
  * Dòng nào không ghi người dẫn dắt nào thì điểm đó không thuộc về ai — vẫn
  * được cộng vào tổng của phòng để anh Rise nhìn ra là có chỗ nhập thiếu tên.
@@ -340,7 +351,8 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
     const ndd = dsNguoiDanDat(r);
     if (!ndd.length) { tong.diemChuaCoNguoi += diemDong; continue; }
     const moiNguoi = diemDong / ndd.length;
-    for (const ten of ndd) themVao(bang, ten, 'don_thuan', moiNguoi);
+    // Cột "Đơn thuần" đếm SỐ LƯỢNG đã chia đều, không đếm số dòng nhật ký.
+    for (const ten of ndd) themVao(bang, ten, 'don_thuan', moiNguoi, soLuong / ndd.length);
   }
 
   // --- Hữu hiệu & Báp-têm ---
@@ -361,10 +373,10 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
   const danhSach = Object.values(bang)
     .map((x) => ({
       ten: x.ten,
-      donThuan: x.soCa.don_thuan,
+      donThuan: tron2(x.soCa.don_thuan),
       huuHieu: x.soCa.huu_hieu,
       bapTem: x.soCa.bap_tem,
-      soCa: x.soCa.don_thuan + x.soCa.huu_hieu + x.soCa.bap_tem,
+      soCa: tron2(x.soCa.don_thuan + x.soCa.huu_hieu + x.soCa.bap_tem),
       diem: tron2(x.diem),
     }))
     .sort((a, b) => (b.diem - a.diem) || a.ten.localeCompare(b.ten, 'vi'));
