@@ -28,5 +28,9 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE TABLE IF NOT EXISTS le_hoi_cau_hinh ( ma_le_hoi TEXT PRIMARY KEY, ten_le_hoi TEXT NOT NULL, ngay_bat_dau TEXT, ngay_ket_thuc TEXT, danh_sach_bai TEXT, so_lan_yeu_cau INTEGER NOT NULL DEFAULT 1 )",
   "CREATE TABLE IF NOT EXISTS le_hoi_tien_do ( ma_le_hoi TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, da_phat_bieu TEXT, ngay_hoan_thanh TEXT, PRIMARY KEY (ma_le_hoi, khu_vuc, ten) )",
   "CREATE TABLE IF NOT EXISTS phien_dang_nhap ( token TEXT PRIMARY KEY, email TEXT NOT NULL, ten TEXT, tao_luc INTEGER NOT NULL, het_han_luc INTEGER NOT NULL )",
-  "CREATE INDEX IF NOT EXISTS ix_phien_email ON phien_dang_nhap (email)"
+  "CREATE INDEX IF NOT EXISTS ix_phien_email ON phien_dang_nhap (email)",
+  "CREATE TABLE IF NOT EXISTS so_moc ( id INTEGER PRIMARY KEY AUTOINCREMENT, moc TEXT NOT NULL, ngay TEXT NOT NULL, thang TEXT NOT NULL, ten TEXT NOT NULL, khu_vuc TEXT NOT NULL, ndd1 TEXT, ndd2 TEXT, ndd3 TEXT, ghi_chu TEXT, nguoi_ghi TEXT, tao_luc INTEGER NOT NULL, UNIQUE (moc, ten, khu_vuc) )",
+  "CREATE INDEX IF NOT EXISTS ix_so_moc_ngay ON so_moc (ngay, moc)",
+  "CREATE INDEX IF NOT EXISTS ix_so_moc_thang ON so_moc (thang, moc)",
+  "CREATE TABLE IF NOT EXISTS chot_ky ( ky TEXT PRIMARY KEY, tu_ngay TEXT NOT NULL, den_ngay TEXT NOT NULL, khu_vuc TEXT, bang_json TEXT NOT NULL, tom_tat_json TEXT, nguoi_chot TEXT, chot_luc INTEGER NOT NULL )"
 ];
