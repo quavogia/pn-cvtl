@@ -18,6 +18,7 @@
 // =====================================================================
 
 import { KHU_VUC_LIST } from '../hang-so.js';
+import { mocVuaDat } from './tru-do.js';
 import {
   kiemTraThang, thangTruoc, phanTram, laHuuHieu, laBT, soBuoi,
   chuanNgay, ngayVN, tuanTrongThang, chuoi, soNguyen, batBuoc,
@@ -363,9 +364,15 @@ export async function addStudent({ db }, data) {
       new Date().toISOString(),
     ]
   );
+  // Học viên mới mà nhập thẳng ở mức Hữu hiệu / Báp-têm thì phải ghi sổ luôn.
+  const ghiSo = await mocVuaDat({ db }, '', {
+    ten, khuVuc: chuoi(d.to), tienDo: chuoi(d.tienDo),
+    ndd1: chuoi(d.ndd1), ndd2: chuoi(d.ndd2), ndd3: chuoi(d.ndd3),
+  });
+
   // Trả kèm `row` (= id vừa tạo) phòng khi giao diện muốn dùng ngay,
   // vẫn giữ `success: true` như bản cũ.
-  return { success: true, row: kq?.meta?.last_row_id ?? null };
+  return { success: true, row: kq?.meta?.last_row_id ?? null, ghiSo };
 }
 
 /**
@@ -381,7 +388,8 @@ export async function updateStudent({ db }, row, data) {
   await kiemTraDuLieuHocVien(db, d);
   const ten = batBuoc(d.ten, 'Tên học viên');
 
-  const cu = await db.first('SELECT id, ngay_dau_chia_se FROM hoc_vien WHERE id = ?', [id]);
+  const cu = await db.first(
+    'SELECT id, ngay_dau_chia_se, tien_do FROM hoc_vien WHERE id = ?', [id]);
   if (!cu) throw new Error('Không tìm thấy học viên cần sửa (có thể vừa bị xóa).');
 
   const ngayChiaSe = chuanNgay(d.ngay);
@@ -400,7 +408,15 @@ export async function updateStudent({ db }, row, data) {
       new Date().toISOString(), id,
     ]
   );
-  return { success: true };
+
+  // Vừa vượt mốc Hữu hiệu / Báp-têm thì báo cho giao diện hỏi ngày để ghi sổ.
+  // KHÔNG tự ghi ở đây vì ngày đạt mốc có thể là ngày trong quá khứ.
+  const ghiSo = await mocVuaDat({ db }, chuoi(cu.tien_do), {
+    ten, khuVuc: chuoi(d.to), tienDo: chuoi(d.tienDo),
+    ndd1: chuoi(d.ndd1), ndd2: chuoi(d.ndd2), ndd3: chuoi(d.ndd3),
+  });
+
+  return { success: true, ghiSo };
 }
 
 /** Xóa 1 học viên. `row` ở đây là `id` của học viên. */
