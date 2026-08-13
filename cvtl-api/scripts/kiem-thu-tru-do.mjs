@@ -159,7 +159,28 @@ console.log('\n3) Công thức điểm — chia đều cho người dẫn dắt'
   const ngan = b.danhSach.find((x) => x.ten === 'N Thị Ngân');
   kiem('cột số ca KHÔNG chia — mỗi người vẫn tính 1 ca báp-têm', ngan.bapTem === 1);
   kiem('cột số ca hữu hiệu cũng là 1', ngan.huuHieu === 1);
-  kiem('cột số ca đơn thuần đếm theo DÒNG nhật ký', ngan.donThuan === 1);
+  kiem('cột Đơn thuần hiện SỐ LƯỢNG đã chia (1 chia 2 = 0,5) chứ không phải số dòng',
+    ngan.donThuan === 0.5, 'thực tế: ' + ngan.donThuan);
+  kiem('người dẫn dắt một mình nhận trọn số lượng',
+    b.danhSach.find((x) => x.ten === 'N X Kiều My').donThuan === 5);
+
+  // Lỗi anh Rise phát hiện 13/08/2026: dòng 100 đơn thuần của 2 người hiện "1".
+  await db.run('INSERT INTO nhat_ky_don_thuan (ngay, khu_vuc, don_thuan, ndd1, ndd2) VALUES (?,?,?,?,?)',
+    ['2026-07-20', 'K Đức', 100, 'L H Đức', 'N Thanh Huyền']);
+  const b2 = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
+  const duc = b2.danhSach.find((x) => x.ten === 'L H Đức');
+  kiem('100 đơn thuần chia 2 -> cột Đơn thuần là 50', duc.donThuan === 50, 'thực tế: ' + duc.donThuan);
+  kiem('100 đơn thuần chia 2 -> 50 điểm', duc.diem === 50, 'thực tế: ' + duc.diem);
+  kiem('cột Đơn thuần và điểm khớp nhau (1 đơn thuần = 1 điểm)', duc.donThuan === duc.diem);
+  kiem('tổng đơn thuần toàn phòng vẫn đếm đủ 106', b2.tomTat.soDonThuan === 106,
+    'thực tế: ' + b2.tomTat.soDonThuan);
+
+  // Số lẻ vô hạn phải được làm tròn 2 chữ số, không hiện 2.3333333333333335
+  await db.run('INSERT INTO nhat_ky_don_thuan (ngay, khu_vuc, don_thuan, ndd1, ndd2, ndd3) VALUES (?,?,?,?,?,?)',
+    ['2026-07-22', 'SĐ', 7, 'A Một', 'B Hai', 'C Ba']);
+  const b3 = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
+  kiem('7 chia 3 -> làm tròn 2,33', b3.danhSach.find((x) => x.ten === 'A Một').donThuan === 2.33,
+    'thực tế: ' + b3.danhSach.find((x) => x.ten === 'A Một').donThuan);
 }
 
 // =====================================================================
