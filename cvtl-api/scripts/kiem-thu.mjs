@@ -57,6 +57,9 @@ function kiem(ten, dieuKien, chiTiet = '') {
   else { hong++; console.log('  ✗', ten, chiTiet); }
 }
 
+/** Đếm nhanh một bảng. */
+function dem(sql, ...p) { return sqlite.prepare(sql).get(...p).c; }
+
 const CHU = { email: 'rise.shine1948@gmail.com', ten: 'Chu', laChu: true };
 const NV  = { email: 'nhanvien@gmail.com', ten: 'Nhan vien', laChu: false };
 const TH = '2026-08';
@@ -103,6 +106,53 @@ console.log('\n1b) Đăng nhập — mã Google nằm ở ô "token", KHÔNG n�
 
   kiem('luôn có trường pending cho giao diện',
     khongCoGi.result?.pending === false, JSON.stringify(khongCoGi));
+
+  // ------------------------------------------------------------------
+  // VÀO LẠI BẰNG MÃ PHIÊN ĐÃ LƯU — đây là đường đi khi người dùng bấm F5.
+  // Nếu checkAccess không nhận mã "SESS." thì CỨ F5 LÀ BỊ BẮT ĐĂNG NHẬP LẠI.
+  // Đã xảy ra thật ngày 13/08/2026.
+  // ------------------------------------------------------------------
+  const NAY = Date.now();
+  const MA_PHIEN = 'SESS.kiemthu0001';
+  db.run('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)',
+    [MA_PHIEN, 'nhanvien@gmail.com', 'Nhan vien', NAY, NAY + 86400000]);
+
+  const vaoLai = await chay(MA_PHIEN);
+  kiem('F5: mã phiên còn hạn thì vào thẳng, KHÔNG bắt đăng nhập lại',
+    vaoLai.result?.authorized === true, JSON.stringify(vaoLai));
+  kiem('F5: trả lại ĐÚNG mã phiên cũ, không sinh mã mới',
+    vaoLai.result?.sessionToken === MA_PHIEN, JSON.stringify(vaoLai.result?.sessionToken));
+  kiem('F5: trả đúng email của người dùng',
+    vaoLai.result?.email === 'nhanvien@gmail.com', JSON.stringify(vaoLai));
+  kiem('F5: không sinh thêm dòng rác trong bảng phiên',
+    dem('SELECT COUNT(*) c FROM phien_dang_nhap') === 1);
+  kiem('F5: hạn dùng được đẩy ra xa (gia hạn 30 ngày)',
+    sqlite.prepare('SELECT het_han_luc h FROM phien_dang_nhap WHERE token=?').get(MA_PHIEN).h > NAY + 86400000);
+
+  // Mã phiên đã hết hạn -> phải báo hết hạn VÀ dọn dòng đó đi
+  const HET_HAN = 'SESS.kiemthu0002';
+  db.run('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)',
+    [HET_HAN, 'nhanvien@gmail.com', 'Nhan vien', NAY - 200000, NAY - 100000]);
+  const hetHan = await chay(HET_HAN);
+  kiem('mã phiên hết hạn thì bắt đăng nhập lại',
+    hetHan.result?.authorized === false, JSON.stringify(hetHan));
+  kiem('mã phiên hết hạn bị dọn khỏi CSDL',
+    dem('SELECT COUNT(*) c FROM phien_dang_nhap WHERE token=?', HET_HAN) === 0);
+
+  // Mã phiên bịa ra -> từ chối, không sập
+  const bia = await chay('SESS.khongcothat123');
+  kiem('mã phiên bịa ra bị từ chối', bia.result?.authorized === false, JSON.stringify(bia));
+
+  // Quyền bị thu hồi mà mã phiên còn hạn -> phải chặn và huỷ luôn mã phiên
+  const BI_THU_HOI = 'SESS.kiemthu0003';
+  db.run("INSERT INTO access_control (email, trang_thai, ten) VALUES ('nghi@gmail.com','tu_choi','Da nghi')");
+  db.run('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)',
+    [BI_THU_HOI, 'nghi@gmail.com', 'Da nghi', NAY, NAY + 86400000]);
+  const thuHoi = await chay(BI_THU_HOI);
+  kiem('quyền bị thu hồi thì mã phiên cũ hết tác dụng ngay',
+    thuHoi.result?.authorized === false, JSON.stringify(thuHoi));
+  kiem('mã phiên của người bị thu hồi quyền bị huỷ',
+    dem('SELECT COUNT(*) c FROM phien_dang_nhap WHERE token=?', BI_THU_HOI) === 0);
 }
 
 console.log('\n2) Điểm danh — ghi và đọc');
