@@ -840,22 +840,24 @@
 // ---------------------------------------------------------------------
 // CÔNG TẮC ĐỔI MÁY CHỦ (có đường lùi ngay lập tức)
 //
-// Hiện tại mặc định VẪN dùng máy chủ CŨ (Google Apps Script) để mọi người
-// làm việc bình thường. Máy chủ MỚI (Cloudflare) đã sẵn sàng, chạy nhanh
+// Từ 13/08/2026, mặc định đã chuyển sang máy chủ MỚI (Cloudflare) — nhanh
 // hơn khoảng 20-50 lần và không bao giờ trả về lỗi "Unexpected token '<'".
+// Máy chủ CŨ (Google Apps Script) vẫn còn nguyên, chưa tắt, dùng làm đường lùi.
 //
-// CÁCH TỰ THỬ MÁY CHỦ MỚI (chỉ ảnh hưởng đúng máy của mình, không ảnh
-// hưởng ai khác):
-//   Cách 1 — thêm vào cuối địa chỉ trang:  ?mayChu=moi
-//   Cách 2 — mở Console của trình duyệt rồi gõ:  dungMayChuMoi()
-// QUAY VỀ MÁY CHỦ CŨ: gõ  dungMayChuCu()   (hoặc thêm ?mayChu=cu)
+// NẾU MÁY CHỦ MỚI CÓ TRỤC TRẶC — cách quay về bản cũ ngay lập tức:
+//   Cách 1 — thêm vào cuối địa chỉ trang:  ?mayChu=cu
+//   Cách 2 — mở Console của trình duyệt rồi gõ:  dungMayChuCu()
+//   Cách 3 (cho CẢ PHÒNG) — đổi đúng 1 chữ ở dòng MAC_DINH bên dưới,
+//           từ 'moi' về lại 'cu', rồi lưu lên GitHub.
 //
-// KHI ĐÃ CHẮC ĂN VÀ MUỐN CẢ PHÒNG DÙNG MÁY CHỦ MỚI:
-//   đổi đúng 1 chữ ở dòng MAC_DINH bên dưới, từ 'cu' thành 'moi'.
+// Quay lại máy chủ mới: gõ  dungMayChuMoi()  (hoặc thêm ?mayChu=moi)
+//
+// Mỗi máy chủ có chỗ nhớ đăng nhập RIÊNG nên đổi qua đổi lại thoải mái,
+// không bên nào làm mất đăng nhập của bên nào.
 // ---------------------------------------------------------------------
 const MAY_CHU_CU  = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
 const MAY_CHU_MOI = 'https://cvtl-api.rise-shine1948.workers.dev';
-const MAC_DINH    = 'cu';   // <-- đổi thành 'moi' khi muốn chuyển hẳn
+const MAC_DINH    = 'moi';  // <-- đổi về 'cu' nếu cần quay lại Apps Script
 
 const MAY_CHU_LS_KEY = 'cvtl_may_chu_v1';
 
