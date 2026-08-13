@@ -20,12 +20,22 @@
 import { KHU_VUC_LIST } from '../hang-so.js';
 import { mocVuaDat } from './tru-do.js';
 import {
-  kiemTraThang, thangTruoc, phanTram, laHuuHieu, laBT, soBuoi,
+  kiemTraThang, thangTruoc, phanTram, laHuuHieu, laBT, soBuoi, BT_STATUS_VALUE,
   chuanNgay, ngayVN, tuanTrongThang, chuoi, soNguyen, batBuoc,
 } from '../tien-ich.js';
 
 /** Tiến độ nghĩa là "đang tạm dừng học" — không tính vào "Đang nghe". */
 const TAM_NGHI = 'Tạm nghỉ';
+
+/**
+ * "Đang nghe" = có Tiến độ, KHÔNG phải "Tạm nghỉ", và CHƯA Báp-têm.
+ * (sửa 13/08/2026: trước đây học viên đã BT vẫn bị tính là "đang nghe" —
+ * anh Rise chỉ ra là vô lý, vì BT nghĩa là đã hoàn tất, không còn "đang nghe" nữa.)
+ */
+function laDangNghe(tienDo) {
+  const s = chuoi(tienDo);
+  return !!s && s !== TAM_NGHI && !laBT(s);
+}
 
 // ---------------------------------------------------------------------
 // Mấy hàm phụ dùng chung trong file này (không đủ chung để đưa ra tien-ich.js)
@@ -429,7 +439,8 @@ export async function deleteStudent({ db }, row) {
 
 /**
  * Bảng đếm "Đang nghe" theo từng Khu vực, kèm dòng "Tổng" ở cuối.
- * "Đang nghe" = học viên có Khu vực và Tiến độ khác "Tạm nghỉ".
+ * "Đang nghe" = học viên có Khu vực, Tiến độ khác "Tạm nghỉ", và CHƯA Báp-têm
+ * (sửa 13/08/2026: học viên đã BT thì đã hoàn tất, không còn "đang nghe" nữa).
  * Khác bản cũ: KHÔNG ghi ngược kết quả xuống sheet nữa (bản cũ có hàm
  * updateStats_ ghi lại vào Google Sheets), chỉ tính rồi trả về.
  * Trường `row` chỉ còn là số thứ tự dòng cho giao diện, không dùng để sửa/xóa.
@@ -442,8 +453,9 @@ export async function getStats({ db }) {
       WHERE TRIM(COALESCE(ten, '')) <> ''
         AND TRIM(COALESCE(khu_vuc, '')) <> ''
         AND TRIM(COALESCE(tien_do, '')) <> ?
+        AND TRIM(COALESCE(tien_do, '')) <> ?
       GROUP BY khu_vuc`,
-    [TAM_NGHI]
+    [TAM_NGHI, BT_STATUS_VALUE]
   );
   const dem = {};
   for (const r of rows) dem[chuoi(r.khu_vuc)] = soNguyen(r.so_luong);
@@ -693,6 +705,7 @@ export async function getAllKhuVucWeekly({ db }, monthKey) {
 
 /**
  * Xếp hạng Người dẫn dắt theo số học viên "Đang nghe" trong tháng.
+ * "Đang nghe" = có Tiến độ, khác "Tạm nghỉ", và CHƯA Báp-têm (xem laDangNghe).
  * Một học viên có thể có tới 3 Anh/Chị dẫn dắt (ndd1/ndd2/ndd3) — mỗi người
  * có tên ở BẤT KỲ cột nào trong 3 cột đó đều được +1, nhưng nếu một tên bị
  * ghi lặp ở 2-3 cột của CÙNG một học viên thì chỉ tính 1 lần.
@@ -706,7 +719,7 @@ export async function getTopNguoiDanDat({ db }, monthKey) {
   const dem = new Map();
   for (const hv of dsHV) {
     if (hv.thangChiaSe !== thang) continue;
-    if (!hv.tienDo || hv.tienDo === TAM_NGHI) continue;
+    if (!laDangNghe(hv.tienDo)) continue;
     // Set để một tên xuất hiện 2-3 lần trong cùng 1 học viên chỉ tính 1 lần.
     const ten = new Set([hv.ndd1, hv.ndd2, hv.ndd3].filter(Boolean));
     for (const t of ten) dem.set(t, (dem.get(t) || 0) + 1);
