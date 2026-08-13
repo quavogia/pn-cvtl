@@ -228,7 +228,10 @@ console.log('\n3) getStats — bảng "Đang nghe"');
   const ds = r.result || [];
   const tim = (to) => ds.find((x) => x.to === to);
   kiem('trả đủ 7 Khu vực + 1 dòng Tổng', ds.length === 8, JSON.stringify(ds));
-  kiem('"Tạm nghỉ" KHÔNG được tính', tim('K My')?.dangNghe === 2, JSON.stringify(tim('K My')));
+  // K My có A1 (B2, tính), A2 (BT, KHÔNG tính từ 13/08/2026), A3 (Tạm nghỉ, không tính).
+  kiem('"Tạm nghỉ" KHÔNG được tính', tim('K My')?.dangNghe === 1, JSON.stringify(tim('K My')));
+  kiem('đã Báp-têm (BT) KHÔNG còn được tính là "đang nghe"',
+    tim('K My')?.dangNghe === 1, JSON.stringify(tim('K My')));
   kiem('học viên không có Khu vực KHÔNG được tính',
     ds.filter((x) => x.to !== 'Tổng').every((x) => x.to), JSON.stringify(ds));
   kiem('Khu vực chưa có ai vẫn hiện 0', tim('Đ Uyên')?.dangNghe === 0, JSON.stringify(tim('Đ Uyên')));
@@ -436,8 +439,12 @@ console.log('\n6) Thống kê tổng hợp');
   r = await goi('getTopNguoiDanDat', [TH]);
   const top = r.result || [];
   const timTop = (t) => top.find((x) => x.nguoiDanDat === t)?.count;
+  // A Minh dẫn HV1 (B2), HV2 (BT — từ 13/08/2026 KHÔNG còn tính là "đang nghe"), HV6 (B2, trùng tên
+  // ở ndd1+ndd2 chỉ tính 1). Vậy đếm đúng = 2 (HV1 + HV6), không phải 3.
   kiem('cùng một tên ở ndd1 + ndd2 của MỘT học viên chỉ tính 1 lần',
-    timTop('A Minh') === 3, JSON.stringify(top));
+    timTop('A Minh') === 2, JSON.stringify(top));
+  kiem('học viên đã Báp-têm (BT) KHÔNG còn được tính là "đang nghe"',
+    timTop('A Minh') === 2, 'thực tế: ' + timTop('A Minh'));
   kiem('học viên "Tạm nghỉ" KHÔNG được tính', timTop('C Lan') === 2, JSON.stringify(top));
   kiem('danh sách sắp xếp giảm dần theo số học viên',
     top.every((x, i) => i === 0 || top[i - 1].count >= x.count), JSON.stringify(top));
