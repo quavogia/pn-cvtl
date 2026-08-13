@@ -911,7 +911,9 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs', 'getTopNguoiDanDat',
   'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan', 'getPersonalGoalsAllKhuVuc',
   'getDaoTaoTienDoAll', 'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner', 'getLeHoiXepHang', 'checkAccess',
-  'getDiemDanhRoster', 'getDiemDanhTPGoiY']);
+  'getDiemDanhRoster', 'getDiemDanhTPGoiY',
+  // Nhóm Trụ đỡ (thêm 13/08/2026)
+  'getSoMoc', 'getMocDaGhi', 'getBapTemBanner', 'getXepHang', 'getChotKy', 'getDsChotKy']);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
 // giá trị sống trong CACHE_TTL_MS. Mục đích: khi chuyển qua lại Khu vực/tab đã xem
@@ -4026,5 +4028,10 @@ if (!tryAutoLoginFromStorage_()) {
   initGoogleSignIn_();
 }
 </script>
+
+<!-- Nhóm Trụ đỡ: sổ mốc Hữu hiệu/Báp-têm, xếp hạng khen thưởng, dải chúc mừng.
+     Để riêng một file cho dễ sửa — nó tự dựng giao diện lúc trang chạy,
+     KHÔNG đụng vào phần HTML phía trên. (thêm 13/08/2026) -->
+<script src="trudo-ui.js"></script>
 </body>
 </html>
