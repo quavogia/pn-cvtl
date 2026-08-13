@@ -400,7 +400,7 @@
         b.danhSach.map(function (x) {
           const huy = x.hang === 1 ? '🥇' : (x.hang === 2 ? '🥈' : (x.hang === 3 ? '🥉' : x.hang));
           return '<tr><td style="font-size:17px">' + huy + '</td><td><b>' + esc(x.ten) + '</b></td>' +
-            '<td class="trudo-giua">' + x.donThuan + '</td>' +
+            '<td class="trudo-giua">' + soDep(x.donThuan) + '</td>' +
             '<td class="trudo-giua">' + x.huuHieu + '</td>' +
             '<td class="trudo-giua">' + x.bapTem + '</td>' +
             '<td class="trudo-giua"><b style="font-size:15px">' + soDep(x.diem) + '</b></td></tr>';
