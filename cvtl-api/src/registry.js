@@ -8,7 +8,8 @@
 // Hàm nào chưa chuyển xong sẽ báo lỗi rõ ràng bằng tiếng Việt,
 // không bao giờ trả về trang HTML.
 //
-// TRẠNG THÁI: đã chuyển xong TOÀN BỘ. Không còn hàm nào báo "chưa được chuyển".
+// TRẠNG THÁI: đã chuyển xong toàn bộ 60 hàm cũ, cộng thêm 11 hàm mới của
+// nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng).
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -20,6 +21,7 @@ import * as mucTieuGiaoDuc from './handlers/muc-tieu-giao-duc.js';
 import * as daoTaoLeHoi from './handlers/dao-tao-le-hoi.js';
 import * as lich from './handlers/lich-lam-viec.js';
 import * as thongKeTP from './handlers/thong-ke-tp.js';
+import * as truDo from './handlers/tru-do.js';
 
 export const DANH_MUC = {
   // --- Đăng nhập / phân quyền (không yêu cầu đã duyệt) ---
@@ -99,6 +101,19 @@ export const DANH_MUC = {
   getLeHoiTienDoAll:       { doc: true,  fn: daoTaoLeHoi.getLeHoiTienDoAll },
   getLeHoiXepHang:         { doc: true,  fn: daoTaoLeHoi.getLeHoiXepHang },
   toggleLeHoiLan:          { doc: false, fn: daoTaoLeHoi.toggleLeHoiLan },
+
+  // --- Trụ đỡ: sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng ---
+  getSoMoc:                { doc: true,  fn: truDo.getSoMoc },
+  getMocDaGhi:             { doc: true,  fn: truDo.getMocDaGhi },
+  addSoMoc:                { doc: false, fn: truDo.addSoMoc },
+  updateSoMoc:             { doc: false, fn: truDo.updateSoMoc },
+  deleteSoMoc:             { doc: false, fn: truDo.deleteSoMoc },
+  getBapTemBanner:         { doc: true,  fn: truDo.getBapTemBanner },
+  getXepHang:              { doc: true,  fn: truDo.getXepHang },
+  getChotKy:               { doc: true,  fn: truDo.getChotKy },
+  getDsChotKy:             { doc: true,  fn: truDo.getDsChotKy },
+  chotKy:                  { doc: false, chuThoi: true, fn: truDo.chotKy },
+  xoaChotKy:               { doc: false, chuThoi: true, fn: truDo.xoaChotKy },
 
   // --- Lịch làm việc ---
   getLichTuan:             { doc: true,  fn: lich.getLichTuan },
