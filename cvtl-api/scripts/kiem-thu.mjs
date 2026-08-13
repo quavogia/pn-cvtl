@@ -225,7 +225,9 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
 {
   const { DANH_MUC: DM } = await import(join(goc, 'src/registry.js'));
   const ten = Object.keys(DM);
-  kiem('danh mục đủ 60 hàm', ten.length === 60, 'thực tế: ' + ten.length);
+  // 60 hàm chuyển từ bản Apps Script cũ + 11 hàm mới của nhóm Trụ đỡ
+  // (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng — thêm 13/08/2026).
+  kiem('danh mục đủ 71 hàm', ten.length === 71, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
