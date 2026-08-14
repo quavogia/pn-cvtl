@@ -17,7 +17,7 @@ import { DANH_MUC } from './registry.js';
 import { CAU_LENH_TAO_BANG } from './schema-sql.js';
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     try {
       if (request.method === 'OPTIONS') return preflight();
 
@@ -115,7 +115,11 @@ export default {
         }
       }
 
-      const boiCanh = { db, env, nguoiGoi, token };
+      // `ctx` (ExecutionContext của Cloudflare) đi kèm để những việc "chạy
+      // ngầm sau khi đã trả lời" (như gửi Telegram) có chỗ đăng ký qua
+      // ctx.waitUntil — không có nó thì Cloudflare có thể cắt ngang việc
+      // đang chạy ngay sau khi trả lời xong. Xem lich-lam-viec.js.
+      const boiCanh = { db, env, ctx, nguoiGoi, token };
       const ketQua = await muc.fn(boiCanh, ...args);
       return json({ result: ketQua === undefined ? null : ketQua });
     } catch (e) {
