@@ -73,12 +73,16 @@ const daGoi = new Set();   // để kiểm tra cuối bài: đã chạm đủ 27
 const NV = { email: 'nhanvien@gmail.com', ten: 'Nhan vien', laChu: false };
 const env = { GOOGLE_CLIENT_ID: 'test', DB: null };
 
-async function goi(fn, args = [], nguoiGoi = NV) {
+async function goi(fn, args = [], nguoiGoi = NV, moiTruong = null) {
   const muc = DANH_MUC[fn];
   if (!muc) return { error: 'Không hỗ trợ hàm: ' + fn };
   daGoi.add(fn);
   try {
-    return { result: await muc.fn({ db, env, nguoiGoi }, ...args) };
+    // `moiTruong` (tùy chọn): { env, ctx } — dùng để thử guiTelegramNgam
+    // (thêm/sửa học viên, 14/08/2026) mà không ảnh hưởng các ca kiểm thử khác.
+    const bienMoi = (moiTruong && moiTruong.env) || env;
+    const execCtx = moiTruong && moiTruong.ctx;
+    return { result: await muc.fn({ db, env: bienMoi, ctx: execCtx, nguoiGoi }, ...args) };
   } catch (e) {
     return { error: e.message };
   }
@@ -815,6 +819,67 @@ console.log('\n12) Mục tiêu cá nhân giữ đủ trường như bản cũ');
   kiem('percent có trường eduLms', p && 'eduLms' in p.percent, JSON.stringify(p?.percent));
   kiem('goal.eduLms bằng 0 như bản cũ', p?.goal?.eduLms === 0);
   kiem('percent.eduLms bằng null như bản cũ', p?.percent?.eduLms === null);
+}
+
+console.log('\n13) Telegram khi thêm/sửa học viên (14/08/2026, theo yêu cầu anh Rise)');
+{
+  taoCSDL();
+  const fetchCu = globalThis.fetch;
+  let soLanGoiFetch = 0;
+  const tinDaGui = [];
+  globalThis.fetch = (url, opt) => {
+    soLanGoiFetch++;
+    tinDaGui.push(JSON.parse(opt.body).text);
+    return Promise.resolve({ ok: true });
+  };
+  const daCho = [];
+  const execCtxGia = { waitUntil(p) { daCho.push(p); } };
+  const moiTruong = {
+    env: { TELEGRAM_BOT_TOKEN: 'token-gia', TELEGRAM_CHAT_ID: '123' },
+    ctx: execCtxGia,
+  };
+  try {
+    let r = await goi('addStudent', [{
+      ten: 'Học viên Telegram', ngay: '2026-08-10', to: 'K My', tienDo: 'B1', ndd1: 'A Minh',
+    }], NV, moiTruong);
+    kiem('addStudent vẫn thành công khi có cấu hình Telegram', r.result?.success === true, JSON.stringify(r));
+    kiem('THÊM học viên -> có đăng ký gửi Telegram qua waitUntil', daCho.length === 1, 'daCho.length=' + daCho.length);
+
+    const idMoi = r.result.row;
+    r = await goi('updateStudent', [idMoi, {
+      ten: 'Học viên Telegram', ngay: '2026-08-11', to: 'K My', tienDo: 'B2', ndd1: 'A Minh',
+    }], NV, moiTruong);
+    kiem('SỬA học viên cũng đăng ký gửi Telegram (2 lần thêm/sửa)', daCho.length === 2, 'daCho.length=' + daCho.length);
+
+    await Promise.all(daCho); // không được ném lỗi
+    kiem('mọi việc đã đăng ký qua waitUntil đều chạy xong không lỗi', true);
+    kiem('fetch tới Telegram thực sự được gọi đủ 2 lần', soLanGoiFetch === 2, 'soLanGoiFetch=' + soLanGoiFetch);
+    kiem('tin THÊM có tên học viên + tiêu đề đúng',
+      tinDaGui[0].includes('Học viên Telegram') && tinDaGui[0].includes('Học viên MỚI'), tinDaGui[0]);
+    kiem('tin SỬA có tiêu đề CẬP NHẬT',
+      tinDaGui[1].includes('CẬP NHẬT'), tinDaGui[1]);
+
+    // Xóa học viên KHÔNG báo Telegram (anh Rise chỉ yêu cầu thêm/sửa).
+    await goi('deleteStudent', [idMoi], NV, moiTruong);
+    kiem('XÓA học viên KHÔNG gửi Telegram (chỉ thêm/sửa mới báo)',
+      daCho.length === 2, 'daCho.length=' + daCho.length);
+  } finally {
+    globalThis.fetch = fetchCu;
+  }
+
+  // Không cấu hình Telegram (như phần lớn các ca kiểm thử khác trong file này)
+  // -> vẫn phải lưu học viên bình thường, không được ném lỗi.
+  const fetchCu2 = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error('KHÔNG được gọi fetch khi chưa cấu hình Telegram'); };
+  try {
+    const r = await goi('addStudent', [{
+      ten: 'Không Telegram', ngay: '2026-08-10', to: 'K My', tienDo: 'B1',
+    }]);
+    kiem('chưa cấu hình Telegram -> vẫn thêm học viên thành công, không lỗi',
+      r.result?.success === true, JSON.stringify(r));
+  } finally {
+    globalThis.fetch = fetchCu2;
+  }
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
