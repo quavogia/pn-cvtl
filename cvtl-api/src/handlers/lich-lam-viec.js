@@ -120,8 +120,8 @@ function giaTriLich(data) {
 // THÔNG BÁO TELEGRAM
 // Bản cũ dùng UrlFetchApp + Script Properties. Ở Worker thì dùng fetch() và
 // đọc token từ BIẾN MÔI TRƯỜNG env.TELEGRAM_BOT_TOKEN / env.TELEGRAM_CHAT_ID.
-// HIỆN TẠI HAI BIẾN NÀY CHƯA ĐƯỢC CẤU HÌNH -> hàm tự lặng lẽ bỏ qua, TUYỆT
-// ĐỐI không ném lỗi làm hỏng việc lưu lịch.
+// Nếu hai biến này chưa được cấu hình -> hàm tự lặng lẽ bỏ qua, TUYỆT ĐỐI
+// không ném lỗi làm hỏng việc lưu lịch.
 // ---------------------------------------------------------------------
 
 /** Thay dấu <, >, & để tin nhắn HTML của Telegram không bị gãy định dạng. */
@@ -144,14 +144,19 @@ async function guiTelegram(env, noiDung) {
 
 /**
  * Gửi thông báo CHẠY NGẦM: không await, nên người dùng không phải chờ Telegram
- * mới thấy "Đã lưu". Mọi lỗi đều bị nuốt để không ảnh hưởng việc lưu lịch.
- * Nếu sau này có gắn ExecutionContext vào env thì tự động dùng waitUntil để
- * Cloudflare không cắt ngang lời gọi khi đã trả xong phản hồi.
+ * mới thấy "Đã lưu" — phản hồi trả về ngay, việc gửi tin chạy song song sau đó.
+ * Mọi lỗi đều bị nuốt để không ảnh hưởng việc lưu lịch.
+ *
+ * `ctx` là ExecutionContext của Cloudflare (tham số thứ 3 của fetch(), xem
+ * index.js). Việc "chạy ngầm sau khi đã trả lời" BẮT BUỘC phải đăng ký qua
+ * ctx.waitUntil(...) thì Cloudflare mới giữ Worker sống đủ lâu để gửi xong —
+ * không đăng ký thì Cloudflare có thể cắt ngang bất cứ lúc nào ngay sau khi
+ * trả lời xong, tin nhắn gửi dở có thể không tới. Có ctx thì luôn dùng.
  */
-function guiTelegramNgam(env, noiDung) {
+function guiTelegramNgam(ctx, env, noiDung) {
   try {
     const viec = guiTelegram(env, noiDung).catch(() => {});
-    if (env && typeof env.waitUntil === 'function') env.waitUntil(viec);
+    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(viec);
   } catch {
     // Kệ — thông báo hỏng thì thôi, dữ liệu lịch vẫn phải được lưu.
   }
@@ -193,7 +198,7 @@ function tinLich(tieuDe, data) {
  * Thêm một công việc mới.
  * Giao diện gọi: addLichEvent(data)
  */
-export async function addLichEvent({ db, env }, data) {
+export async function addLichEvent({ db, env, ctx }, data) {
   await kiemTraDuLieuLich(db, data);
   const v = giaTriLich(data);
 
@@ -214,7 +219,7 @@ export async function addLichEvent({ db, env }, data) {
     [v[0], v[3]]
   );
 
-  guiTelegramNgam(env, tinLich('Xin gửi thông tin lớp học Kinh Thánh: ', data));
+  guiTelegramNgam(ctx, env, tinLich('Xin gửi thông tin lớp học Kinh Thánh: ', data));
   return { success: true, row: moi ? moi.id : null };
 }
 
@@ -222,7 +227,7 @@ export async function addLichEvent({ db, env }, data) {
  * Sửa một công việc đã có.
  * Giao diện gọi: updateLichEvent(row, data) — `row` chính là `id` công việc.
  */
-export async function updateLichEvent({ db, env }, row, data) {
+export async function updateLichEvent({ db, env, ctx }, row, data) {
   const id = Number(row);
   if (!Number.isFinite(id) || id <= 0) {
     throw new Error('Không rõ cần sửa công việc nào — vui lòng tải lại trang.');
@@ -243,7 +248,7 @@ export async function updateLichEvent({ db, env }, row, data) {
   );
 
   // Gửi thông tin MỚI NHẤT (sau khi sửa), không so cũ/mới cho đỡ rối.
-  guiTelegramNgam(env, tinLich('✏️ Thông tin lớp học Kinh Thánh đã được CẬP NHẬT: ', data));
+  guiTelegramNgam(ctx, env, tinLich('✏️ Thông tin lớp học Kinh Thánh đã được CẬP NHẬT: ', data));
   return { success: true };
 }
 
@@ -251,7 +256,7 @@ export async function updateLichEvent({ db, env }, row, data) {
  * Xóa một công việc.
  * Giao diện gọi: deleteLichEvent(row) — `row` chính là `id` công việc.
  */
-export async function deleteLichEvent({ db, env }, row) {
+export async function deleteLichEvent({ db, env, ctx }, row) {
   const id = Number(row);
   if (!Number.isFinite(id) || id <= 0) {
     throw new Error('Không rõ cần xóa công việc nào — vui lòng tải lại trang.');
@@ -271,7 +276,7 @@ export async function deleteLichEvent({ db, env }, row) {
   await db.run('DELETE FROM lich_lam_viec WHERE id = ?', [id]);
 
   if (chuoi(cu.noi_dung)) {
-    guiTelegramNgam(env, tinLich('❌ Lớp học Kinh Thánh sau đã bị HỦY (xóa khỏi lịch): ', {
+    guiTelegramNgam(ctx, env, tinLich('❌ Lớp học Kinh Thánh sau đã bị HỦY (xóa khỏi lịch): ', {
       ngay: cu.ngay,
       gioBatDau: cu.gio_bat_dau,
       gioKetThuc: cu.gio_ket_thuc,
