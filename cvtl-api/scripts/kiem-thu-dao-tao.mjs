@@ -47,7 +47,13 @@ async function goi(fn, args, ctx) {
   const muc = DANH_MUC[fn];
   if (!muc) return { error: 'Không hỗ trợ hàm: ' + fn };
   try {
-    const r = await muc.fn({ db: ctx.db, env: ctx.env || ENV_TRONG, nguoiGoi: ctx.nguoiGoi || NV }, ...args);
+    // ctx.execCtx (tùy chọn): giả lập ExecutionContext của Cloudflare
+    // ({ waitUntil(promise) {...} }) — dùng để kiểm thử guiTelegramNgam.
+    // Không truyền thì handler nhận ctx = undefined, giống hệt trước đây.
+    const r = await muc.fn(
+      { db: ctx.db, env: ctx.env || ENV_TRONG, ctx: ctx.execCtx, nguoiGoi: ctx.nguoiGoi || NV },
+      ...args
+    );
     return { result: r };
   } catch (e) {
     return { error: e.message };
@@ -897,6 +903,51 @@ console.log('\n11) Lịch làm việc — Config Người dẫn dắt / Telegram
     await new Promise((res) => setTimeout(res, 10));
   } finally {
     globalThis.fetch = fetchCu2;
+  }
+
+  // Có ExecutionContext (ctx.waitUntil) -> guiTelegramNgam PHẢI đăng ký việc
+  // gửi tin qua đó, để Cloudflare không cắt ngang sau khi đã trả lời (sửa
+  // 14/08/2026, theo yêu cầu anh Rise sau khi bật Telegram trên máy chủ mới).
+  const fetchCu3 = globalThis.fetch;
+  let soLanGoiFetch = 0;
+  globalThis.fetch = () => { soLanGoiFetch++; return Promise.resolve({ ok: true }); };
+  const daCho = [];
+  const execCtxGia = { waitUntil(p) { daCho.push(p); } };
+  const { db: db5 } = moiDb();
+  const C5 = {
+    db: db5,
+    env: { TELEGRAM_BOT_TOKEN: 'token-gia', TELEGRAM_CHAT_ID: '123' },
+    execCtx: execCtxGia,
+  };
+  try {
+    r = await goi('addLichEvent', [{ ngay: '2026-08-12', noiDung: 'Có ctx.waitUntil' }], C5);
+    kiem('có ctx.waitUntil -> THÊM lịch vẫn thành công', r.result?.success === true, JSON.stringify(r));
+    kiem('có ctx.waitUntil -> việc gửi Telegram ĐƯỢC đăng ký qua waitUntil',
+      daCho.length === 1, 'daCho.length=' + daCho.length);
+    const idMoi5 = r.result.row;
+    r = await goi('updateLichEvent', [idMoi5, { ngay: '2026-08-13', noiDung: 'Có ctx.waitUntil 2' }], C5);
+    r = await goi('deleteLichEvent', [idMoi5], C5);
+    kiem('SỬA và XÓA cũng đăng ký qua waitUntil (3 lần thêm/sửa/xóa)',
+      daCho.length === 3, 'daCho.length=' + daCho.length);
+    await Promise.all(daCho); // không được ném lỗi
+    kiem('mọi việc đã đăng ký qua waitUntil đều chạy xong không lỗi', true);
+    kiem('fetch tới Telegram thực sự được gọi', soLanGoiFetch === 3, 'soLanGoiFetch=' + soLanGoiFetch);
+  } finally {
+    globalThis.fetch = fetchCu3;
+  }
+
+  // KHÔNG có ctx (như trước đây, hoặc máy chủ chưa truyền ExecutionContext
+  // vào) -> vẫn phải chạy bình thường, không được ném lỗi vì thiếu ctx.
+  const fetchCu4 = globalThis.fetch;
+  globalThis.fetch = () => Promise.resolve({ ok: true });
+  const { db: db6 } = moiDb();
+  const C6 = { db: db6, env: { TELEGRAM_BOT_TOKEN: 'token-gia', TELEGRAM_CHAT_ID: '123' } }; // execCtx: undefined
+  try {
+    r = await goi('addLichEvent', [{ ngay: '2026-08-12', noiDung: 'Không có ctx' }], C6);
+    kiem('không có ctx (execCtx=undefined) -> vẫn lưu lịch thành công, không lỗi',
+      r.result?.success === true, JSON.stringify(r));
+  } finally {
+    globalThis.fetch = fetchCu4;
   }
 }
 
