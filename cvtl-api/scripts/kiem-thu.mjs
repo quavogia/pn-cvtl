@@ -258,6 +258,14 @@ console.log('\n8) Telegram khi bấm nút "Báo cáo" T3/T7 (14/08/2026, theo y�
     ctx: execCtxGia,
   };
   try {
+    // Anh Rise phát hiện (14/08/2026): số liệu trong tin Telegram bị lệch với
+    // số ĐANG hiển thị trong ô "Nhập số liệu theo tuần" — vì máy chủ trước đó
+    // tính lại từ Điểm danh (gợi ý) thay vì đọc đúng số đã lưu. Ở đây KHÔNG có
+    // dữ liệu Điểm danh nào cho "K My" (gợi ý sẽ ra 0/0) nhưng ta tự nhập tay
+    // 9 và 3 — nếu lỗi tái diễn, tin sẽ báo "0" thay vì "9"/"3".
+    await goi('saveTPWeek', [TH, 'K My', '1lan', 2, 9], CHU);
+    await goi('saveTPWeek', [TH, 'K My', '4lan', 2, 3], CHU);
+
     const r = await goi('saveTPBaoCao', [TH, 'K My', 2, 'T7'], NV, moiTruong);
     kiem('saveTPBaoCao vẫn thành công khi có cấu hình Telegram', !!r.result?.thoiGian, JSON.stringify(r));
     kiem('bấm Báo cáo -> có đăng ký gửi Telegram qua waitUntil', daCho.length === 1, 'daCho.length=' + daCho.length);
@@ -267,6 +275,8 @@ console.log('\n8) Telegram khi bấm nút "Báo cáo" T3/T7 (14/08/2026, theo y�
     kiem('fetch tới Telegram thực sự được gọi', soLanGoiFetch === 1, 'soLanGoiFetch=' + soLanGoiFetch);
     kiem('tin nhắn có Khu vực + Tuần + Thứ 7',
       tinDaGui[0].includes('K My') && tinDaGui[0].includes('Thứ 7'), tinDaGui[0]);
+    kiem('tin nhắn báo ĐÚNG số đã lưu trong bảng (9 và 3), không phải số gợi ý từ Điểm danh',
+      tinDaGui[0].includes('≥1 lần: 9') && tinDaGui[0].includes('≥4 lần: 3'), tinDaGui[0]);
   } finally {
     globalThis.fetch = fetchCu;
   }
