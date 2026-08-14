@@ -80,6 +80,13 @@
   .rank-count{color:var(--primary);font-weight:700;white-space:nowrap;}
   .rank-empty{color:#94a3b8;font-size:14px;padding:8px 0;}
 
+  /* ---------- Thanh tiến độ Lễ hội (icon mốc % + thanh màu) ---------- */
+  .lhxh-progress{display:flex;align-items:center;gap:10px;min-width:210px;}
+  .lhxh-tier-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+  .lhxh-bar-track{flex:1;height:9px;border-radius:99px;background:#eef1f5;overflow:hidden;}
+  .lhxh-bar-fill{height:100%;border-radius:99px;}
+  .lhxh-pct-text{font-variant-numeric:tabular-nums;color:#475569;font-size:13px;width:96px;flex-shrink:0;white-space:nowrap;}
+
   /* ---------- Khu vực pill tabs ---------- */
   .kv-pills{display:flex;gap:8px;flex-wrap:wrap;}
   .kv-pill{background:#e2e8f0;color:#334155;border:none;padding:9px 18px;border-radius:999px;font-size:14px;cursor:pointer;}
@@ -1605,6 +1612,18 @@ function loadLeHoiXepHang_(lh){
   }).getLeHoiXepHang(lh.ma);
 }
 
+// Icon + màu theo mốc % — dùng chung cho ô "Tiến độ" của bảng Lễ hội.
+// Chỉ để KHÍCH LỆ (không có icon "chậm/rùa" cho người 0%), giống tinh thần
+// khen thưởng của Trudo. Chốt với anh Rise 14/08/2026 (xem mockup đã gửi).
+function lhxhTier_(phanTram){
+  const p = Number(phanTram) || 0;
+  if (p >= 100) return { icon: '🏁', mau: '#16a34a' };
+  if (p >= 80)  return { icon: '🔥', mau: '#f97316' };
+  if (p >= 50)  return { icon: '💪', mau: '#2563eb' };
+  if (p >  0)   return { icon: '🌱', mau: '#60a5fa' };
+  return { icon: '', mau: '#cbd5e1' };
+}
+
 function renderLeHoiXepHang_(list){
   const body = document.getElementById('lhxhBody');
   if (!list.length) {
@@ -1613,12 +1632,19 @@ function renderLeHoiXepHang_(list){
   }
   body.innerHTML = list.map(function(m, i){
     const hangIcon = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+    const t = lhxhTier_(m.phanTram);
+    const tienDoCell =
+      '<div class="lhxh-progress">' +
+        '<span class="lhxh-tier-icon">' + t.icon + '</span>' +
+        '<div class="lhxh-bar-track"><div class="lhxh-bar-fill" style="width:' + (Number(m.phanTram) || 0) + '%;background:' + t.mau + ';"></div></div>' +
+        '<span class="lhxh-pct-text">' + m.soLanDaPhat + '/' + m.tongSoLanYeuCau + ' (' + m.phanTram + '%)</span>' +
+      '</div>';
     return '<tr>' +
       '<td>' + hangIcon + '</td>' +
       '<td>' + esc(m.ten) + '</td>' +
       '<td>' + esc(m.khuVuc) + '</td>' +
-      '<td>' + m.soLanDaPhat + '/' + m.tongSoLanYeuCau + ' (' + m.phanTram + '%)</td>' +
-      '<td>' + (m.ngayHoanThanh ? '✅ ' + m.ngayHoanThanh : '—') + '</td>' +
+      '<td>' + tienDoCell + '</td>' +
+      '<td>' + (m.ngayHoanThanh ? '🏁 ' + m.ngayHoanThanh : '—') + '</td>' +
       '</tr>';
   }).join('');
 }
