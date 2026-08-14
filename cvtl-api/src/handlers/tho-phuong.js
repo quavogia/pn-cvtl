@@ -4,6 +4,10 @@
 
 import { KHU_VUC_LIST, TP_NHOM_LIST, thangHopLe } from '../hang-so.js';
 import { getDiemDanhTPGoiY } from './diem-danh.js';
+import { guiTelegramNgam, thoatHtml } from '../telegram.js';
+
+/** "T3" -> "Thứ 3", "T7" -> "Thứ 7" — cho tin Telegram dễ đọc hơn mã viết tắt. */
+const TEN_NHOM_TP = { T3: 'Thứ 3', T7: 'Thứ 7' };
 
 function thangTruoc(thang) {
   const [y, m] = thang.split('-').map(Number);
@@ -114,5 +118,17 @@ export async function saveTPBaoCao(ctx, thang, khuVuc, tuan, nhom) {
        snap_4lan = excluded.snap_4lan`,
     [thang, kv, t, n, label, ms, goiY.oneLan[t - 1] || 0, goiY.fourLan[t - 1] || 0]
   );
+
+  const tinNhan = [
+    '📋 Đã BÁO CÁO Thờ phượng:',
+    '',
+    '🗺️ Khu vực: ' + thoatHtml(kv),
+    '📅 Tuần: ' + t,
+    '🕐 Nhóm: ' + thoatHtml(TEN_NHOM_TP[n] || n),
+    '📊 Số liệu: ≥1 lần: ' + (goiY.oneLan[t - 1] || 0) + ' · ≥4 lần: ' + (goiY.fourLan[t - 1] || 0),
+    '⏰ Lúc: ' + label,
+  ].join('\n');
+  guiTelegramNgam(ctx.ctx, ctx.env, tinNhan);
+
   return { thoiGian: label };
 }
