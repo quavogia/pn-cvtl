@@ -41,11 +41,15 @@ for (const [i, ten] of ['L H Đức','N T Huyền','N Khánh Hoàng'].entries())
 const { DANH_MUC } = await import(join(goc, 'src/registry.js'));
 let dat = 0, hong = 0;
 
-async function goi(fn, args, nguoiGoi) {
+async function goi(fn, args, nguoiGoi, moiTruong = null) {
   const muc = DANH_MUC[fn];
   if (!muc) return { error: 'Không hỗ trợ hàm: ' + fn };
   try {
-    const r = await muc.fn({ db, env, nguoiGoi }, ...args);
+    // `moiTruong` (tùy chọn): { env, ctx } — dùng để thử guiTelegramNgam
+    // (báo cáo T3/T7, 14/08/2026) mà không ảnh hưởng các ca kiểm thử khác.
+    const bienMoi = (moiTruong && moiTruong.env) || env;
+    const execCtx = moiTruong && moiTruong.ctx;
+    const r = await muc.fn({ db, env: bienMoi, ctx: execCtx, nguoiGoi }, ...args);
     return { result: r };
   } catch (e) {
     return { error: e.message };
@@ -235,6 +239,47 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   kiem('getStudents chạy thật, không còn báo "chưa được chuyển"', Array.isArray(r.result), JSON.stringify(r));
   const r2 = await goi('hamKhongTonTai', [], NV);
   kiem('hàm lạ bị từ chối', /Không hỗ trợ hàm/.test(r2.error || ''));
+}
+
+console.log('\n8) Telegram khi bấm nút "Báo cáo" T3/T7 (14/08/2026, theo yêu cầu anh Rise)');
+{
+  const fetchCu = globalThis.fetch;
+  let soLanGoiFetch = 0;
+  const tinDaGui = [];
+  globalThis.fetch = (url, opt) => {
+    soLanGoiFetch++;
+    tinDaGui.push(JSON.parse(opt.body).text);
+    return Promise.resolve({ ok: true });
+  };
+  const daCho = [];
+  const execCtxGia = { waitUntil(p) { daCho.push(p); } };
+  const moiTruong = {
+    env: { TELEGRAM_BOT_TOKEN: 'token-gia', TELEGRAM_CHAT_ID: '123' },
+    ctx: execCtxGia,
+  };
+  try {
+    const r = await goi('saveTPBaoCao', [TH, 'K My', 2, 'T7'], NV, moiTruong);
+    kiem('saveTPBaoCao vẫn thành công khi có cấu hình Telegram', !!r.result?.thoiGian, JSON.stringify(r));
+    kiem('bấm Báo cáo -> có đăng ký gửi Telegram qua waitUntil', daCho.length === 1, 'daCho.length=' + daCho.length);
+
+    await Promise.all(daCho); // không được ném lỗi
+    kiem('việc đã đăng ký qua waitUntil chạy xong không lỗi', true);
+    kiem('fetch tới Telegram thực sự được gọi', soLanGoiFetch === 1, 'soLanGoiFetch=' + soLanGoiFetch);
+    kiem('tin nhắn có Khu vực + Tuần + Thứ 7',
+      tinDaGui[0].includes('K My') && tinDaGui[0].includes('Thứ 7'), tinDaGui[0]);
+  } finally {
+    globalThis.fetch = fetchCu;
+  }
+
+  // Không cấu hình Telegram -> vẫn phải báo cáo thành công bình thường.
+  const fetchCu2 = globalThis.fetch;
+  globalThis.fetch = () => { throw new Error('KHÔNG được gọi fetch khi chưa cấu hình Telegram'); };
+  try {
+    const r = await goi('saveTPBaoCao', [TH, 'K Long', 1, 'T3'], NV);
+    kiem('chưa cấu hình Telegram -> vẫn báo cáo thành công, không lỗi', !!r.result?.thoiGian, JSON.stringify(r));
+  } finally {
+    globalThis.fetch = fetchCu2;
+  }
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
