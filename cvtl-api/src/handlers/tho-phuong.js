@@ -3,7 +3,6 @@
 // =====================================================================
 
 import { KHU_VUC_LIST, TP_NHOM_LIST, thangHopLe } from '../hang-so.js';
-import { getDiemDanhTPGoiY } from './diem-danh.js';
 import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 
 /** "T3" -> "Thứ 3", "T7" -> "Thứ 7" — cho tin Telegram dễ đọc hơn mã viết tắt. */
@@ -103,8 +102,22 @@ export async function saveTPBaoCao(ctx, thang, khuVuc, tuan, nhom) {
   if (!t || t < 1 || t > 5) throw new Error('Tuần không hợp lệ.');
   if (!TP_NHOM_LIST.includes(n)) throw new Error('Nhóm báo cáo không hợp lệ.');
 
-  // Chụp lại số liệu tại thời điểm báo cáo để sau này phát hiện "đã sửa".
-  const goiY = await getDiemDanhTPGoiY(ctx, thang, kv);
+  // Lấy đúng số liệu ĐANG NẰM trong bảng "Nhập số liệu theo tuần" (Sheet TP) —
+  // KHÔNG dùng lại số gợi ý tính từ Điểm danh (getDiemDanhTPGoiY), vì Trưởng
+  // phòng có thể đã tự sửa tay khác đi. Trước bản sửa 14/08/2026, tin Telegram
+  // + snapshot "đã sửa" dùng số gợi ý nên báo sai lệch với số thật hiển thị
+  // trên màn hình (anh Rise phát hiện: ô Tuần hiện 9/3 nhưng tin báo 6/0).
+  const rows = await db.all(
+    'SELECT loai, so_luong FROM tp_tho_phuong WHERE thang = ? AND khu_vuc = ? AND tuan = ?',
+    [thang, kv, t]
+  );
+  let soLieu1Lan = 0;
+  let soLieu4Lan = 0;
+  for (const r of rows) {
+    if (r.loai === '1lan') soLieu1Lan = Number(r.so_luong) || 0;
+    else if (r.loai === '4lan') soLieu4Lan = Number(r.so_luong) || 0;
+  }
+
   const ms = Date.now();
   const label = dinhDangThoiGian(ms);
 
@@ -116,7 +129,7 @@ export async function saveTPBaoCao(ctx, thang, khuVuc, tuan, nhom) {
        thoi_gian_ms = excluded.thoi_gian_ms,
        snap_1lan = excluded.snap_1lan,
        snap_4lan = excluded.snap_4lan`,
-    [thang, kv, t, n, label, ms, goiY.oneLan[t - 1] || 0, goiY.fourLan[t - 1] || 0]
+    [thang, kv, t, n, label, ms, soLieu1Lan, soLieu4Lan]
   );
 
   const tinNhan = [
@@ -125,7 +138,7 @@ export async function saveTPBaoCao(ctx, thang, khuVuc, tuan, nhom) {
     '🗺️ Khu vực: ' + thoatHtml(kv),
     '📅 Tuần: ' + t,
     '🕐 Nhóm: ' + thoatHtml(TEN_NHOM_TP[n] || n),
-    '📊 Số liệu: ≥1 lần: ' + (goiY.oneLan[t - 1] || 0) + ' · ≥4 lần: ' + (goiY.fourLan[t - 1] || 0),
+    '📊 Số liệu: ≥1 lần: ' + soLieu1Lan + ' · ≥4 lần: ' + soLieu4Lan,
     '⏰ Lúc: ' + label,
   ].join('\n');
   guiTelegramNgam(ctx.ctx, ctx.env, tinNhan);
