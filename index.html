@@ -1401,7 +1401,12 @@ function toDateInputValue_(dmy){
 function editStudent(row){
   const s = allStudents.find(function(x){ return x.row === row; });
   if (!s) return;
-  showPanel('add');
+  // Từ 13/08/2026 màn hình "Nhập học viên" không còn là panel riêng (đã dọn
+  // vào tab con "Hữu hiệu" trong Trudo) — KHÔNG được gọi showPanel('add') nữa,
+  // panel đó không còn tồn tại trên thanh bên nên sẽ ném lỗi làm trắng trang.
+  showPanel('trudo');
+  const trudoTabHH = document.querySelector('#trudoPills .kv-pill[data-sub="huuhieu"]');
+  if (trudoTabHH && !trudoTabHH.classList.contains('active')) trudoTabHH.click();
   document.getElementById('editRow').value = row;
   document.getElementById('f_ten').value = s.ten || '';
   document.getElementById('f_ngay').value = toDateInputValue_(s.ngay);
@@ -1419,7 +1424,8 @@ function editStudent(row){
   document.getElementById('formTitle').textContent = 'Sửa thông tin học viên: ' + s.ten;
   document.getElementById('submitBtn').textContent = 'Lưu thay đổi';
   document.getElementById('cancelEditBtn').style.display = 'inline-block';
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const formEl = document.getElementById('studentForm');
+  if (formEl) formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 document.getElementById('cancelEditBtn').addEventListener('click', resetForm);
