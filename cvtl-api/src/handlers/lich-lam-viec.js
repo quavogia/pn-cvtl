@@ -15,6 +15,7 @@
 // =====================================================================
 
 import { chuanNgay, chuoi } from '../tien-ich.js';
+import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 
 /** Ba trạng thái của một công việc (giữ nguyên bản cũ). */
 export const LICH_TRANG_THAI_LIST = ['Chưa diễn ra', 'Đã diễn ra', 'Hủy'];
@@ -118,49 +119,10 @@ function giaTriLich(data) {
 
 // ---------------------------------------------------------------------
 // THÔNG BÁO TELEGRAM
-// Bản cũ dùng UrlFetchApp + Script Properties. Ở Worker thì dùng fetch() và
-// đọc token từ BIẾN MÔI TRƯỜNG env.TELEGRAM_BOT_TOKEN / env.TELEGRAM_CHAT_ID.
-// Nếu hai biến này chưa được cấu hình -> hàm tự lặng lẽ bỏ qua, TUYỆT ĐỐI
-// không ném lỗi làm hỏng việc lưu lịch.
+// Hàm gửi dùng CHUNG với Học viên + Báo cáo Thờ phượng, tách ra
+// '../telegram.js' (14/08/2026) — xem file đó để biết đầy đủ lý do phải
+// đi qua ctx.waitUntil.
 // ---------------------------------------------------------------------
-
-/** Thay dấu <, >, & để tin nhắn HTML của Telegram không bị gãy định dạng. */
-function thoatHtml(s) {
-  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-async function guiTelegram(env, noiDung) {
-  const token = env && env.TELEGRAM_BOT_TOKEN;
-  const chatId = env && env.TELEGRAM_CHAT_ID;
-  // Chưa khai báo token/chat id -> im lặng bỏ qua, coi như không có gì xảy ra.
-  if (!token || !chatId) return;
-
-  await fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text: noiDung, parse_mode: 'HTML' }),
-  });
-}
-
-/**
- * Gửi thông báo CHẠY NGẦM: không await, nên người dùng không phải chờ Telegram
- * mới thấy "Đã lưu" — phản hồi trả về ngay, việc gửi tin chạy song song sau đó.
- * Mọi lỗi đều bị nuốt để không ảnh hưởng việc lưu lịch.
- *
- * `ctx` là ExecutionContext của Cloudflare (tham số thứ 3 của fetch(), xem
- * index.js). Việc "chạy ngầm sau khi đã trả lời" BẮT BUỘC phải đăng ký qua
- * ctx.waitUntil(...) thì Cloudflare mới giữ Worker sống đủ lâu để gửi xong —
- * không đăng ký thì Cloudflare có thể cắt ngang bất cứ lúc nào ngay sau khi
- * trả lời xong, tin nhắn gửi dở có thể không tới. Có ctx thì luôn dùng.
- */
-function guiTelegramNgam(ctx, env, noiDung) {
-  try {
-    const viec = guiTelegram(env, noiDung).catch(() => {});
-    if (ctx && typeof ctx.waitUntil === 'function') ctx.waitUntil(viec);
-  } catch {
-    // Kệ — thông báo hỏng thì thôi, dữ liệu lịch vẫn phải được lưu.
-  }
-}
 
 /** Các dòng "thông tin buổi học" dùng chung cho cả 3 loại tin (thêm/sửa/xóa). */
 function dungThongTinLich(data) {
