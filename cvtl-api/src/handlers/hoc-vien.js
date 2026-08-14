@@ -23,6 +23,23 @@ import {
   kiemTraThang, thangTruoc, phanTram, laHuuHieu, laBT, soBuoi, BT_STATUS_VALUE,
   chuanNgay, ngayVN, tuanTrongThang, chuoi, soNguyen, batBuoc,
 } from '../tien-ich.js';
+import { guiTelegramNgam, thoatHtml } from '../telegram.js';
+
+/** Nối "NDD1, NDD2, NDD3" bỏ ô trống, dùng cho tin Telegram thêm/sửa học viên. */
+function nddNoi(d) {
+  return [chuoi(d.ndd1), chuoi(d.ndd2), chuoi(d.ndd3)].filter(Boolean).join(', ');
+}
+
+/** Nội dung tin Telegram khi thêm/sửa học viên — dùng chung 2 nơi cho khỏi lệch nhau. */
+function tinHocVien(tieuDe, ten, d) {
+  const lines = [thoatHtml(tieuDe), '', '👤 Tên: ' + thoatHtml(ten)];
+  if (chuoi(d.to)) lines.push('🗺️ Khu vực: ' + thoatHtml(chuoi(d.to)));
+  if (chuoi(d.tienDo)) lines.push('📈 Tiến độ: ' + thoatHtml(chuoi(d.tienDo)));
+  if (chuanNgay(d.ngay)) lines.push('📅 Ngày chia sẻ: ' + ngayVN(chuanNgay(d.ngay)));
+  const ndd = nddNoi(d);
+  if (ndd) lines.push('🧑‍🏫 Người dẫn dắt: ' + thoatHtml(ndd));
+  return lines.join('\n');
+}
 
 /** Tiến độ nghĩa là "đang tạm dừng học" — không tính vào "Đang nghe". */
 const TAM_NGHI = 'Tạm nghỉ';
@@ -352,7 +369,7 @@ async function kiemTraDuLieuHocVien(db, data) {
   }
 }
 
-export async function addStudent({ db }, data) {
+export async function addStudent({ db, env, ctx }, data) {
   const d = data || {};
   await kiemTraDuLieuHocVien(db, d);
   const ten = batBuoc(d.ten, 'Tên học viên');
@@ -380,6 +397,8 @@ export async function addStudent({ db }, data) {
     ndd1: chuoi(d.ndd1), ndd2: chuoi(d.ndd2), ndd3: chuoi(d.ndd3),
   });
 
+  guiTelegramNgam(ctx, env, tinHocVien('🆕 Học viên MỚI vừa được thêm:', ten, d));
+
   // Trả kèm `row` (= id vừa tạo) phòng khi giao diện muốn dùng ngay,
   // vẫn giữ `success: true` như bản cũ.
   return { success: true, row: kq?.meta?.last_row_id ?? null, ghiSo };
@@ -391,7 +410,7 @@ export async function addStudent({ db }, data) {
  * "Ngày đầu chia sẻ" đã dùng để tính Hữu hiệu nên KHÔNG cho sửa lại: nếu học
  * viên đã có ngày đó rồi thì giữ nguyên, chỉ điền khi trước đây còn trống.
  */
-export async function updateStudent({ db }, row, data) {
+export async function updateStudent({ db, env, ctx }, row, data) {
   const id = soNguyen(row);
   if (!id) throw new Error('Thiếu mã học viên cần sửa.');
   const d = data || {};
@@ -425,6 +444,8 @@ export async function updateStudent({ db }, row, data) {
     ten, khuVuc: chuoi(d.to), tienDo: chuoi(d.tienDo),
     ndd1: chuoi(d.ndd1), ndd2: chuoi(d.ndd2), ndd3: chuoi(d.ndd3),
   });
+
+  guiTelegramNgam(ctx, env, tinHocVien('✏️ Thông tin học viên đã được CẬP NHẬT:', ten, d));
 
   return { success: true, ghiSo };
 }
