@@ -2087,6 +2087,18 @@ function loadTPPanel(){
     window._tpCurrentData = row;
     renderTPChart_(row);
     renderTPEditTable_(row, past);
+    // getTPSummary (bảng Báo cáo) và getDiemDanhRoster (bảng Điểm danh, gọi
+    // trong loadTPDiemDanh_ ở cuối hàm này) chạy SONG SONG, không đảm bảo cái
+    // nào xong trước. renderTPDDTable_ chỉ được gọi từ callback getDiemDanhRoster
+    // — nếu callback đó chạy TRƯỚC dòng "window._tpCurrentData = row" ở trên
+    // (rất dễ xảy ra, ví dụ khi đổi Khu vực liên tục), bảng Điểm danh sẽ dùng
+    // dữ liệu "đã báo cáo" CŨ (của Khu vực trước đó, hoặc trước khi hủy báo
+    // cáo) để tính khoá ô, rồi im lặng GIỮ NGUYÊN trạng thái khoá sai đó mãi vì
+    // không có gì gọi lại renderTPDDTable_ sau khi dữ liệu đúng vừa về. Gọi lại
+    // ở đây để bảng Điểm danh luôn khớp đúng trạng thái báo cáo mới nhất của
+    // đúng Khu vực đang xem (đã phát hiện 16/08/2026: hủy báo cáo xong, tài
+    // khoản không phải chủ vẫn thấy Tuần đó bị khoá).
+    renderTPDDTable_();
     pending.row = row;
     tryAutoFill_();
   }).withFailureHandler(function(err){
@@ -2622,7 +2634,14 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
     buoiList.forEach(function(b, i){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
       const nhomBuoiLock_ = (b === 'T3toi') ? 'T3' : 'T7';
-      const bcWeek_ = window._tpCurrentData && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[tuan - 1];
+      // Chỉ tin dữ liệu báo cáo (_tpCurrentData) khi nó thật sự thuộc ĐÚNG Khu
+      // vực đang vẽ (nhom) — _tpCurrentData là biến DÙNG CHUNG cho cả trang,
+      // có thể vẫn còn giữ dữ liệu của Khu vực XEM TRƯỚC ĐÓ trong lúc đang
+      // chờ getTPSummary của Khu vực mới về. Không kiểm tra khớp Khu vực thì
+      // có thể khoá nhầm ô Điểm danh của Khu vực này theo trạng thái báo cáo
+      // của Khu vực khác.
+      const tpDataKhopKV_ = window._tpCurrentData && window._tpCurrentData.khuVuc === nhom;
+      const bcWeek_ = tpDataKhopKV_ && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[tuan - 1];
       const isLocked_ = !!(bcWeek_ && bcWeek_[nhomBuoiLock_] && bcWeek_[nhomBuoiLock_].label) && !isChuTaiKhoan_();
       cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + (isLocked_ ? ' dd-cell-locked' : '') + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
