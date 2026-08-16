@@ -145,3 +145,28 @@ export async function saveTPBaoCao(ctx, thang, khuVuc, tuan, nhom) {
 
   return { thoiGian: label };
 }
+
+/**
+ * (Chỉ tài khoản chủ — chặn ở registry.js bằng `chuThoi: true`) Hủy trạng thái
+ * "đã báo cáo" của một nhóm buổi (T3 hoặc T7) của một tuần — dùng khi bấm
+ * Báo cáo nhầm hoặc số liệu sai, để báo cáo lại từ đầu (16/08/2026, theo yêu
+ * cầu anh Rise). Chỉ xóa dòng đánh dấu trong `tp_bao_cao`, KHÔNG đụng tới số
+ * liệu ≥1/≥4 lần đã nhập trong `tp_tho_phuong` — hủy xong bảng số liệu vẫn
+ * còn nguyên, chỉ có cột "Báo cáo" quay về trạng thái "Chưa báo cáo" và các ô
+ * Điểm danh liên quan được mở khóa lại cho nhân viên khác.
+ */
+export async function huyTPBaoCao({ db }, thang, khuVuc, tuan, nhom) {
+  if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
+  const kv = String(khuVuc || '').trim();
+  const t = Number(tuan);
+  const n = String(nhom || '').trim();
+  if (!kv) throw new Error('Thiếu Khu vực.');
+  if (!t || t < 1 || t > 5) throw new Error('Tuần không hợp lệ.');
+  if (!TP_NHOM_LIST.includes(n)) throw new Error('Nhóm báo cáo không hợp lệ.');
+
+  await db.run(
+    'DELETE FROM tp_bao_cao WHERE thang = ? AND khu_vuc = ? AND tuan = ? AND nhom = ?',
+    [thang, kv, t, n]
+  );
+  return { success: true };
+}
