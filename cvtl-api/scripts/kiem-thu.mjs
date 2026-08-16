@@ -80,6 +80,99 @@ console.log('1) Cấu hình');
   kiem('getDropdownOptions có trường nddList', Array.isArray(r.result?.nddList));
 }
 
+console.log('\n1a) Xin cấp quyền (requestAccess) — báo Telegram kèm link "Cấp quyền 1-chạm" (16/08/2026, theo yêu cầu anh Rise)');
+{
+  // Anh Rise phát hiện: bấm "Gửi yêu cầu truy cập" xong mà không có gì báo để
+  // duyệt (bản Apps Script cũ có gửi email kèm link "Cấp quyền" 1-chạm, bản
+  // Cloudflare khi chuyển sang bị BỎ SÓT hoàn toàn bước báo này). Sửa: báo
+  // qua Telegram (anh Rise chọn), kèm link 1-chạm trỏ về /duyet-truy-cap.
+  //
+  // requestAccess() gọi xacThucGoogleJwt() THẬT (kiểm chữ ký + tải JWKS qua
+  // mạng) nên phải tự tạo 1 JWT ký thật + giả JWKS mới chạy được offline.
+  // Đặt bài kiểm thử này TRƯỚC MỌI bài khác có đụng tới xacThucGoogleJwt
+  // (như mục "1b" ngay dưới đây) — vì JWKS được cache lại trong tiến trình,
+  // nếu để bài khác chạy trước và tải JWKS thật của Google trước, thì cache
+  // sẽ giữ khoá THẬT suốt phần đời còn lại của lượt chạy thử, khoá giả ở đây
+  // sẽ không bao giờ khớp được nữa.
+  const b64url = (buf) => Buffer.from(buf).toString('base64url');
+  const capKhoa = await crypto.subtle.generateKey(
+    { name: 'RSASSA-PKCS1-v1_5', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256' },
+    true, ['sign', 'verify']
+  );
+  const jwkCong = await crypto.subtle.exportKey('jwk', capKhoa.publicKey);
+  jwkCong.kid = 'kiemthu-kid';
+  jwkCong.alg = 'RS256';
+
+  const tieuDe = { alg: 'RS256', kid: 'kiemthu-kid' };
+  const nay = Math.floor(Date.now() / 1000);
+  const noiDung = {
+    email: 'AiNguoiMoi@gmail.com', name: 'Người Xin Quyền',
+    aud: 'test', iss: 'https://accounts.google.com',
+    exp: nay + 3600, email_verified: true,
+  };
+  const phanDau = b64url(JSON.stringify(tieuDe)) + '.' + b64url(JSON.stringify(noiDung));
+  const chuKy = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', capKhoa.privateKey, new TextEncoder().encode(phanDau));
+  const jwtThat = phanDau + '.' + b64url(chuKy);
+
+  const fetchGoc = globalThis.fetch;
+  const tinDaGui = [];
+  let soLanTelegram = 0;
+  globalThis.fetch = (url, opt) => {
+    const u = String(url);
+    if (u.includes('googleapis.com')) {
+      return Promise.resolve({ ok: true, json: async () => ({ keys: [jwkCong] }) });
+    }
+    if (u.includes('api.telegram.org')) {
+      soLanTelegram++;
+      tinDaGui.push(JSON.parse(opt.body).text);
+      return Promise.resolve({ ok: true });
+    }
+    throw new Error('fetch không mong đợi trong bài kiểm thử requestAccess: ' + u);
+  };
+
+  try {
+    const { DANH_MUC: DM } = await import(join(goc, 'src/registry.js'));
+
+    // -- Chưa cấu hình Telegram/MA_CAI_DAT: vẫn phải ghi nhận yêu cầu thành công --
+    let r = await DM.requestAccess.fn({ db, env: { GOOGLE_CLIENT_ID: 'test' }, ctx: null, token: jwtThat });
+    kiem('chưa cấu hình Telegram/MA_CAI_DAT -> vẫn ghi nhận yêu cầu thành công',
+      r?.trangThai === 'cho_duyet', JSON.stringify(r));
+    kiem('chưa cấu hình -> không gọi Telegram', soLanTelegram === 0, 'soLanTelegram=' + soLanTelegram);
+    const hang1 = sqlite.prepare("SELECT trang_thai FROM access_control WHERE email='ainguoimoi@gmail.com'").get();
+    kiem('CSDL ghi đúng trạng thái "cho_duyet" (email tự hạ chữ thường)',
+      hang1?.trang_thai === 'cho_duyet', JSON.stringify(hang1));
+
+    // -- Có cấu hình Telegram + MA_CAI_DAT: phải báo kèm link duyệt 1-chạm --
+    const daCho = [];
+    const envDuTruy = {
+      GOOGLE_CLIENT_ID: 'test', TELEGRAM_BOT_TOKEN: 'tok', TELEGRAM_CHAT_ID: '999',
+      MA_CAI_DAT: 'bi-mat-kiem-thu',
+    };
+    const execCtxGia = { waitUntil(p) { daCho.push(p); } };
+    r = await DM.requestAccess.fn({ db, env: envDuTruy, ctx: execCtxGia, token: jwtThat });
+    kiem('có cấu hình -> vẫn ghi nhận yêu cầu thành công', r?.trangThai === 'cho_duyet', JSON.stringify(r));
+    kiem('có đăng ký gửi Telegram qua waitUntil (không bắt người dùng chờ)',
+      daCho.length === 1, 'daCho.length=' + daCho.length);
+    await Promise.all(daCho);
+    kiem('Telegram thực sự được gọi', soLanTelegram === 1, 'soLanTelegram=' + soLanTelegram);
+    kiem('tin nhắn có tên + email người xin quyền',
+      tinDaGui[0]?.includes('Người Xin Quyền') && tinDaGui[0]?.includes('ainguoimoi@gmail.com'), tinDaGui[0]);
+    kiem('tin nhắn kèm link "Cấp quyền" trỏ đúng máy chủ + đúng /duyet-truy-cap',
+      tinDaGui[0]?.includes('cvtl-api.rise-shine1948.workers.dev/duyet-truy-cap'), tinDaGui[0]);
+    kiem('link trong tin nhắn có email được mã hoá đúng (ainguoimoi%40gmail.com)',
+      tinDaGui[0]?.includes('email=ainguoimoi%40gmail.com'), tinDaGui[0]);
+    kiem('link trong tin nhắn kèm đúng mã bí mật (ma=bi-mat-kiem-thu)',
+      tinDaGui[0]?.includes('ma=bi-mat-kiem-thu'), tinDaGui[0]);
+
+    // -- Xin lại đúng email đó lần 2 (ví dụ bấm 2 lần) -> không sinh dòng trùng --
+    await DM.requestAccess.fn({ db, env: envDuTruy, ctx: execCtxGia, token: jwtThat });
+    const demTrung = sqlite.prepare("SELECT COUNT(*) c FROM access_control WHERE email='ainguoimoi@gmail.com'").get().c;
+    kiem('xin quyền 2 lần cùng email không sinh dòng trùng', demTrung === 1, 'thực tế: ' + demTrung);
+  } finally {
+    globalThis.fetch = fetchGoc;
+  }
+}
+
 console.log('\n1b) Đăng nhập — mã Google nằm ở ô "token", KHÔNG nằm trong args');
 {
   // Giao diện gọi checkAccess() rỗng tay, mã đăng nhập đi ở ô token.
