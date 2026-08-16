@@ -230,8 +230,9 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   const { DANH_MUC: DM } = await import(join(goc, 'src/registry.js'));
   const ten = Object.keys(DM);
   // 60 hàm chuyển từ bản Apps Script cũ + 11 hàm mới của nhóm Trụ đỡ
-  // (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng — thêm 13/08/2026).
-  kiem('danh mục đủ 71 hàm', ten.length === 71, 'thực tế: ' + ten.length);
+  // (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng — thêm 13/08/2026)
+  // + huyTPBaoCao (Hủy báo cáo, chỉ tài khoản chủ — thêm 16/08/2026).
+  kiem('danh mục đủ 72 hàm', ten.length === 72, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
@@ -290,6 +291,81 @@ console.log('\n8) Telegram khi bấm nút "Báo cáo" T3/T7 (14/08/2026, theo y�
   } finally {
     globalThis.fetch = fetchCu2;
   }
+}
+
+console.log('\n9) Hủy báo cáo T3/T7 — chỉ tài khoản chủ (16/08/2026, theo yêu cầu anh Rise)');
+{
+  const { DANH_MUC: DM } = await import(join(goc, 'src/registry.js'));
+  kiem('huyTPBaoCao chỉ dành cho tài khoản chủ (chuThoi=true, chặn ở router)',
+    DM.huyTPBaoCao.chuThoi === true);
+
+  // "K Long" Tuần 1 T3 đã được báo cáo ở mục 8 phía trên.
+  let r = await goi('getTPSummary', [TH], NV);
+  let kl = r.result.find((x) => x.khuVuc === 'K Long');
+  kiem('trước khi hủy: Tuần 1 T3 của K Long đang có nhãn đã báo cáo',
+    !!kl.baoCao[0].T3.label, JSON.stringify(kl.baoCao[0]));
+
+  r = await goi('huyTPBaoCao', [TH, 'K Long', 1, 'T3'], CHU);
+  kiem('huyTPBaoCao chạy thành công', r.result?.success === true, JSON.stringify(r));
+
+  r = await goi('getTPSummary', [TH], NV);
+  kl = r.result.find((x) => x.khuVuc === 'K Long');
+  kiem('sau khi hủy: Tuần 1 T3 của K Long quay lại "chưa báo cáo"',
+    kl.baoCao[0].T3.label === '', JSON.stringify(kl.baoCao[0]));
+
+  r = await goi('saveDiemDanhCell', [TH, 'K Long', 'Ai đó không có thật', 1, 'T3toi', '211'], NV);
+  kiem('hủy báo cáo xong -> ô Điểm danh liên quan được mở khóa lại cho nhân viên',
+    !/đã báo cáo/.test(r.error || ''), JSON.stringify(r));
+
+  // Hủy một mục CHƯA từng báo cáo -> không lỗi, không có gì để xóa (dễ đoán,
+  // an toàn khi bấm nhầm/bấm 2 lần).
+  r = await goi('huyTPBaoCao', [TH, 'K Long', 5, 'T7'], CHU);
+  kiem('hủy báo cáo một mục chưa từng báo cáo -> vẫn thành công, không lỗi',
+    r.result?.success === true, JSON.stringify(r));
+
+  r = await goi('huyTPBaoCao', [TH, 'K Long', 99, 'T3'], CHU);
+  kiem('hủy báo cáo với Tuần không hợp lệ -> báo lỗi tiếng Việt',
+    /Tuần không hợp lệ/.test(r.error || ''), JSON.stringify(r));
+}
+
+console.log('\n10) Ghi chú thành viên (Mã cấp độ + Ghi chú) — sửa lỗi biến mất sau khi lưu (16/08/2026)');
+{
+  // Anh Rise phát hiện: bấm tên thành viên, lưu Ghi chú, thấy lên ngay nhưng
+  // "được 1 lát rồi biến mất". Nguyên nhân: getDiemDanhGhiChuAll() trả về một
+  // OBJECT (khoá "khu_vuc|ten") trong khi index.html gọi `list.forEach(...)`
+  // (chỉ MẢNG mới có .forEach) rồi đọc r.khuVuc/r.capDo — khác cả hình dạng
+  // lẫn tên trường (bản cũ trả `maCapDo`). Lỗi ném ra âm thầm, ddGhiChuMap
+  // không bao giờ tải lại được nên mỗi lần tải lại danh sách Điểm danh là
+  // ghi chú vừa lưu "biến mất". Bài kiểm thử dưới đây mô phỏng đúng cách
+  // index.html dùng kết quả trả về, để bắt lại lỗi hình dạng/tên trường.
+  let r = await goi('saveDiemDanhGhiChu', ['K Đức', 'P Ngọc Đức', 'TDM', 'Ghi chú thử nghiệm'], CHU);
+  kiem('saveDiemDanhGhiChu chạy thành công', r.result?.success === true, JSON.stringify(r));
+  kiem('saveDiemDanhGhiChu trả kèm ngayCapNhat (index.html đọc res.ngayCapNhat)',
+    !!r.result?.ngayCapNhat, JSON.stringify(r));
+
+  r = await goi('getDiemDanhGhiChuAll', [], NV);
+  kiem('getDiemDanhGhiChuAll trả về MẢNG (index.html gọi list.forEach)',
+    Array.isArray(r.result), 'thực tế kiểu: ' + typeof r.result + ' — ' + JSON.stringify(r.result));
+
+  // Mô phỏng CHÍNH XÁC vòng lặp trong index.html (loadDiemDanhGhiChu_):
+  //   list.forEach(function(r){ ddGhiChuMap[r.khuVuc + '||' + r.ten] = r; });
+  const ddGhiChuMap = {};
+  (r.result || []).forEach((row) => { ddGhiChuMap[row.khuVuc + '||' + row.ten] = row; });
+  const rec = ddGhiChuMap['K Đức||P Ngọc Đức'];
+  kiem('sau khi mô phỏng vòng lặp giao diện, tìm đúng bản ghi theo khuVuc+ten',
+    !!rec, JSON.stringify(ddGhiChuMap));
+  kiem('trường "capDo" đọc đúng giá trị vừa lưu (không phải "maCapDo")',
+    rec && rec.capDo === 'TDM', JSON.stringify(rec));
+  kiem('trường "ghiChu" đọc đúng giá trị vừa lưu',
+    rec && rec.ghiChu === 'Ghi chú thử nghiệm', JSON.stringify(rec));
+
+  // Lưu đè lên cùng một người -> vẫn chỉ 1 dòng (ON CONFLICT), không sinh
+  // dòng trùng.
+  await goi('saveDiemDanhGhiChu', ['K Đức', 'P Ngọc Đức', 'TDM2', 'Ghi chú đã sửa'], CHU);
+  r = await goi('getDiemDanhGhiChuAll', [], NV);
+  const trungTen = (r.result || []).filter((row) => row.khuVuc === 'K Đức' && row.ten === 'P Ngọc Đức');
+  kiem('lưu đè ghi chú cùng 1 người không sinh dòng trùng', trungTen.length === 1, JSON.stringify(trungTen));
+  kiem('lưu đè cập nhật đúng giá trị mới', trungTen[0]?.capDo === 'TDM2', JSON.stringify(trungTen[0]));
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
