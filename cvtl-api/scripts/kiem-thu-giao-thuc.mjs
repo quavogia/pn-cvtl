@@ -58,5 +58,47 @@ await kiem('POST rỗng', new Request(U, { method: 'POST', body: '{}' }));
 await kiem('phương thức lạ', new Request(U, { method: 'DELETE' }));
 await kiem('đường dẫn sức khoẻ', new Request(U + 'suc-khoe'));
 
+console.log('\n=== KIỂM THỬ /duyet-truy-cap — link "Cấp quyền 1-chạm" gửi trong tin Telegram (16/08/2026) ===\n');
+{
+  // Đường dẫn này KHÔNG thuộc giao thức JSON fn=... — người dùng (anh Rise)
+  // bấm thẳng vào link từ điện thoại nên phải trả về HTML đọc được, khác
+  // với lời hứa "không bao giờ trả HTML" ở trên (lời hứa đó chỉ áp dụng cho
+  // các lệnh gọi fn=... qua giao diện web).
+  const envDuyet = { DB: D1, GOOGLE_CLIENT_ID: 'test', MA_CAI_DAT: 'bi-mat-kiem-thu' };
+  const ktraHtml = (ten, dieuKien, chiTiet = '') => {
+    if (dieuKien) { dat++; console.log('  ✓', ten); } else { hong++; console.log('  ✗', ten, chiTiet); }
+  };
+
+  let res = await worker.fetch(new Request(U + 'duyet-truy-cap?email=ai%40gmail.com&ma=SAI'), envDuyet);
+  let text = await res.text();
+  ktraHtml('mã bí mật sai bị từ chối', text.includes('Liên kết không hợp lệ'), text);
+
+  res = await worker.fetch(new Request(U + 'duyet-truy-cap?ma=bi-mat-kiem-thu'), envDuyet);
+  text = await res.text();
+  ktraHtml('thiếu email bị từ chối', text.includes('Thiếu email'), text);
+
+  res = await worker.fetch(new Request(U + 'duyet-truy-cap?email=nguoimoi%40gmail.com&ma=bi-mat-kiem-thu'), envDuyet);
+  text = await res.text();
+  ktraHtml('bấm link hợp lệ -> báo đã cấp quyền', text.includes('Đã cấp quyền'), text);
+  let hang = sqlite.prepare("SELECT trang_thai FROM access_control WHERE email='nguoimoi@gmail.com'").get();
+  ktraHtml('CSDL cập nhật đúng trạng thái da_duyet', hang?.trang_thai === 'da_duyet', JSON.stringify(hang));
+
+  // Bấm lại link cũ lần 2 (ví dụ mở nhầm, hoặc mạng lag bấm 2 lần) -> vẫn báo
+  // đã cấp quyền, không lỗi, không sinh dòng trùng.
+  await worker.fetch(new Request(U + 'duyet-truy-cap?email=nguoimoi%40gmail.com&ma=bi-mat-kiem-thu'), envDuyet);
+  const demTrung = sqlite.prepare("SELECT COUNT(*) c FROM access_control WHERE email='nguoimoi@gmail.com'").get().c;
+  ktraHtml('bấm lại link cũ không sinh dòng trùng', demTrung === 1, 'thực tế: ' + demTrung);
+
+  // Chưa cấu hình MA_CAI_DAT trên Cloudflare (quên set) -> từ chối an toàn,
+  // không được lỡ tay cấp quyền bừa cho ai gọi cũng được.
+  res = await worker.fetch(
+    new Request(U + 'duyet-truy-cap?email=ai2%40gmail.com&ma=gi-cung-duoc'),
+    { DB: D1, GOOGLE_CLIENT_ID: 'test' }
+  );
+  text = await res.text();
+  ktraHtml('chưa cấu hình MA_CAI_DAT -> từ chối an toàn, không cấp quyền bừa',
+    text.includes('Liên kết không hợp lệ'), text);
+}
+
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
 process.exit(hong ? 1 : 0);
