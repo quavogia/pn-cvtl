@@ -146,26 +146,46 @@ export async function moveDiemDanhTreEm({ db }, khuVuc, ten, huong) {
   return { success: true };
 }
 
+// ⚠️ Phải trả về MẢNG các bản ghi {khuVuc, ten, capDo, ghiChu, ngayCapNhat} —
+// ĐÚNG hình dạng và ĐÚNG tên trường mà index.html (loadDiemDanhGhiChu_) đang
+// đọc. Bản cũ trả về một OBJECT (khoá "khu_vuc|ten" -> {maCapDo, ghiChu}),
+// trong khi giao diện gọi `list.forEach(...)` (chỉ mảng mới có .forEach) rồi
+// đọc `r.khuVuc`/`r.capDo` — lệch cả hình dạng lẫn tên trường khiến
+// `list.forEach` NÉM LỖI ngay trong tay successHandler. Vì lỗi này rơi vào
+// đúng nhánh mà bộ đệm `_inFlight` đã bị xoá trước đó, `withFailureHandler`
+// cũng không được gọi — lỗi im lặng, `ddGhiChuMap` không bao giờ tải được và
+// mãi mãi rỗng. Hậu quả: Trưởng phòng bấm lưu Ghi chú thấy hiện lên ngay
+// (đúng vì đó là dữ liệu tạm trong bộ nhớ trình duyệt), nhưng chỉ cần trang
+// tải lại danh sách Điểm danh một lần nữa (đổi khu vực, mở lại tab, F5...)
+// là `ddGhiChuMap` bị ghi đè về rỗng — trông như "ghi chú vừa lưu xong lại
+// biến mất". Anh Rise phát hiện 16/08/2026. Xem `CVTL-LOI-DA-SUA.md` mục B6.
 export async function getDiemDanhGhiChuAll({ db }) {
-  const rows = await db.all('SELECT khu_vuc, ten, ma_cap_do, ghi_chu FROM diem_danh_ghi_chu');
-  const out = {};
-  for (const r of rows) {
-    out[r.khu_vuc + '|' + r.ten] = { maCapDo: r.ma_cap_do || '', ghiChu: r.ghi_chu || '' };
-  }
-  return out;
+  const rows = await db.all('SELECT khu_vuc, ten, ma_cap_do, ghi_chu, ngay_cap_nhat FROM diem_danh_ghi_chu');
+  return rows.map((r) => ({
+    khuVuc: r.khu_vuc,
+    ten: r.ten,
+    capDo: r.ma_cap_do || '',
+    ghiChu: r.ghi_chu || '',
+    ngayCapNhat: r.ngay_cap_nhat || '',
+  }));
 }
 
 export async function saveDiemDanhGhiChu({ db }, khuVuc, ten, maCapDo, ghiChu) {
   const kv = String(khuVuc || '').trim();
   const tv = String(ten || '').trim();
   if (!kv || !tv) throw new Error('Thiếu Khu vực hoặc Tên.');
+  const ngayCapNhat = new Date().toISOString();
   await db.run(
     `INSERT INTO diem_danh_ghi_chu (khu_vuc, ten, ma_cap_do, ghi_chu, ngay_cap_nhat) VALUES (?,?,?,?,?)
      ON CONFLICT (khu_vuc, ten) DO UPDATE SET
        ma_cap_do = excluded.ma_cap_do,
        ghi_chu = excluded.ghi_chu,
        ngay_cap_nhat = excluded.ngay_cap_nhat`,
-    [kv, tv, String(maCapDo || '').trim(), String(ghiChu || '').trim(), new Date().toISOString()]
+    [kv, tv, String(maCapDo || '').trim(), String(ghiChu || '').trim(), ngayCapNhat]
   );
-  return { success: true };
+  // Trả kèm `ngayCapNhat` — index.html (saveDiemDanhGhiChuUI_) đọc `res.ngayCapNhat`
+  // để lưu vào bộ nhớ ngay sau khi lưu; trước đây hàm chỉ trả {success:true}
+  // nên trường này luôn là `undefined` (không phá gì vì chưa nơi nào hiển thị
+  // nó, nhưng vẫn nên trả đúng cho khỏi lệch hợp đồng thêm một chỗ nữa).
+  return { success: true, ngayCapNhat };
 }
