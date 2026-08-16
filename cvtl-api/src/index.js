@@ -51,6 +51,34 @@ export default {
         });
       }
 
+      // Duyệt 1-chạm 1 yêu cầu xin quyền truy cập — bấm từ đường link trong
+      // tin Telegram gửi cho anh Rise (xem requestAccess trong truy-cap.js).
+      // Dùng lại MA_CAI_DAT làm mã bí mật (khỏi phải cấu hình thêm 1 biến
+      // môi trường mới trên Cloudflare) — bản Apps Script cũ có
+      // ADMIN_APPROVE_SECRET riêng, nhưng ở đây tận dụng luôn mã đã có sẵn
+      // cho gọn, vì mã này vốn đã là mã "toàn quyền" của hệ thống rồi.
+      if (url.pathname === '/duyet-truy-cap') {
+        const trang = (tieuDe, noiDung) =>
+          new Response(
+            '<html><body style="font-family:sans-serif;text-align:center;padding:48px">' +
+              '<h2>' + tieuDe + '</h2><p style="font-size:18px">' + noiDung + '</p></body></html>',
+            { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        if (!env.MA_CAI_DAT || url.searchParams.get('ma') !== env.MA_CAI_DAT) {
+          return trang('❌ Liên kết không hợp lệ', 'Có thể liên kết đã bị sai hoặc hết hạn.');
+        }
+        const email = String(url.searchParams.get('email') || '').toLowerCase().trim();
+        if (!email) return trang('❌ Thiếu email', 'Đường link không có email cần cấp quyền.');
+
+        const db = bocD1(env.DB);
+        await db.run(
+          `INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau) VALUES (?, 'da_duyet', '', ?)
+           ON CONFLICT (email) DO UPDATE SET trang_thai = 'da_duyet'`,
+          [email, new Date().toISOString()]
+        );
+        return trang('✅ Đã cấp quyền truy cập', email + '<br><br>Có thể đóng trang này.');
+      }
+
       // Nhập dữ liệu từ hệ thống cũ sang. Chỉ dùng lúc chuyển đổi.
       // Body: {"bang":"diem_danh","cot":["thang",...],"dong":[[...],[...]]}
       if (url.pathname === '/nhap-du-lieu') {
