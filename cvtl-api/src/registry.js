@@ -45,6 +45,7 @@ export const DANH_MUC = {
   getTPSummary:           { doc: true,  fn: thoPhuong.getTPSummary },
   saveTPWeek:             { doc: false, fn: thoPhuong.saveTPWeek },
   saveTPBaoCao:           { doc: false, fn: thoPhuong.saveTPBaoCao },
+  huyTPBaoCao:            { doc: false, chuThoi: true, fn: thoPhuong.huyTPBaoCao },
   getMembersDecreasedTP:  { doc: true,  fn: thongKeTP.getMembersDecreasedTP },
 
   // --- Học viên ---
