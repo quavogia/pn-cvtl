@@ -14,6 +14,11 @@
 //    Bản Apps Script cũ dùng verifyAnyToken_() để nhận cả hai — phải giữ đúng vậy.
 
 import { xacThucGoogleJwt, taoPhien } from '../auth.js';
+import { guiTelegramNgam, thoatHtml } from '../telegram.js';
+
+// Địa chỉ máy chủ — dùng để dựng đường link "Cấp quyền 1-chạm" gửi kèm tin
+// Telegram (xem requestAccess bên dưới và route /duyet-truy-cap ở index.js).
+const DIA_CHI_API = 'https://cvtl-api.rise-shine1948.workers.dev';
 
 const TIEN_TO_PHIEN = 'SESS.';
 const PHIEN_HAN_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
@@ -117,5 +122,29 @@ export async function requestAccess(ctx, thamSo) {
      ON CONFLICT (email) DO UPDATE SET ten = excluded.ten`,
     [info.email, info.ten || '', new Date().toISOString()]
   );
+
+  // Báo cho anh Rise qua Telegram để duyệt. Bản Apps Script cũ gửi email kèm
+  // link "Cấp quyền" bấm 1 phát là xong — bản Cloudflare khi chuyển sang bị
+  // BỎ SÓT hoàn toàn bước báo này (anh Rise phát hiện 16/08/2026: ấn "Gửi yêu
+  // cầu truy cập" xong mà không có gì báo để duyệt). Giữ đúng tinh thần cũ:
+  // 1 link bấm là duyệt luôn, không cần mở web hay đăng nhập gì thêm — chỉ
+  // đổi kênh báo từ email sang Telegram theo lựa chọn của anh Rise.
+  if (env.MA_CAI_DAT) {
+    const linkDuyet =
+      DIA_CHI_API + '/duyet-truy-cap?email=' + encodeURIComponent(info.email) +
+      '&ma=' + encodeURIComponent(env.MA_CAI_DAT);
+    const tin = [
+      '🔑 Có người xin CẤP QUYỀN truy cập trang nhập liệu:',
+      '',
+      '👤 Tên: ' + thoatHtml(info.ten || '(không rõ)'),
+      '📧 Email: ' + thoatHtml(info.email),
+      '',
+      '👉 <a href="' + linkDuyet.replace(/&/g, '&amp;') + '">Bấm để CẤP QUYỀN ngay</a> (không cần đăng nhập gì thêm)',
+      '',
+      'Không muốn cấp quyền thì bỏ qua tin này (có thể duyệt sau).',
+    ].join('\n');
+    guiTelegramNgam(ctx.ctx, env, tin);
+  }
+
   return { ok: true, success: true, trangThai: 'cho_duyet' };
 }
