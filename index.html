@@ -137,6 +137,8 @@
   .tp-baocao-btn.stale{background:#fef3c7;color:#92400e;}
   .tp-baocao-ts{font-size:10px;color:#94a3b8;margin-top:4px;white-space:nowrap;}
   .tp-baocao-warn{font-size:10px;color:#b45309;font-weight:700;margin-top:3px;max-width:100px;white-space:normal;line-height:1.3;}
+  .tp-baocao-huy{display:block;margin-top:3px;font-size:9px;padding:1px 6px;background:#fee2e2;color:#991b1b;border-radius:5px;border:none;cursor:pointer;white-space:nowrap;}
+  .tp-baocao-huy:hover{background:#fecaca;}
   .tp-cell-stale{background:#fef3c7 !important;border:2px solid #f59e0b !important;}
   .dd-cell-locked{background:#e5e7eb !important;}
   .dd-cell-locked input{background:#e5e7eb !important;color:#6b7280 !important;cursor:not-allowed !important;}
@@ -2204,6 +2206,7 @@ function renderTPEditTable_(row, past){
 // (ghi đè thời điểm mới) nếu cần báo cáo lại sau khi sửa số liệu.
 function tpBaoCaoRowHtml_(baoCao){
   const groups = ['T3', 'T7'];
+  const isChu = isChuTaiKhoan_();
   const cells = [1, 2, 3, 4, 5].map(function(w){
     const item = baoCao[w - 1] || { T3: { label: '', edited: false }, T7: { label: '', edited: false } };
     const groupsHtml = groups.map(function(gKey){
@@ -2213,10 +2216,17 @@ function tpBaoCaoRowHtml_(baoCao){
       const label = (ts ? 'Báo cáo lại ' : 'Báo cáo ') + gKey;
       const btnClass = 'tp-baocao-btn' + (ts ? ' reported' : '') + (edited ? ' stale' : '');
       const warnHtml = edited ? '<div class="tp-baocao-warn" id="tpBaoCaoWarn_' + gKey + '_' + w + '">⚠️ Đã sửa sau báo cáo</div>' : '';
+      // Chỉ tài khoản chủ nhìn thấy nút này, và chỉ khi mục đó ĐÃ báo cáo —
+      // dùng khi báo cáo nhầm/sai số liệu, để quay lại "Chưa báo cáo" và báo
+      // cáo lại từ đầu (16/08/2026, theo yêu cầu anh Rise).
+      const huyHtml = (ts && isChu)
+        ? '<button type="button" class="tp-baocao-huy" id="tpBaoCaoHuy_' + gKey + '_' + w + '" data-week="' + w + '" data-nhom="' + gKey + '" onclick="huyTPBaoCaoClick(this)" title="Chỉ tài khoản chủ nhìn thấy nút này">Hủy báo cáo</button>'
+        : '';
       return '<div class="tp-baocao-group">' +
         '<button type="button" class="' + btnClass + '" id="tpBaoCaoBtn_' + gKey + '_' + w + '" data-week="' + w + '" data-nhom="' + gKey + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
         '<div class="tp-baocao-ts" id="tpBaoCaoTs_' + gKey + '_' + w + '">' + esc(ts) + '</div>' +
         warnHtml +
+        huyHtml +
       '</div>';
     }).join('');
     return '<td class="tp-baocao-cell">' + groupsHtml + '</td>';
@@ -2305,6 +2315,23 @@ function saveTPBaoCaoClick(btnEl){
     if (tsEl) tsEl.textContent = res.thoiGian;
     const warnEl = document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week);
     if (warnEl) warnEl.remove();
+    // Vừa báo cáo xong -> nếu là tài khoản chủ, hiện luôn nút "Hủy báo cáo"
+    // (không cần đợi tải lại trang mới thấy).
+    if (isChuTaiKhoan_() && !document.getElementById('tpBaoCaoHuy_' + nhom + '_' + week)) {
+      const grp = btnEl.closest('.tp-baocao-group');
+      if (grp) {
+        const huyBtn = document.createElement('button');
+        huyBtn.type = 'button';
+        huyBtn.className = 'tp-baocao-huy';
+        huyBtn.id = 'tpBaoCaoHuy_' + nhom + '_' + week;
+        huyBtn.dataset.week = week;
+        huyBtn.dataset.nhom = nhom;
+        huyBtn.title = 'Chỉ tài khoản chủ nhìn thấy nút này';
+        huyBtn.textContent = 'Hủy báo cáo';
+        huyBtn.onclick = function(){ huyTPBaoCaoClick(huyBtn); };
+        grp.appendChild(huyBtn);
+      }
+    }
     ['1lan', '4lan'].forEach(function(mk){
       const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
       if (inp) inp.classList.remove('tp-cell-stale');
@@ -2336,6 +2363,41 @@ function saveTPBaoCaoClick(btnEl){
     btnEl.disabled = false;
     showMsg('Lỗi báo cáo: ' + err.message, false);
   }).saveTPBaoCao(monthKey, kv, week, nhom);
+}
+
+// Chỉ tài khoản chủ nhìn thấy nút này: hủy hẳn trạng thái "đã báo cáo" của
+// một nhóm buổi, quay về "Chưa báo cáo" để báo cáo lại từ đầu — dùng khi bấm
+// nhầm hoặc số liệu báo cáo bị sai (16/08/2026, theo yêu cầu anh Rise). Số
+// liệu ≥1/≥4 lần đã nhập trong bảng KHÔNG bị đụng tới, chỉ có mốc báo cáo bị
+// xóa.
+function huyTPBaoCaoClick(btnEl){
+  const monthKey = kvMonthKey();
+  const week = btnEl.dataset.week;
+  const nhom = btnEl.dataset.nhom;
+  const kv = selectedKV;
+  const nhomLabel = nhom === 'T3' ? 'Thứ 3' : 'Thứ 7';
+  if (!confirm('Hủy báo cáo ' + nhomLabel + ' Tuần ' + week + '?\nSau khi hủy, mục này quay lại "Chưa báo cáo" và có thể báo cáo lại từ đầu.')) return;
+  btnEl.disabled = true;
+  google.script.run.withSuccessHandler(function(){
+    const mainBtn = document.getElementById('tpBaoCaoBtn_' + nhom + '_' + week);
+    if (mainBtn) {
+      mainBtn.textContent = 'Báo cáo ' + nhom;
+      mainBtn.classList.remove('reported', 'stale');
+    }
+    const tsEl = document.getElementById('tpBaoCaoTs_' + nhom + '_' + week);
+    if (tsEl) tsEl.textContent = '';
+    const warnEl = document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week);
+    if (warnEl) warnEl.remove();
+    btnEl.remove();
+    if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[week - 1]) {
+      window._tpCurrentData.baoCao[week - 1][nhom] = { label: '', edited: false };
+    }
+    renderTPDDTable_(); // mở khoá lại các ô Điểm danh của nhóm này cho nhân viên khác
+    showMsg('Đã hủy báo cáo ' + nhomLabel + ' Tuần ' + week + '.', true);
+  }).withFailureHandler(function(err){
+    btnEl.disabled = false;
+    showMsg('Lỗi hủy báo cáo: ' + err.message, false);
+  }).huyTPBaoCao(monthKey, kv, week, nhom);
 }
 
 // Tự lưu ngay khi rời khỏi 1 ô Tuần (blur/Enter) — không cần nút Lưu riêng.
@@ -2533,6 +2595,13 @@ function renderTPDDTable_(){
   '</tbody>';
 }
 
+// Tài khoản chủ (Trưởng phòng) — dùng để: (1) không bị khoá ô Điểm danh sau
+// khi đã báo cáo, (2) là người duy nhất nhìn thấy nút "Hủy báo cáo" (thêm
+// 16/08/2026, theo yêu cầu anh Rise, để tự sửa khi báo cáo nhầm).
+function isChuTaiKhoan_(){
+  return window._authEmail === 'rise.shine1948@gmail.com';
+}
+
 function tpddRowHtml_(m, nhom, isFirst, isLast){
   let cells = '';
   DD_TUAN_LIST_.forEach(function(tuan){
@@ -2542,7 +2611,7 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
       const nhomBuoiLock_ = (b === 'T3toi') ? 'T3' : 'T7';
       const bcWeek_ = window._tpCurrentData && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[tuan - 1];
-      const isLocked_ = !!(bcWeek_ && bcWeek_[nhomBuoiLock_] && bcWeek_[nhomBuoiLock_].label) && window._authEmail !== 'rise.shine1948@gmail.com';
+      const isLocked_ = !!(bcWeek_ && bcWeek_[nhomBuoiLock_] && bcWeek_[nhomBuoiLock_].label) && !isChuTaiKhoan_();
       cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + (isLocked_ ? ' dd-cell-locked' : '') + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
         '"' + (isLocked_ ? ' disabled title="Đã báo cáo — chỉ tài khoản chủ mới được sửa."' : '') + ' onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
