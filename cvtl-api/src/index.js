@@ -79,6 +79,44 @@ export default {
         return trang('✅ Đã cấp quyền truy cập', email + '<br><br>Có thể đóng trang này.');
       }
 
+      // Chẩn đoán Telegram — gọi thẳng Telegram Bot API và trả nguyên văn câu
+      // trả lời (KHÔNG bao giờ lộ TELEGRAM_BOT_TOKEN) để biết chính xác đang
+      // kẹt ở đâu khi anh Rise báo "không thấy tin Telegram" (17/08/2026: 2
+      // người xin quyền trước khi có tính năng báo mà tưởng nhầm là lỗi mới).
+      // Dùng xong nên xoá route này hoặc để lại cũng an toàn, luôn cần đúng
+      // MA_CAI_DAT mới gọi được.
+      if (url.pathname === '/thu-telegram') {
+        if (!env.MA_CAI_DAT || url.searchParams.get('ma') !== env.MA_CAI_DAT) {
+          return json({ error: 'Sai mã cài đặt.' }, 403);
+        }
+        if (!env.TELEGRAM_BOT_TOKEN || !env.TELEGRAM_CHAT_ID) {
+          return json({
+            ok: false,
+            loi: 'CHUA_CAU_HINH',
+            chiTiet: 'Thiếu biến TELEGRAM_BOT_TOKEN hoặc TELEGRAM_CHAT_ID trên Cloudflare.',
+            coBotToken: !!env.TELEGRAM_BOT_TOKEN,
+            coChatId: !!env.TELEGRAM_CHAT_ID,
+          });
+        }
+        try {
+          const r = await fetch(
+            'https://api.telegram.org/bot' + env.TELEGRAM_BOT_TOKEN + '/sendMessage',
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                chat_id: env.TELEGRAM_CHAT_ID,
+                text: '🧪 Tin THỬ NGHIỆM từ CVTL — nếu anh Rise thấy tin này thì Telegram đang hoạt động bình thường. (' + new Date().toISOString() + ')',
+              }),
+            }
+          );
+          const traVe = await r.json();
+          return json({ daGoiTelegram: true, maTraVe: r.status, telegramTraVe: traVe });
+        } catch (e) {
+          return json({ daGoiTelegram: false, loi: e.message });
+        }
+      }
+
       // Nhập dữ liệu từ hệ thống cũ sang. Chỉ dùng lúc chuyển đổi.
       // Body: {"bang":"diem_danh","cot":["thang",...],"dong":[[...],[...]]}
       if (url.pathname === '/nhap-du-lieu') {
