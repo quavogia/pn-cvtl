@@ -148,3 +148,40 @@ export async function requestAccess(ctx, thamSo) {
 
   return { ok: true, success: true, trangThai: 'cho_duyet' };
 }
+
+/**
+ * Màn hình "Duyệt truy cập" trong web (17/08/2026, theo yêu cầu anh Rise) —
+ * chỉ tài khoản chủ mới gọi được (chuThoi: true ở registry.js), phòng khi
+ * Telegram bị bỏ lỡ/tắt tiếng thì vẫn có chỗ vào duyệt trực tiếp. Liệt kê
+ * người đang "chờ duyệt", cũ nhất lên đầu (chờ lâu nhất cần xử lý trước).
+ */
+export async function getPendingAccess({ db }) {
+  const ds = await db.all(
+    `SELECT email, ten, ngay_yeu_cau FROM access_control
+     WHERE trang_thai = 'cho_duyet' ORDER BY ngay_yeu_cau ASC`
+  );
+  return ds.map((r) => ({ email: r.email, ten: r.ten || '', ngayYeuCau: r.ngay_yeu_cau || '' }));
+}
+
+/** Duyệt 1 yêu cầu ngay trong web — cùng hiệu ứng với link "Cấp quyền
+ * 1-chạm" gửi qua Telegram (route /duyet-truy-cap ở index.js), chỉ khác chỗ
+ * bấm. Bấm lại nhiều lần vẫn an toàn, không sinh dòng trùng. */
+export async function approveAccessRequest({ db }, email) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) throw new Error('Thiếu email cần cấp quyền.');
+  await db.run(
+    `INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau) VALUES (?, 'da_duyet', '', ?)
+     ON CONFLICT (email) DO UPDATE SET trang_thai = 'da_duyet'`,
+    [e, new Date().toISOString()]
+  );
+  return { ok: true };
+}
+
+/** Từ chối 1 yêu cầu — KHÔNG khoá vĩnh viễn, người đó vẫn thấy màn "chưa
+ * được cấp quyền" và có thể bấm "Gửi yêu cầu truy cập" lại nếu cần. */
+export async function denyAccessRequest({ db }, email) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) throw new Error('Thiếu email cần từ chối.');
+  await db.run(`UPDATE access_control SET trang_thai = 'tu_choi' WHERE lower(email) = lower(?)`, [e]);
+  return { ok: true };
+}
