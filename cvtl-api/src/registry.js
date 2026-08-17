@@ -28,6 +28,11 @@ export const DANH_MUC = {
   checkAccess:            { doc: true,  canQuyen: false, fn: truyCap.checkAccess },
   requestAccess:          { doc: false, canQuyen: false, fn: truyCap.requestAccess },
 
+  // Màn hình "Duyệt truy cập" — chỉ tài khoản chủ mới gọi được (17/08/2026)
+  getPendingAccess:       { doc: false, chuThoi: true, fn: truyCap.getPendingAccess },
+  approveAccessRequest:   { doc: false, chuThoi: true, fn: truyCap.approveAccessRequest },
+  denyAccessRequest:      { doc: false, chuThoi: true, fn: truyCap.denyAccessRequest },
+
   // --- Cấu hình dùng chung ---
   getDropdownOptions:     { doc: true,  fn: cauHinh.getDropdownOptions },
 
