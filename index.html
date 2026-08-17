@@ -18,6 +18,7 @@
   .nav-btn:hover{background:var(--sidebar-hover);color:#fff;}
   .nav-btn.active{background:var(--primary);color:#fff;}
   .nav-icon{font-size:16px;}
+  .nav-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:700;text-align:center;margin-left:auto;}
 
   /* ---------- Main content ---------- */
   #main{flex:1;padding:32px 40px;overflow-y:auto;}
@@ -285,6 +286,13 @@
     <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
     <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
     <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
+    <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
+         trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
+         17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
+         bỏ lỡ/tắt tiếng không ai để ý. -->
+    <button type="button" class="nav-btn" id="navDuyet" data-panel="duyet" style="display:none;" onclick="showPanel('duyet'); loadDuyetTruyCap();">
+      <span class="nav-icon">🔑</span> Duyệt truy cập <span id="duyetBadge" class="nav-badge" style="display:none;"></span>
+    </button>
   </div>
 
   <div id="main">
@@ -861,6 +869,23 @@
 
       <div class="card">
         <div class="lich-grid" id="lichGrid"></div>
+      </div>
+    </div>
+
+    <!-- ============ DUYỆT TRUY CẬP (chỉ tài khoản chủ, thêm 17/08/2026) ============ -->
+    <div id="panel-duyet" class="panel">
+      <h1>Duyệt truy cập</h1>
+      <p style="font-size:13px;color:#64748b;margin-top:-8px;">
+        Ai bấm "Gửi yêu cầu truy cập" mà chưa được duyệt sẽ hiện ở đây — cũ nhất (chờ lâu nhất) lên đầu.
+        Tin Telegram vẫn gửi như trước, đây chỉ là chỗ duyệt thêm trong web phòng khi lỡ bỏ qua tin Telegram.
+      </p>
+      <div class="card">
+        <table>
+          <thead><tr><th>Tên</th><th>Email</th><th>Xin lúc</th><th></th></tr></thead>
+          <tbody id="duyetTableBody">
+            <tr><td colspan="4" style="color:#94a3b8;">Đang tải…</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -2642,6 +2667,75 @@ function isChuTaiKhoan_(){
   return window._authEmail === 'rise.shine1948@gmail.com';
 }
 
+// =====================================================================
+// DUYỆT TRUY CẬP — màn hình chỉ tài khoản chủ nhìn thấy (17/08/2026), liệt
+// kê ai đang "chờ duyệt" để bấm Duyệt/Từ chối ngay trong web, phòng khi tin
+// Telegram bị bỏ lỡ hoặc tắt tiếng thông báo mà không ai để ý.
+// =====================================================================
+function fmtNgayGio_(iso){
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '—';
+  const p2 = (n) => String(n).padStart(2, '0');
+  return p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes());
+}
+
+function loadDuyetTruyCap(){
+  if (!isChuTaiKhoan_()) return;
+  google.script.run.withSuccessHandler(function(list){
+    renderDuyetTable_(list || []);
+  }).withFailureHandler(function(err){
+    const body = document.getElementById('duyetTableBody');
+    if (body) body.innerHTML = '<tr><td colspan="4" style="color:#dc2626;">Không tải được: ' + esc(err.message) + '</td></tr>';
+  }).getPendingAccess();
+}
+
+function renderDuyetTable_(list){
+  const body = document.getElementById('duyetTableBody');
+  const badge = document.getElementById('duyetBadge');
+  if (badge) {
+    if (list.length > 0) { badge.textContent = list.length; badge.style.display = 'inline-block'; }
+    else badge.style.display = 'none';
+  }
+  if (!body) return;
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="4" style="color:#94a3b8;">Không có ai đang chờ duyệt.</td></tr>';
+    return;
+  }
+  body.innerHTML = list.map(function(p){
+    const emailSafe = esc(p.email).replace(/'/g, "\\'");
+    return '<tr>' +
+      '<td>' + esc(p.ten || '(không rõ)') + '</td>' +
+      '<td>' + esc(p.email) + '</td>' +
+      '<td>' + fmtNgayGio_(p.ngayYeuCau) + '</td>' +
+      '<td style="white-space:nowrap;">' +
+        '<button type="button" class="edit" onclick="approveTruyCap(\'' + emailSafe + '\')">✔ Duyệt</button>' +
+        '<button type="button" class="danger" onclick="denyTruyCap(\'' + emailSafe + '\')">✕ Từ chối</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function approveTruyCap(email){
+  if (!confirm('Cấp quyền truy cập cho ' + email + '?')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã cấp quyền cho ' + email, true);
+    loadDuyetTruyCap();
+  }).withFailureHandler(function(err){
+    showMsg('Không cấp quyền được: ' + err.message, false);
+  }).approveAccessRequest(email);
+}
+
+function denyTruyCap(email){
+  if (!confirm('Từ chối yêu cầu của ' + email + '? (Người này vẫn có thể xin lại sau nếu cần.)')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã từ chối ' + email, true);
+    loadDuyetTruyCap();
+  }).withFailureHandler(function(err){
+    showMsg('Không từ chối được: ' + err.message, false);
+  }).denyAccessRequest(email);
+}
+
 function tpddRowHtml_(m, nhom, isFirst, isLast){
   let cells = '';
   DD_TUAN_LIST_.forEach(function(tuan){
@@ -4068,6 +4162,14 @@ function showUserBar_(email){
   emailEl.textContent = email || '';
   bar.style.display = 'flex';
   resetInactivityTimer_();
+  // Chỉ tài khoản chủ mới thấy mục "Duyệt truy cập" (xem panel-duyet) — tải
+  // ngay danh sách chờ duyệt để hiện số ở huy hiệu cạnh tên mục, không phải
+  // đợi bấm vào mới biết đang có người chờ.
+  const navDuyet = document.getElementById('navDuyet');
+  if (navDuyet) {
+    if (isChuTaiKhoan_()) { navDuyet.style.display = 'flex'; loadDuyetTruyCap(); }
+    else navDuyet.style.display = 'none';
+  }
 }
 function hideUserBar_(){
   const bar = document.getElementById('userBar');
