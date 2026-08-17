@@ -231,7 +231,23 @@
   #userBar #userBarEmail{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   #userBarLogoutBtn{background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:999px;font-size:12px;cursor:pointer;font-weight:600;}
   #userBarLogoutBtn:hover{background:#fee2e2;color:#991b1b;}
-  @media (max-width: 720px){ #userBar{top:8px;right:8px;padding:5px 6px 5px 10px;} #userBar #userBarEmail{max-width:110px;} }
+  @media (max-width: 720px){
+    /* Trên mobile, #sidebar không còn là cột dọc bên trái nữa mà biến thành
+       thanh tab NẰM NGANG Ở TRÊN CÙNG (xem khối "Responsive" bên dưới) — cùng
+       một chỗ mà #userBar (position:fixed, top-right) đang nổi đè lên, gây ra
+       lỗi "phiên bản mobile bị che mất khi có đăng nhập mail" (anh Rise phát
+       hiện 16/08/2026, kèm ảnh chụp màn hình: thanh tài khoản + nút Đăng xuất
+       che khuất nút "Tổng quan"). Trên desktop không lộ ra vì sidebar nằm dọc
+       bên trái (x: 0-220px) còn userBar nổi ở góc phải trên — không giao nhau.
+       Sửa: bỏ position:fixed trên mobile, để #userBar quay về dòng chảy bình
+       thường — vì nó đứng TRƯỚC #sidebar trong HTML và body dùng
+       flex-direction:column ở mobile, nó tự nhiên thành 1 hàng riêng NẰM TRÊN
+       thanh tab, không đè lên nhau nữa. */
+    #userBar{position:static;top:auto;right:auto;width:100%;justify-content:flex-end;
+      border-radius:0;border:none;border-bottom:1px solid var(--border);box-shadow:none;
+      padding:8px 10px;}
+    #userBar #userBarEmail{max-width:110px;}
+  }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 720px){
