@@ -100,5 +100,65 @@ console.log('\n=== KIỂM THỬ /duyet-truy-cap — link "Cấp quyền 1-chạm
     text.includes('Liên kết không hợp lệ'), text);
 }
 
+console.log('\n=== KIỂM THỬ màn hình "Duyệt truy cập" trong web (17/08/2026) ===\n');
+{
+  // Tạo sẵn 1 tài khoản chủ + 1 nhân viên thường, kèm phiên đăng nhập (SESS.)
+  // để gọi thẳng qua giao thức fn=... như giao diện web thật sự làm — cách
+  // này đơn giản hơn nhiều so với dựng JWT Google giả cho từng ca kiểm thử.
+  sqlite.exec(
+    "INSERT INTO access_control (email, trang_thai, ten, la_chu) VALUES " +
+    "('chu-thu@gmail.com','da_duyet','Chu Thu',1), ('nv-thu@gmail.com','da_duyet','NV Thu',0)"
+  );
+  const luc = Date.now();
+  sqlite.prepare('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)')
+    .run('SESS.chuthu', 'chu-thu@gmail.com', 'Chu Thu', luc, luc + 999999999);
+  sqlite.prepare('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)')
+    .run('SESS.nvthu', 'nv-thu@gmail.com', 'NV Thu', luc, luc + 999999999);
+
+  const ktraHtml = (ten, dieuKien, chiTiet = '') => {
+    if (dieuKien) { dat++; console.log('  ✓', ten); } else { hong++; console.log('  ✗', ten, chiTiet); }
+  };
+  const goiFn = (fn, args, token) =>
+    worker.fetch(new Request(U + '?fn=' + fn + '&args=' + encodeURIComponent(JSON.stringify(args)) + '&token=' + token), env)
+      .then((r) => r.json());
+
+  let j = await goiFn('getPendingAccess', [], 'SESS.nvthu');
+  ktraHtml('nhân viên thường KHÔNG gọi được getPendingAccess', !!j.error, JSON.stringify(j));
+
+  // 2 người xin quyền, cùng dữ liệu nhưng ngày xin khác nhau (cho1 xin trước).
+  sqlite.exec(
+    "INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau) VALUES " +
+    "('cho1@gmail.com','cho_duyet','Chờ Một','2026-08-15T00:00:00.000Z'), " +
+    "('cho2@gmail.com','cho_duyet','Chờ Hai','2026-08-16T00:00:00.000Z')"
+  );
+
+  j = await goiFn('getPendingAccess', [], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ xem được danh sách chờ duyệt, đủ 2 người', Array.isArray(j.result) && j.result.length === 2, JSON.stringify(j));
+  ktraHtml('danh sách xếp cũ nhất (xin trước) lên đầu', j.result?.[0]?.email === 'cho1@gmail.com', JSON.stringify(j.result));
+
+  j = await goiFn('approveAccessRequest', ['cho1@gmail.com'], 'SESS.nvthu');
+  ktraHtml('nhân viên thường KHÔNG duyệt được', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('approveAccessRequest', ['cho1@gmail.com'], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ duyệt thành công', j.result?.ok === true, JSON.stringify(j));
+  let hang = sqlite.prepare("SELECT trang_thai FROM access_control WHERE email='cho1@gmail.com'").get();
+  ktraHtml('CSDL cập nhật da_duyet sau khi duyệt trong web', hang?.trang_thai === 'da_duyet', JSON.stringify(hang));
+
+  j = await goiFn('getPendingAccess', [], 'SESS.chuthu');
+  ktraHtml('sau khi duyệt, danh sách chờ chỉ còn đúng người kia',
+    j.result?.length === 1 && j.result[0].email === 'cho2@gmail.com', JSON.stringify(j.result));
+
+  j = await goiFn('denyAccessRequest', ['cho2@gmail.com'], 'SESS.nvthu');
+  ktraHtml('nhân viên thường KHÔNG từ chối được', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('denyAccessRequest', ['cho2@gmail.com'], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ từ chối thành công', j.result?.ok === true, JSON.stringify(j));
+  hang = sqlite.prepare("SELECT trang_thai FROM access_control WHERE email='cho2@gmail.com'").get();
+  ktraHtml('CSDL cập nhật tu_choi sau khi từ chối', hang?.trang_thai === 'tu_choi', JSON.stringify(hang));
+
+  j = await goiFn('getPendingAccess', [], 'SESS.chuthu');
+  ktraHtml('sau khi từ chối, danh sách chờ trống', Array.isArray(j.result) && j.result.length === 0, JSON.stringify(j.result));
+}
+
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
 process.exit(hong ? 1 : 0);
