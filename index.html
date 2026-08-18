@@ -2189,6 +2189,10 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
       }
     }
     data.total = Math.max.apply(null, data.weeks);
+    // Tự động điền ghi thẳng vào weeks (gốc) — phải tính lại weeksHienThi
+    // (lũy kế hiển thị) ngay theo weeks mới, không thì bảng vẽ lại bằng
+    // hienThi CŨ từ lần tải trang, không khớp số vừa tự điền (18/08/2026).
+    data.weeksHienThi = tpPrefixMax_(data.weeks);
   });
   if (changed) {
     renderTPChart_(row);
@@ -2204,8 +2208,10 @@ function renderTPChart_(row){
   const el2 = document.getElementById('tpChart2');
   if (!row) { el1.innerHTML = ''; el2.innerHTML = ''; return; }
   const categories = tpViewMode === 'week' ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['Tháng trước', 'Tháng này'];
-  const oneLanValues = tpViewMode === 'week' ? row.oneLan.weeks : [row.oneLan.prevMonthTotal, row.oneLan.total];
-  const fourLanValues = tpViewMode === 'week' ? row.fourLan.weeks : [row.fourLan.prevMonthTotal, row.fourLan.total];
+  // Biểu đồ theo Tuần dùng weeksHienThi (đã cộng dồn lũy kế) để không tuần
+  // nào tụt xuống 0/thấp hơn tuần trước trên biểu đồ (18/08/2026).
+  const oneLanValues = tpViewMode === 'week' ? (row.oneLan.weeksHienThi || row.oneLan.weeks) : [row.oneLan.prevMonthTotal, row.oneLan.total];
+  const fourLanValues = tpViewMode === 'week' ? (row.fourLan.weeksHienThi || row.fourLan.weeks) : [row.fourLan.prevMonthTotal, row.fourLan.total];
   const sharedMax = Math.max(1, oneLanValues.reduce(function(a,b){return Math.max(a, Number(b)||0);}, 0),
     fourLanValues.reduce(function(a,b){return Math.max(a, Number(b)||0);}, 0));
   renderBarChart_(el1, categories, [{ name: '≥1 lần', color: '#2563eb', values: oneLanValues }], sharedMax);
@@ -2221,6 +2227,12 @@ function tpTrendHtml_(diff){
 // 1 hàng chỉ số (≥1 lần / ≥4 lần): nhãn ngắn + 5 ô Tuần nhập trực tiếp + ô
 // Tổng (số lớn nhất trong 5 tuần, hover xem tháng trước).
 function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
+  // Ô nhập hiện số ĐÃ CỘNG DỒN LŨY KẾ (weeksHienThi) — Tuần nào chưa ai gõ
+  // tay thì tự hiện đúng mức cao nhất đã ghi nhận từ Tuần trước đó, không
+  // tụt về 0 (18/08/2026). Việc so khớp "tự động (Điểm danh)" vẫn phải dùng
+  // số GỐC từng Tuần (data.weeks), không phải số đã cộng dồn, kẻo gắn nhãn
+  // sai cho Tuần chỉ đang "thừa hưởng" số của Tuần trước.
+  const hienThi = data.weeksHienThi || data.weeks;
   const cells = data.weeks.map(function(w, i){
     // Số khớp với gợi ý từ Điểm danh (khác 0) VÀ tuần đó thật sự đã có người
     // được điểm danh = ô này đang lấy tự động — gắn nhãn nhỏ để Trưởng phòng
@@ -2229,7 +2241,7 @@ function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
     const hasData = goiyHasData ? !!goiyHasData[i] : true;
     const isAuto = goiyVal !== null && goiyVal > 0 && Number(w) === goiyVal && hasData;
     const goiyHtml = isAuto ? '<span class="dd-goiy">● tự động (Điểm danh)</span>' : '';
-    return '<td><input type="number" min="0" value="' + esc(w) + '" ' + (past ? 'disabled' : '') +
+    return '<td><input type="number" min="0" value="' + esc(hienThi[i]) + '" ' + (past ? 'disabled' : '') +
       ' id="tpCellInput_' + metricKey + '_' + (i + 1) + '"' +
       ' data-metric="' + metricKey + '" data-week="' + (i + 1) + '" onchange="saveTPCell(this)">' + goiyHtml + '</td>';
   }).join('');
@@ -2455,14 +2467,35 @@ function huyTPBaoCaoClick(btnEl){
   }).huyTPBaoCao(monthKey, kv, week, nhom);
 }
 
+// Số TP là số LŨY KẾ trong tháng — Tuần nào chưa ai gõ tay thì phải HIỆN
+// đúng mức cao nhất đã ghi nhận từ Tuần trước đó, không được tụt xuống 0.
+// Hàm này tính "mức cao nhất tính tới từng Tuần" từ mảng 5 số gốc (thêm
+// 18/08/2026, theo yêu cầu anh Rise) — dùng cả ở đây (lưu 1 ô) lẫn ở
+// autoFillTPFromGoiY_ (tự động điền từ Điểm danh).
+function tpPrefixMax_(arr){
+  const out = [];
+  let m = 0;
+  for (let i = 0; i < arr.length; i++) { m = Math.max(m, Number(arr[i]) || 0); out.push(m); }
+  return out;
+}
+
 // Tự lưu ngay khi rời khỏi 1 ô Tuần (blur/Enter) — không cần nút Lưu riêng.
 // LƯU LẠC QUAN: cập nhật Tổng/biểu đồ NGAY, không chờ mạng — lưu thật chạy
 // ngầm, lỗi thì báo + tự tải lại để đồng bộ.
+//
+// (18/08/2026, theo yêu cầu anh Rise) Vì số TP là LŨY KẾ trong tháng, sửa 1
+// ô xong thì CẢ 5 ô của hàng đó phải hiện lại ngay theo "mức cao nhất tính
+// tới từng Tuần" (vd Tuần 1 gõ 2 -> cả 5 tuần hiện 2; sau đó Tuần 2 gõ 5 ->
+// Tuần 2,3,4,5 hiện 5, Tuần 1 vẫn giữ 2). CHỈ ô Tuần vừa gõ mới thật sự
+// được LƯU xuống máy chủ — các ô sau chỉ đổi cách HIỂN THỊ (weeksHienThi),
+// không ghi đè số liệu GỐC của chúng, để không phá tính năng tự động điền
+// từ Điểm danh và việc so khớp "đã sửa sau báo cáo" (cả hai đều cần biết
+// đúng ô nào THẬT SỰ có người gõ tay).
 function saveTPCell(inputEl){
   const monthKey = kvMonthKey();
   if (isPastMonthTP_(monthKey)) return;
   const metric = inputEl.dataset.metric; // '1lan' | '4lan'
-  const week = inputEl.dataset.week;
+  const week = Number(inputEl.dataset.week);
   const soLuong = inputEl.value;
 
   inputEl.classList.add('saved');
@@ -2471,12 +2504,27 @@ function saveTPCell(inputEl){
   indicator.style.display = 'inline';
   clearTimeout(window._tpSaveTimer);
   window._tpSaveTimer = setTimeout(function(){ indicator.style.display = 'none'; }, 1500);
+
+  if (window._tpCurrentData) {
+    const data = metric === '1lan' ? window._tpCurrentData.oneLan : window._tpCurrentData.fourLan;
+    if (data) {
+      const hienThiCu = data.weeksHienThi || tpPrefixMax_(data.weeks);
+      data.weeks[week - 1] = Number(soLuong) || 0;
+      const hienThiMoi = tpPrefixMax_(data.weeks);
+      data.weeksHienThi = hienThiMoi;
+      data.total = hienThiMoi[4];
+      for (let i = 0; i < 5; i++) {
+        const cellInput = document.getElementById('tpCellInput_' + metric + '_' + (i + 1));
+        if (cellInput) cellInput.value = hienThiMoi[i];
+        if (hienThiMoi[i] !== hienThiCu[i]) markTPBaoCaoStale_(i + 1, metric);
+      }
+    }
+  }
   recomputeTPMetricTotal_(metric);
-  refreshTPFromTable_();
-  markTPBaoCaoStale_(Number(week), metric);
+  renderTPChart_(window._tpCurrentData);
 
   google.script.run.withSuccessHandler(function(resp){
-    applyTPBaoCaoEditedState_(Number(week), !!(resp && resp.edited));
+    applyTPBaoCaoEditedState_(week, !!(resp && resp.edited));
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu TP: ' + err.message + ' — đang tải lại để đồng bộ.', false);
     loadTPPanel();
@@ -2497,24 +2545,11 @@ function recomputeTPMetricTotal_(metric){
   totalCell.title = 'Tháng trước: ' + prevTotal;
 }
 
-// Đọc lại toàn bộ bảng nhập (không gọi lại server) để cập nhật biểu đồ ngay
-// sau khi lưu 1 ô — giữ dữ liệu trên trình duyệt luôn khớp bảng.
-function refreshTPFromTable_(){
-  if (!window._tpCurrentData) return;
-  const table = document.getElementById('tpEditTable');
-  const rows = table.querySelectorAll('tbody tr');
-  function readWeeks(tr){
-    const inputs = tr.querySelectorAll('input[type="number"]');
-    return Array.prototype.map.call(inputs, function(i){ return Number(i.value) || 0; });
-  }
-  const w1 = readWeeks(rows[0]);
-  const w4 = readWeeks(rows[1]);
-  window._tpCurrentData.oneLan.weeks = w1;
-  window._tpCurrentData.oneLan.total = Math.max.apply(null, w1.concat([0]));
-  window._tpCurrentData.fourLan.weeks = w4;
-  window._tpCurrentData.fourLan.total = Math.max.apply(null, w4.concat([0]));
-  renderTPChart_(window._tpCurrentData);
-}
+// (Đã bỏ hàm refreshTPFromTable_ — 18/08/2026. Từ khi ô nhập hiện số đã cộng
+// dồn lũy kế (weeksHienThi), đọc thẳng DOM về làm "số gốc" như hàm này từng
+// làm sẽ làm sai lệch weeks gốc, phá tính năng tự động điền từ Điểm danh.
+// saveTPCell giờ tự cập nhật window._tpCurrentData + vẽ lại biểu đồ trực
+// tiếp, không cần đọc lại DOM nữa. Bản cũ xem lại trong lịch sử Git nếu cần.)
 
 
 
