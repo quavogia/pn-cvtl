@@ -20,6 +20,22 @@ function dinhDangThoiGian(ms) {
   return `${p(d.getUTCDate())}/${p(d.getUTCMonth() + 1)}/${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
+// Số TP là số LŨY KẾ trong tháng — không thể tuần sau lại THẤP hơn tuần
+// trước. Tuần nào chưa ai nhập tay (hoặc lỡ nhập thấp hơn tuần trước) thì
+// HIỂN THỊ theo mức CAO NHẤT đã ghi nhận từ đầu tháng tới tuần đó, để không
+// tuần nào bị "tụt" xuống 0/thấp hơn khi chưa kịp nhập số mới (thêm
+// 18/08/2026, theo yêu cầu anh Rise). CHỈ áp dụng cho mảng "weeksHienThi"
+// dùng để hiện ô nhập + biểu đồ — mảng "weeks" gốc GIỮ NGUYÊN y hệt số đã
+// gõ tay từng tuần, vì còn dùng để so khớp "đã sửa sau báo cáo" (daSua ở
+// dưới) và tính năng tự động điền từ Điểm danh — cả hai chỗ đó cần biết
+// đúng ô nào THẬT SỰ có người gõ tay, không được nhầm với số đã cộng dồn.
+function prefixMax_(arr) {
+  const out = [];
+  let m = 0;
+  for (let i = 0; i < arr.length; i++) { m = Math.max(m, Number(arr[i]) || 0); out.push(m); }
+  return out;
+}
+
 /** Toàn bộ số liệu TP của tất cả khu vực trong tháng. */
 export async function getTPSummary({ db }, thang) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
@@ -68,8 +84,8 @@ export async function getTPSummary({ db }, thang) {
 
     return {
       khuVuc: kv,
-      oneLan: { weeks: one, total: tong(one), prevMonthTotal: tong(lay(soLieuTruoc, kv, '1lan')) },
-      fourLan: { weeks: four, total: tong(four), prevMonthTotal: tong(lay(soLieuTruoc, kv, '4lan')) },
+      oneLan: { weeks: one, weeksHienThi: prefixMax_(one), total: tong(one), prevMonthTotal: tong(lay(soLieuTruoc, kv, '1lan')) },
+      fourLan: { weeks: four, weeksHienThi: prefixMax_(four), total: tong(four), prevMonthTotal: tong(lay(soLieuTruoc, kv, '4lan')) },
       baoCao: bc,
     };
   });
