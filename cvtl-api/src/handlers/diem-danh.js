@@ -43,27 +43,55 @@ export async function getDiemDanhRoster({ db }, thang) {
   }));
 }
 
-/** Số người đi ≥1 lần / ≥4 lần theo từng tuần — dùng để tự điền bảng TP. */
-export async function getDiemDanhTPGoiY({ db }, thang, khuVuc) {
+/**
+ * Số người đi ≥1 lần / ≥4 lần theo từng tuần, CHO TẤT CẢ KHU VỰC CÙNG LÚC —
+ * dùng để tự điền bảng "Nhập số liệu theo tuần" (TP) từ Điểm danh.
+ *
+ * (Sửa 18/08/2026, anh Rise phát hiện Tuần đang mở không tự nhảy theo Điểm
+ * danh dù rõ ràng có thêm người đủ ≥1/≥4 buổi) Bản CŨ nhận thêm tham số
+ * `khuVuc` và chỉ trả về MỘT khu vực dạng `{oneLan, fourLan}`. Nhưng giao
+ * diện (`index.html`, hàm `loadTPPanel`/`autoFillTPFromGoiY_`) chỉ gọi
+ * `getDiemDanhTPGoiY(monthKey)` — KHÔNG hề truyền khu vực — rồi coi kết quả
+ * trả về là một "hộp" tra theo tên khu vực (`map[kv].weeks1`/`.weeks4`/
+ * `.hasData`). Vì bản cũ luôn nhận `khuVuc = undefined` (lọc theo
+ * `khu_vuc = ''`, không khớp khu vực thật nào) và trả sai hình dạng
+ * (`oneLan`/`fourLan` phẳng, không có `weeks1`/`weeks4`/`hasData`, không
+ * theo từng khu vực), giao diện luôn coi như "không có gợi ý gì" và bỏ qua
+ * hẳn bước tự điền — tính năng này coi như CHƯA TỪNG chạy từ lúc xây dựng.
+ * Bản mới bỏ tham số `khuVuc`, tính luôn cho MỌI khu vực trong 1 lần gọi,
+ * trả về đúng hình dạng giao diện đang mong đợi.
+ *
+ * `hasData[i]` = tuần đó khu vực này đã THẬT SỰ có ít nhất 1 người được điểm
+ * danh (dù chỉ 1 buổi) — dùng để phân biệt "tuần chưa ai điểm danh, đừng tự
+ * điền 0" với "tuần đã điểm danh xong, đúng là 0 người đạt ≥1/≥4 lần".
+ */
+export async function getDiemDanhTPGoiY({ db }, thang) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
 
   const rows = await db.all(
-    `SELECT tuan, ten, COUNT(*) AS soBuoi
+    `SELECT khu_vuc, tuan, ten, COUNT(*) AS soBuoi
        FROM diem_danh
-      WHERE thang = ? AND khu_vuc = ? AND TRIM(gia_tri) <> ''
-      GROUP BY tuan, ten`,
-    [thang, String(khuVuc || '').trim()]
+      WHERE thang = ? AND TRIM(gia_tri) <> ''
+      GROUP BY khu_vuc, tuan, ten`,
+    [thang]
   );
 
-  const oneLan = [0, 0, 0, 0, 0];
-  const fourLan = [0, 0, 0, 0, 0];
+  const map = {};
+  function laySlot(kv) {
+    if (!map[kv]) {
+      map[kv] = { weeks1: [0, 0, 0, 0, 0], weeks4: [0, 0, 0, 0, 0], hasData: [false, false, false, false, false] };
+    }
+    return map[kv];
+  }
   for (const r of rows) {
     const i = Number(r.tuan) - 1;
     if (i < 0 || i > 4) continue;
-    if (r.soBuoi >= 1) oneLan[i]++;
-    if (r.soBuoi >= 4) fourLan[i]++;
+    const slot = laySlot(r.khu_vuc);
+    slot.hasData[i] = true;
+    if (r.soBuoi >= 1) slot.weeks1[i]++;
+    if (r.soBuoi >= 4) slot.weeks4[i]++;
   }
-  return { oneLan, fourLan };
+  return map;
 }
 
 /**
