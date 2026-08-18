@@ -265,15 +265,37 @@ console.log('\n2) Điểm danh — ghi và đọc');
   kiem('tổng kết đếm đúng 1 buổi', nhomSD?.thanhVien[0]?.tongKet === 1);
 }
 
-console.log('\n3) Gợi ý số liệu TP từ Điểm danh');
+console.log('\n3) Gợi ý số liệu TP từ Điểm danh — sửa lỗi map theo khu vực + hasData (18/08/2026)');
 {
   await goi('saveDiemDanhCell', [TH, 'SĐ', 'N T Huyền', 3, 'T3toi', '211'], NV);
   await goi('saveDiemDanhCell', [TH, 'SĐ', 'N T Huyền', 3, 'CNsang', '211'], NV);
   await goi('saveDiemDanhCell', [TH, 'SĐ', 'N T Huyền', 3, 'CNchieu', '211'], NV);
   await goi('saveDiemDanhCell', [TH, 'SĐ', 'N T Huyền', 3, 'CNtoi', '211'], NV);
-  const r = await goi('getDiemDanhTPGoiY', [TH, 'SĐ'], NV);
-  kiem('≥1 lần tuần 3 = 2 người', r.result?.oneLan[2] === 2, JSON.stringify(r.result));
-  kiem('≥4 lần tuần 3 = 1 người', r.result?.fourLan[2] === 1, JSON.stringify(r.result));
+  // Khu vực khác cũng có điểm danh riêng (tuần 1) — để kiểm tra map trả ĐÚNG
+  // khu vực, không lẫn số liệu giữa các khu vực với nhau (bug cũ: hàm nhận
+  // tham số khuVuc nhưng giao diện không hề truyền, luôn lọc theo khu_vuc='',
+  // nên chẳng bao giờ khớp khu vực thật nào — xem chú thích trong mã nguồn).
+  await goi('saveDiemDanhCell', [TH, 'Đ Uyên', 'Ai đó KV khác', 1, 'T3toi', '211'], NV);
+
+  // KHÔNG truyền khu vực — đúng y hệt cách index.html đang gọi (chỉ 1 đối số
+  // là tháng) — trước đây chính điểm này khiến bug không bao giờ lộ ra khi
+  // kiểm thử, vì bài kiểm thử cũ tự truyền thêm 'SĐ' mà giao diện thật không
+  // hề truyền.
+  const r = await goi('getDiemDanhTPGoiY', [TH], NV);
+  const sd = r.result?.['SĐ'];
+  const duyen = r.result?.['Đ Uyên'];
+  kiem('trả về đúng "hộp" theo tên khu vực (weeks1/weeks4/hasData — không còn oneLan/fourLan phẳng)',
+    !!sd && Array.isArray(sd.weeks1) && Array.isArray(sd.weeks4) && Array.isArray(sd.hasData), JSON.stringify(r.result));
+  kiem('≥1 lần tuần 3 khu SĐ = 2 người', sd?.weeks1[2] === 2, JSON.stringify(sd));
+  kiem('≥4 lần tuần 3 khu SĐ = 1 người', sd?.weeks4[2] === 1, JSON.stringify(sd));
+  kiem('tuần 3 khu SĐ có hasData = true (đã có người điểm danh)', sd?.hasData[2] === true);
+  kiem('tuần 1,2,4,5 khu SĐ CHƯA ai điểm danh -> hasData = false (đừng tự điền 0 nhầm)',
+    sd?.hasData[0] === false && sd?.hasData[1] === false && sd?.hasData[3] === false && sd?.hasData[4] === false,
+    JSON.stringify(sd?.hasData));
+  kiem('khu vực Đ Uyên trả riêng, không lẫn số liệu của SĐ',
+    duyen?.weeks1[0] === 1 && duyen?.weeks1[2] === 0, JSON.stringify(duyen));
+  kiem('KHÔNG cần truyền khu vực vẫn lấy đủ MỌI khu vực trong 1 lần gọi',
+    Object.keys(r.result || {}).length >= 2, JSON.stringify(Object.keys(r.result || {})));
 }
 
 console.log('\n4) Báo cáo T3/T7 và khoá ô');
