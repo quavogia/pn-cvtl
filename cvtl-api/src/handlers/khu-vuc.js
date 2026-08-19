@@ -84,6 +84,50 @@ async function danhLaiThuTuRoster_(db, khuVuc) {
 }
 
 /**
+ * Xoá các dòng `tp_tho_phuong` (MỌI tháng) của 1 Khu vực mà Tuần đó CHƯA hề
+ * có báo cáo nào (không T3, không T7) — để tính năng "tự động điền từ Điểm
+ * danh" (getDiemDanhTPGoiY, sửa 18/08/2026) tính lại đúng số theo roster MỚI
+ * ngay lần xem kế tiếp, thay vì bị kẹt đứng yên ở số cũ.
+ *
+ * ⚠️ Lý do bắt buộc phải có bước này, không thể chỉ dựa vào lời hứa "tự động
+ * điền" có sẵn (phát hiện 19/08/2026, qua báo cáo thật của anh Rise sau khi
+ * tách TT Châu): cơ chế "không ghi đè số đã gõ tay" ở giao diện
+ * (`window._tpAutoTrack_`) chỉ SỐNG TRONG BỘ NHỚ của 1 lần tải trang — không
+ * phân biệt được "số đang có là do TỰ ĐỘNG điền + lưu ở một phiên TRƯỚC đó"
+ * hay "số do người dùng THẬT SỰ gõ tay" một khi trang được tải lại mới. Kết
+ * quả: hễ 1 Tuần CHƯA báo cáo đã từng có số > 0 được lưu (dù là do tự động
+ * điền từ trước), mọi lần tải trang MỚI sau đó đều coi số đó là "đã gõ tay",
+ * không bao giờ tự cập nhật lại nữa — dù Khu vực vừa đổi hẳn số người. Xoá
+ * hẳn dòng lưu (chỉ với Tuần CHƯA báo cáo) là cách chắc chắn nhất buộc lần
+ * xem kế tiếp phải tính lại từ đầu theo đúng roster hiện tại.
+ *
+ * CHỈ xoá Tuần hoàn toàn chưa báo cáo (không T3 lẫn T7) — Tuần đã báo cáo dù
+ * chỉ 1 trong 2 (T3 hoặc T7) vẫn giữ nguyên số đã lưu, coi là mốc lịch sử đã
+ * chốt một phần (đúng nguyên tắc đã áp dụng cho các Khu vực khác — xem đầu
+ * file). Muốn Tuần đó tính lại thì bấm "Hủy báo cáo" trước.
+ */
+async function resetTPChuaBaoCao_(db, khuVuc) {
+  const tuanChuaBaoCao = await db.all(
+    `SELECT DISTINCT t.thang AS thang, t.tuan AS tuan
+       FROM tp_tho_phuong t
+      WHERE t.khu_vuc = ?
+        AND NOT EXISTS (
+          SELECT 1 FROM tp_bao_cao b
+           WHERE b.khu_vuc = t.khu_vuc AND b.thang = t.thang AND b.tuan = t.tuan
+        )`,
+    [khuVuc]
+  );
+  if (!tuanChuaBaoCao.length) return { xoa: 0 };
+  await db.batch(
+    tuanChuaBaoCao.map((r) => ({
+      sql: 'DELETE FROM tp_tho_phuong WHERE khu_vuc = ? AND thang = ? AND tuan = ?',
+      params: [khuVuc, r.thang, r.tuan],
+    }))
+  );
+  return { xoa: tuanChuaBaoCao.length };
+}
+
+/**
  * Thêm 1 Khu vực mới (trống trơn, chưa có ai) vào danh sách Khu vực.
  * `sauKhuVuc`: tên Khu vực muốn chèn Khu vực mới vào NGAY SAU (để trống/để
  * trống hoặc không tìm thấy -> thêm vào CUỐI danh sách).
@@ -171,5 +215,34 @@ export async function chuyenThanhVienKhuVuc({ db }, khuVucCu, danhSachTen, khuVu
   await danhLaiThuTuRoster_(db, kvCu);
   await danhLaiThuTuRoster_(db, kvMoi);
 
-  return { success: true, khuVucCu: kvCu, khuVucMoi: kvMoi, ketQua };
+  // Xoá số TP "kẹt cứng" của các Tuần CHƯA báo cáo ở cả 2 Khu vực — bắt buộc
+  // để tính năng tự động điền tính lại đúng theo roster mới ngay lần xem kế
+  // tiếp (xem giải thích đầy đủ ở resetTPChuaBaoCao_, thêm 19/08/2026).
+  const tpXoaCu = await resetTPChuaBaoCao_(db, kvCu);
+  const tpXoaMoi = await resetTPChuaBaoCao_(db, kvMoi);
+
+  return {
+    success: true,
+    khuVucCu: kvCu,
+    khuVucMoi: kvMoi,
+    ketQua,
+    tpDaXoaKhuVucCu: tpXoaCu.xoa,
+    tpDaXoaKhuVucMoi: tpXoaMoi.xoa,
+  };
+}
+
+/**
+ * Dọn dẹp thủ công (Chỉ tài khoản chủ) — chạy lại đúng bước "xoá số TP kẹt
+ * cứng của Tuần chưa báo cáo" (xem resetTPChuaBaoCao_) cho MỘT Khu vực chỉ
+ * định, KHÔNG động tới bất kỳ bảng nào khác. Dùng để dọn lại những Khu vực
+ * đã bị TÁCH/CHUYỂN thành viên TRƯỚC KHI có bước dọn tự động này (thêm
+ * 19/08/2026, ngay sau khi tách TT Châu — anh Rise phát hiện số TP của K
+ * Thành/Đ Uyên đứng yên không cập nhật theo roster mới). Từ nay về sau,
+ * `chuyenThanhVienKhuVuc` đã tự làm bước này — hàm này chỉ cần dùng LẠI cho
+ * các lần tách/chuyển đã lỡ làm trước bản sửa 19/08/2026.
+ */
+export async function donDepTPKhuVuc({ db }, khuVuc) {
+  const kv = batBuoc(khuVuc, 'Khu vực');
+  const ketQua = await resetTPChuaBaoCao_(db, kv);
+  return { success: true, khuVuc: kv, tpDaXoa: ketQua.xoa };
 }
