@@ -148,10 +148,19 @@ console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 ngườ
     .run(kvCu, tenKhac, '', 1);
   sqlite.prepare('INSERT INTO hoc_vien (ten, khu_vuc, tien_do) VALUES (?,?,?)').run(tenKhac, kvCu, 'B2');
 
-  // Gieo dữ liệu Ở BẢNG TỔNG HỢP KHU VỰC (không gắn riêng ai) — PHẢI giữ
-  // nguyên, không được đụng tới khi chuyển thành viên.
+  // Gieo dữ liệu Ở BẢNG TỔNG HỢP KHU VỰC (không gắn riêng ai) — mọi bảng
+  // KHÔNG được đụng tới khi chuyển thành viên, RIÊNG tp_tho_phuong có 1 ngoại
+  // lệ có chủ đích (thêm 19/08/2026): Tuần CHƯA báo cáo bị XOÁ để tính lại
+  // đúng theo roster mới; Tuần ĐÃ báo cáo (có tp_bao_cao) vẫn giữ nguyên.
+  // Tuần 1: CHƯA báo cáo -> phải bị xoá sau khi chuyển.
   sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
     .run('2026-08', kvCu, '1lan', 1, 9);
+  // Tuần 2: ĐÃ báo cáo (T3) -> phải giữ nguyên, không bị xoá.
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', kvCu, '1lan', 2, 7);
+  sqlite.prepare(
+    'INSERT INTO tp_bao_cao (thang, khu_vuc, tuan, nhom, thoi_gian, thoi_gian_ms, snap_1lan, snap_4lan) VALUES (?,?,?,?,?,?,?,?)'
+  ).run('2026-08', kvCu, 2, 'T3', '19/08/2026 08:00', Date.now(), 7, 0);
   sqlite.prepare('INSERT INTO nhat_ky_don_thuan (ngay, khu_vuc, don_thuan) VALUES (?,?,?)')
     .run('2026-08-05', kvCu, 3);
 
@@ -184,8 +193,12 @@ console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 ngườ
   kiem('người KHÁC không bị chuyển (vẫn còn ở K Thành)',
     dem_(`SELECT khu_vuc FROM diem_danh_roster WHERE ten=?`, tenKhac) === kvCu);
 
-  kiem('BẢNG TỔNG HỢP tp_tho_phuong CỦA KHU VỰC CŨ không bị đụng tới',
-    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc=?`, kvCu) === 1);
+  kiem('tp_tho_phuong: Tuần CHƯA báo cáo (Tuần 1) của Khu vực cũ đã bị XOÁ để tính lại',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc=? AND tuan=1`, kvCu) === 0);
+  kiem('tp_tho_phuong: Tuần ĐÃ báo cáo (Tuần 2) của Khu vực cũ vẫn giữ nguyên số cũ (7)',
+    dem_(`SELECT so_luong FROM tp_tho_phuong WHERE khu_vuc=? AND tuan=2`, kvCu) === 7);
+  kiem('chuyenThanhVienKhuVuc trả về đúng số dòng TP đã xoá ở Khu vực cũ',
+    r.result?.tpDaXoaKhuVucCu === 1, JSON.stringify(r.result));
   kiem('BẢNG TỔNG HỢP nhat_ky_don_thuan CỦA KHU VỰC CŨ không bị đụng tới',
     demSo_(`SELECT COUNT(*) c FROM nhat_ky_don_thuan WHERE khu_vuc=?`, kvCu) === 1);
 
@@ -296,16 +309,45 @@ console.log('\n8) Tích hợp: sau khi chuyển, getDiemDanhRoster / getTPSummar
 }
 
 // =====================================================================
-console.log('\n9) Phân quyền — chỉ tài khoản chủ');
+console.log('\n9) donDepTPKhuVuc — dọn thủ công cho các lần tách/chuyển ĐÃ LÀM TRƯỚC bản sửa 19/08/2026');
 {
-  kiem('themKhuVucMoi chỉ dành cho tài khoản chủ', DANH_MUC.themKhuVucMoi.chuThoi === true);
-  kiem('chuyenThanhVienKhuVuc chỉ dành cho tài khoản chủ', DANH_MUC.chuyenThanhVienKhuVuc.chuThoi === true);
-  kiem('cả 2 đều là hàm ghi (doc: false)',
-    DANH_MUC.themKhuVucMoi.doc === false && DANH_MUC.chuyenThanhVienKhuVuc.doc === false);
+  taoCSDL();
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', 'K Thành', '1lan', 4, 9);
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', 'K Thành', '1lan', 1, 6);
+  sqlite.prepare(
+    'INSERT INTO tp_bao_cao (thang, khu_vuc, tuan, nhom, thoi_gian, thoi_gian_ms, snap_1lan, snap_4lan) VALUES (?,?,?,?,?,?,?,?)'
+  ).run('2026-08', 'K Thành', 1, 'T3', '15/08/2026 23:10', Date.now(), 6, 0);
+
+  let r = await goi('donDepTPKhuVuc', ['K Thành']);
+  kiem('chạy thành công', r.result?.success === true, JSON.stringify(r));
+  kiem('trả về đúng số dòng đã xoá (1)', r.result?.tpDaXoa === 1, JSON.stringify(r.result));
+  kiem('Tuần 4 (chưa báo cáo) đã bị xoá',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='K Thành' AND tuan=4`) === 0);
+  kiem('Tuần 1 (đã báo cáo) vẫn giữ nguyên',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='K Thành' AND tuan=1`) === 1);
+
+  r = await goi('donDepTPKhuVuc', ['Khu vực không có gì để xoá']);
+  kiem('Khu vực không có dòng TP nào -> vẫn thành công, trả về 0', r.result?.success === true && r.result?.tpDaXoa === 0);
+
+  r = await goi('donDepTPKhuVuc', ['']);
+  kiem('thiếu tên khu vực -> báo lỗi', !!r.error);
 }
 
 // =====================================================================
-console.log('\n10) Độ phủ — mọi hàm export của khu-vuc.js đều đã nối vào danh mục');
+console.log('\n10) Phân quyền — chỉ tài khoản chủ');
+{
+  kiem('themKhuVucMoi chỉ dành cho tài khoản chủ', DANH_MUC.themKhuVucMoi.chuThoi === true);
+  kiem('chuyenThanhVienKhuVuc chỉ dành cho tài khoản chủ', DANH_MUC.chuyenThanhVienKhuVuc.chuThoi === true);
+  kiem('donDepTPKhuVuc chỉ dành cho tài khoản chủ', DANH_MUC.donDepTPKhuVuc.chuThoi === true);
+  kiem('cả 3 đều là hàm ghi (doc: false)',
+    DANH_MUC.themKhuVucMoi.doc === false && DANH_MUC.chuyenThanhVienKhuVuc.doc === false &&
+    DANH_MUC.donDepTPKhuVuc.doc === false);
+}
+
+// =====================================================================
+console.log('\n11) Độ phủ — mọi hàm export của khu-vuc.js đều đã nối vào danh mục');
 {
   const khuVuc = await import(join(goc, 'src/handlers/khu-vuc.js'));
   const canPhu = Object.keys(khuVuc).filter((k) => typeof khuVuc[k] === 'function');
