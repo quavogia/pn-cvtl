@@ -132,6 +132,7 @@ export const DANH_MUC = {
   // --- Quản lý Khu vực: tự tách/thêm mới, chỉ tài khoản chủ (19/08/2026) ---
   themKhuVucMoi:           { doc: false, chuThoi: true, fn: khuVuc.themKhuVucMoi },
   chuyenThanhVienKhuVuc:   { doc: false, chuThoi: true, fn: khuVuc.chuyenThanhVienKhuVuc },
+  donDepTPKhuVuc:          { doc: false, chuThoi: true, fn: khuVuc.donDepTPKhuVuc },
 };
 
 export const DANH_SACH_DOC = new Set(
