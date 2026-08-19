@@ -950,6 +950,26 @@
           <button type="button" onclick="chuyenThanhVienUI_()" style="padding:8px 16px;border-radius:6px;background:#16a34a;color:#fff;border:none;font-size:14px;cursor:pointer;">➡️ Chuyển đã chọn</button>
         </div>
       </div>
+
+      <div class="card">
+        <h3>3. Dọn dẹp số TP kẹt (cho khu vực đã tách/chuyển TRƯỚC bản sửa 19/08/2026)</h3>
+        <p style="font-size:12px;color:#64748b;">
+          Từ nay mục 2 ở trên đã TỰ làm bước này mỗi khi chuyển thành viên — mục 3 này chỉ cần
+          dùng lại cho những khu vực đã lỡ tách/chuyển <b>TRƯỚC KHI</b> có bản sửa 19/08/2026 (số TP
+          của các Tuần chưa báo cáo bị "kẹt cứng", không tự cập nhật theo danh sách thành viên mới).
+          Chỉ xoá số của các Tuần <b>CHƯA báo cáo</b> để tính lại từ đầu theo danh sách hiện tại —
+          Tuần <b>ĐÃ báo cáo</b> giữ nguyên, không mất gì.
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;">Khu vực</label>
+            <select id="kvClean_kv" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+              <option value="">-- Chọn khu vực --</option>
+            </select>
+          </div>
+          <button type="button" onclick="donDepTPUI_()" style="padding:8px 16px;border-radius:6px;background:#ea580c;color:#fff;border:none;font-size:14px;cursor:pointer;">🧹 Dọn dẹp</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -2836,6 +2856,7 @@ function loadQuanLyKhuVuc_(){
   if (!isChuTaiKhoan_()) return;
   fillSelect(document.getElementById('kvNew_sau'), khuVucList, '-- Thêm vào cuối danh sách --');
   fillSelect(document.getElementById('kvMove_nguon'), khuVucList, '-- Chọn khu vực --');
+  fillSelect(document.getElementById('kvClean_kv'), khuVucList, '-- Chọn khu vực --');
   const dich = document.getElementById('kvMove_dich');
   dich.innerHTML = '<option value="">-- Chọn khu vực --</option>' +
     khuVucList.map(function(v){ return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('') +
@@ -2911,6 +2932,21 @@ function chuyenThanhVienUI_(){
   }).withFailureHandler(function(err){
     showMsg('Không chuyển được: ' + err.message, false);
   }).chuyenThanhVienKhuVuc(kvCu, ds, kvMoi);
+}
+
+function donDepTPUI_(){
+  const kv = document.getElementById('kvClean_kv').value;
+  if (!kv) { showMsg('Vui lòng chọn khu vực cần dọn dẹp.', false); return; }
+  if (!confirm('Dọn dẹp số TP kẹt của khu vực "' + kv + '"?\n\n' +
+    'Chỉ xoá số của các Tuần CHƯA báo cáo để tính lại từ đầu theo danh sách hiện tại — ' +
+    'Tuần ĐÃ báo cáo giữ nguyên, không mất gì.')) return;
+  google.script.run.withSuccessHandler(function(r){
+    const soXoa = (r && r.tpDaXoa) || 0;
+    showMsg('Đã dọn xong "' + kv + '" — đã xoá ' + soXoa + ' dòng số TP cũ (Tuần chưa báo cáo). Đang tải lại trang…', true);
+    setTimeout(function(){ location.reload(); }, 900);
+  }).withFailureHandler(function(err){
+    showMsg('Không dọn được: ' + err.message, false);
+  }).donDepTPKhuVuc(kv);
 }
 
 function tpddRowHtml_(m, nhom, isFirst, isLast){
