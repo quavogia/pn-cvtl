@@ -348,8 +348,10 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   // (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng — thêm 13/08/2026)
   // + huyTPBaoCao (Hủy báo cáo, chỉ tài khoản chủ — thêm 16/08/2026)
   // + getPendingAccess/approveAccessRequest/denyAccessRequest (màn hình
-  // "Duyệt truy cập" trong web, chỉ tài khoản chủ — thêm 17/08/2026).
-  kiem('danh mục đủ 75 hàm', ten.length === 75, 'thực tế: ' + ten.length);
+  // "Duyệt truy cập" trong web, chỉ tài khoản chủ — thêm 17/08/2026)
+  // + themKhuVucMoi/chuyenThanhVienKhuVuc (màn hình "Quản lý khu vực",
+  // chỉ tài khoản chủ — thêm 19/08/2026).
+  kiem('danh mục đủ 77 hàm', ten.length === 77, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
