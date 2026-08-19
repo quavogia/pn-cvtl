@@ -2,13 +2,68 @@
 // Điểm danh — phần hay dùng nhất và cũng hay lỗi nhất ở bản cũ.
 // =====================================================================
 
-import { NHOM_DIEM_DANH, DD_BUOI_LIST, nhomCuaBuoi, thangHopLe } from '../hang-so.js';
+import { KHU_VUC_LIST, DD_BUOI_LIST, nhomCuaBuoi, thangHopLe } from '../hang-so.js';
+
+/**
+ * Giới tính / nhóm tuổi của 7 Khu vực CŨ — giữ đúng y hệt bản gốc để không ai
+ * thấy khác gì cả. Khu vực MỚI (tách/thêm sau này qua "Quản lý khu vực") sẽ
+ * không có trong bảng này, mặc định để trống — không sao vì 3 trường này
+ * (gioiTinh/nhomTuoi/isTreEm) hiện KHÔNG được index.html dùng ở đâu cả
+ * (đã rà soát toàn bộ giao diện, không có chỗ nào đọc 3 trường này).
+ */
+const META_KHU_VUC_CU = {
+  'K Đức':  { gioiTinh: 'Nam', nhomTuoi: 'Tráng niên', isTreEm: false },
+  'K Long': { gioiTinh: 'Nam', nhomTuoi: 'Thanh niên', isTreEm: false },
+  'SĐ':     { gioiTinh: 'Nam', nhomTuoi: '',            isTreEm: false },
+  'Đ Uyên': { gioiTinh: 'Nữ',  nhomTuoi: 'Phụ nữ',      isTreEm: false },
+  'K Thành':{ gioiTinh: 'Nữ',  nhomTuoi: 'Phụ nữ',      isTreEm: false },
+  'K Trâm': { gioiTinh: 'Nữ',  nhomTuoi: 'Thanh niên',  isTreEm: false },
+  'K My':   { gioiTinh: 'Nữ',  nhomTuoi: 'Thanh niên',  isTreEm: false },
+};
+
+/**
+ * 2 nhóm "trẻ em" đặc biệt của bản cũ — KHÔNG phải Khu vực thật, không nằm
+ * trong config_list, giữ nguyên cứng ở đây (đã rà soát: hiện không có chỗ
+ * nào trong index.html tham chiếu tới 2 tên này, coi như chưa dùng tới,
+ * nhưng vẫn giữ lại phòng khi có dữ liệu cũ gắn với 2 nhóm này).
+ */
+const NHOM_TRE_EM = [
+  { nhom: 'Học sinh Tiểu học', gioiTinh: 'Nam', nhomTuoi: 'Thiếu nhi', isTreEm: true },
+  { nhom: 'Tiểu học',          gioiTinh: 'Nữ',  nhomTuoi: 'Thiếu nhi', isTreEm: true },
+];
+
+/**
+ * Danh sách nhóm (Khu vực) hiển thị trong bảng Điểm danh, ĐÚNG THỨ TỰ đang
+ * hiển thị trên trang "Nhập số liệu theo tuần" / "Hiện trạng khu vực".
+ * Trước đây (tới 18/08/2026) danh sách này cứng trong hang-so.js
+ * (NHOM_DIEM_DANH) — Khu vực nào không có mặt trong đó thì bảng Điểm danh
+ * của Khu vực đó COI NHƯ KHÔNG TỒN TẠI (trống trơn) dù đã có trong config_list
+ * và hiện đủ ở mọi bảng khác. Sửa 19/08/2026 (để phục vụ tính năng "Quản lý
+ * khu vực" tự tách/thêm Khu vực): đọc thẳng config_list, ghép thêm mô tả
+ * gioiTinh/nhomTuoi từ META_KHU_VUC_CU (Khu vực mới thì để trống), rồi nối
+ * thêm 2 nhóm "trẻ em" cũ vào cuối cho khỏi mất dữ liệu cũ (nếu có).
+ */
+async function layDanhSachNhomDiemDanh(db) {
+  const rows = await db.all(
+    "SELECT gia_tri FROM config_list WHERE loai = 'khu_vuc' ORDER BY thu_tu, id"
+  );
+  const ds = rows.map((r) => String(r.gia_tri || '').trim()).filter(Boolean);
+  const dsKV = ds.length ? ds : KHU_VUC_LIST.slice();
+  const nhomKV = dsKV.map((kv) => ({
+    nhom: kv,
+    gioiTinh: META_KHU_VUC_CU[kv]?.gioiTinh || '',
+    nhomTuoi: META_KHU_VUC_CU[kv]?.nhomTuoi || '',
+    isTreEm: false,
+  }));
+  return nhomKV.concat(NHOM_TRE_EM);
+}
 
 /** Bảng điểm danh đầy đủ của một tháng, gom theo nhóm. */
 export async function getDiemDanhRoster({ db }, thang) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
 
-  const [roster, oCell] = await Promise.all([
+  const [dsNhom, roster, oCell] = await Promise.all([
+    layDanhSachNhomDiemDanh(db),
     db.all('SELECT khu_vuc, ten, phu_huynh FROM diem_danh_roster ORDER BY khu_vuc, thu_tu, id'),
     db.all('SELECT khu_vuc, ten, tuan, buoi, gia_tri FROM diem_danh WHERE thang = ?', [thang]),
   ]);
@@ -29,7 +84,7 @@ export async function getDiemDanhRoster({ db }, thang) {
     theoKV.get(r.khu_vuc).push(r);
   }
 
-  return NHOM_DIEM_DANH.map((g) => ({
+  return dsNhom.map((g) => ({
     nhom: g.nhom,
     gioiTinh: g.gioiTinh,
     nhomTuoi: g.nhomTuoi,
