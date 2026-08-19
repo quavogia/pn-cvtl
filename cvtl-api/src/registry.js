@@ -9,7 +9,8 @@
 // không bao giờ trả về trang HTML.
 //
 // TRẠNG THÁI: đã chuyển xong toàn bộ 60 hàm cũ, cộng thêm 11 hàm mới của
-// nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng).
+// nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng), cộng thêm
+// các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — tổng 77.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -22,6 +23,7 @@ import * as daoTaoLeHoi from './handlers/dao-tao-le-hoi.js';
 import * as lich from './handlers/lich-lam-viec.js';
 import * as thongKeTP from './handlers/thong-ke-tp.js';
 import * as truDo from './handlers/tru-do.js';
+import * as khuVuc from './handlers/khu-vuc.js';
 
 export const DANH_MUC = {
   // --- Đăng nhập / phân quyền (không yêu cầu đã duyệt) ---
@@ -126,6 +128,10 @@ export const DANH_MUC = {
   addLichEvent:            { doc: false, fn: lich.addLichEvent },
   updateLichEvent:         { doc: false, fn: lich.updateLichEvent },
   deleteLichEvent:         { doc: false, fn: lich.deleteLichEvent },
+
+  // --- Quản lý Khu vực: tự tách/thêm mới, chỉ tài khoản chủ (19/08/2026) ---
+  themKhuVucMoi:           { doc: false, chuThoi: true, fn: khuVuc.themKhuVucMoi },
+  chuyenThanhVienKhuVuc:   { doc: false, chuThoi: true, fn: khuVuc.chuyenThanhVienKhuVuc },
 };
 
 export const DANH_SACH_DOC = new Set(
