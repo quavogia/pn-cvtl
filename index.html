@@ -293,6 +293,13 @@
     <button type="button" class="nav-btn" id="navDuyet" data-panel="duyet" style="display:none;" onclick="showPanel('duyet'); loadDuyetTruyCap();">
       <span class="nav-icon">🔑</span> Duyệt truy cập <span id="duyetBadge" class="nav-badge" style="display:none;"></span>
     </button>
+    <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
+         trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
+         19/08/2026, theo yêu cầu anh Rise: tự thêm/tách Khu vực mới ngay
+         trên web, không cần báo lập trình viên nữa. -->
+    <button type="button" class="nav-btn" id="navKhuVuc" data-panel="khuvuc" style="display:none;" onclick="showPanel('khuvuc'); loadQuanLyKhuVuc_();">
+      <span class="nav-icon">🗺️➕</span> Quản lý khu vực
+    </button>
   </div>
 
   <div id="main">
@@ -886,6 +893,62 @@
             <tr><td colspan="4" style="color:#94a3b8;">Đang tải…</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ============ QUẢN LÝ KHU VỰC (chỉ tài khoản chủ, thêm 19/08/2026) ============ -->
+    <div id="panel-khuvuc" class="panel">
+      <h1>Quản lý khu vực</h1>
+      <p style="font-size:13px;color:#64748b;margin-top:-8px;">
+        Chỗ này để tự thêm Khu vực mới hoặc chuyển thành viên sang Khu vực khác — không cần báo lập trình viên.
+        Khi chuyển 1 thành viên, TOÀN BỘ dữ liệu của người đó (Điểm danh, Trụ đỡ, Giáo dục, Đào tạo, Lễ hội...) đi theo sang Khu vực mới.
+        Số liệu "Nhập số liệu theo tuần" (TP) của các tuần <b>CHƯA báo cáo</b> sẽ tự cập nhật lại theo đúng Khu vực mới sau khi chuyển;
+        các tuần <b>ĐÃ báo cáo</b> giữ nguyên làm lịch sử, không bị đổi.
+      </p>
+
+      <div class="card">
+        <h3>1. Thêm khu vực mới</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;">Tên khu vực mới</label>
+            <input type="text" id="kvNew_ten" placeholder="VD: TT Châu" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+          </div>
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;">Chèn ngay sau khu vực</label>
+            <select id="kvNew_sau" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+              <option value="">-- Thêm vào cuối danh sách --</option>
+            </select>
+          </div>
+          <button type="button" onclick="themKhuVucMoiUI_()" style="padding:8px 16px;border-radius:6px;background:#2563eb;color:#fff;border:none;font-size:14px;cursor:pointer;">➕ Thêm khu vực</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>2. Chuyển thành viên sang khu vực khác</h3>
+        <p style="font-size:12px;color:#64748b;">Chọn Khu vực đang có thành viên, tick chọn (những) người cần chuyển, rồi chọn Khu vực đích (có sẵn hoặc gõ tên khu vực mới).</p>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;color:#64748b;display:block;">Khu vực nguồn</label>
+          <select id="kvMove_nguon" onchange="kvMoveLoadRoster_()" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+            <option value="">-- Chọn khu vực --</option>
+          </select>
+        </div>
+        <div id="kvMoveRosterBox" style="margin-bottom:14px;">
+          <p style="color:#94a3b8;font-size:13px;">Chọn Khu vực nguồn để hiện danh sách thành viên.</p>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+          <div>
+            <label style="font-size:12px;color:#64748b;display:block;">Khu vực đích</label>
+            <select id="kvMove_dich" onchange="kvMoveDichChanged_()" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+              <option value="">-- Chọn khu vực --</option>
+              <option value="__moi__">+ Khu vực mới...</option>
+            </select>
+          </div>
+          <div id="kvMove_dichMoiBox" style="display:none;">
+            <label style="font-size:12px;color:#64748b;display:block;">Tên khu vực mới</label>
+            <input type="text" id="kvMove_dichMoi" placeholder="VD: TT Châu" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+          </div>
+          <button type="button" onclick="chuyenThanhVienUI_()" style="padding:8px 16px;border-radius:6px;background:#16a34a;color:#fff;border:none;font-size:14px;cursor:pointer;">➡️ Chuyển đã chọn</button>
+        </div>
       </div>
     </div>
 
@@ -2761,6 +2824,95 @@ function denyTruyCap(email){
   }).denyAccessRequest(email);
 }
 
+// =====================================================================
+// QUẢN LÝ KHU VỰC — chỉ tài khoản chủ nhìn thấy (thêm 19/08/2026, theo yêu
+// cầu anh Rise: "xây 1 cơ chế để sau này có tách hoặc thêm mới thì anh có
+// thể tự làm trên web chứ không cần phải báo em"). Sau khi thêm/chuyển
+// thành công, tải lại cả trang (location.reload()) cho đơn giản và chắc
+// chắn — mọi danh sách Khu vực/roster ở khắp nơi trong trang đều nạp lại
+// mới hoàn toàn, không sợ có chỗ nào quên cập nhật theo dữ liệu vừa đổi.
+// =====================================================================
+function loadQuanLyKhuVuc_(){
+  if (!isChuTaiKhoan_()) return;
+  fillSelect(document.getElementById('kvNew_sau'), khuVucList, '-- Thêm vào cuối danh sách --');
+  fillSelect(document.getElementById('kvMove_nguon'), khuVucList, '-- Chọn khu vực --');
+  const dich = document.getElementById('kvMove_dich');
+  dich.innerHTML = '<option value="">-- Chọn khu vực --</option>' +
+    khuVucList.map(function(v){ return '<option value="' + esc(v) + '">' + esc(v) + '</option>'; }).join('') +
+    '<option value="__moi__">+ Khu vực mới...</option>';
+  document.getElementById('kvMove_dichMoiBox').style.display = 'none';
+  document.getElementById('kvMoveRosterBox').innerHTML = '<p style="color:#94a3b8;font-size:13px;">Chọn Khu vực nguồn để hiện danh sách thành viên.</p>';
+}
+
+function themKhuVucMoiUI_(){
+  const ten = document.getElementById('kvNew_ten').value.trim();
+  if (!ten) { showMsg('Vui lòng nhập tên khu vực mới.', false); return; }
+  const sau = document.getElementById('kvNew_sau').value;
+  if (!confirm('Thêm khu vực mới "' + ten + '"' + (sau ? ' ngay sau "' + sau + '"' : ' vào cuối danh sách') + '?')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã thêm khu vực "' + ten + '". Đang tải lại trang…', true);
+    setTimeout(function(){ location.reload(); }, 900);
+  }).withFailureHandler(function(err){
+    showMsg('Không thêm được khu vực: ' + err.message, false);
+  }).themKhuVucMoi(ten, sau);
+}
+
+function kvMoveLoadRoster_(){
+  const kv = document.getElementById('kvMove_nguon').value;
+  const box = document.getElementById('kvMoveRosterBox');
+  if (!kv) { box.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Chọn Khu vực nguồn để hiện danh sách thành viên.</p>'; return; }
+  box.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Đang tải…</p>';
+  google.script.run.withSuccessHandler(function(list){
+    const g = (list || []).find(function(x){ return x.nhom === kv; });
+    const members = (g && g.thanhVien) || [];
+    if (!members.length) {
+      box.innerHTML = '<p style="color:#94a3b8;font-size:13px;">Khu vực "' + esc(kv) + '" chưa có ai trong danh sách Điểm danh.</p>';
+      return;
+    }
+    box.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;">' +
+      '<button type="button" onclick="kvMoveChonTatCa_(true)" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;">Chọn tất cả</button>' +
+      '<button type="button" onclick="kvMoveChonTatCa_(false)" style="font-size:12px;padding:4px 10px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;cursor:pointer;">Bỏ chọn hết</button>' +
+      '</div>' +
+      '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;">' +
+      members.map(function(m, i){
+        return '<label style="display:flex;align-items:center;gap:6px;font-size:13px;">' +
+          '<input type="checkbox" class="kvMoveCb" value="' + esc(m.ten) + '" id="kvMoveCb_' + i + '"> ' + esc(m.ten) +
+          '</label>';
+      }).join('') +
+      '</div>';
+  }).withFailureHandler(function(err){
+    box.innerHTML = '<p style="color:#dc2626;font-size:13px;">Không tải được danh sách: ' + esc(err.message) + '</p>';
+  }).getDiemDanhRoster(currentMonthKey());
+}
+
+function kvMoveChonTatCa_(chon){
+  document.querySelectorAll('.kvMoveCb').forEach(function(cb){ cb.checked = chon; });
+}
+
+function kvMoveDichChanged_(){
+  const v = document.getElementById('kvMove_dich').value;
+  document.getElementById('kvMove_dichMoiBox').style.display = (v === '__moi__') ? '' : 'none';
+}
+
+function chuyenThanhVienUI_(){
+  const kvCu = document.getElementById('kvMove_nguon').value;
+  if (!kvCu) { showMsg('Vui lòng chọn Khu vực nguồn.', false); return; }
+  const dichSel = document.getElementById('kvMove_dich').value;
+  const kvMoi = (dichSel === '__moi__') ? document.getElementById('kvMove_dichMoi').value.trim() : dichSel;
+  if (!kvMoi) { showMsg('Vui lòng chọn hoặc nhập Khu vực đích.', false); return; }
+  if (kvMoi === kvCu) { showMsg('Khu vực đích phải khác Khu vực nguồn.', false); return; }
+  const ds = Array.prototype.slice.call(document.querySelectorAll('.kvMoveCb:checked')).map(function(cb){ return cb.value; });
+  if (!ds.length) { showMsg('Vui lòng chọn ít nhất 1 thành viên để chuyển.', false); return; }
+  if (!confirm('Chuyển ' + ds.length + ' thành viên từ "' + kvCu + '" sang "' + kvMoi + '"?\n\n' + ds.join(', ') +
+    '\n\nToàn bộ dữ liệu (Điểm danh, Trụ đỡ, Giáo dục, Đào tạo, Lễ hội...) của những người này sẽ chuyển theo.')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã chuyển xong ' + ds.length + ' thành viên sang "' + kvMoi + '". Đang tải lại trang…', true);
+    setTimeout(function(){ location.reload(); }, 900);
+  }).withFailureHandler(function(err){
+    showMsg('Không chuyển được: ' + err.message, false);
+  }).chuyenThanhVienKhuVuc(kvCu, ds, kvMoi);
+}
+
 function tpddRowHtml_(m, nhom, isFirst, isLast){
   let cells = '';
   DD_TUAN_LIST_.forEach(function(tuan){
@@ -4195,6 +4347,9 @@ function showUserBar_(email){
     if (isChuTaiKhoan_()) { navDuyet.style.display = 'flex'; loadDuyetTruyCap(); }
     else navDuyet.style.display = 'none';
   }
+  // Chỉ tài khoản chủ mới thấy mục "Quản lý khu vực" (thêm 19/08/2026).
+  const navKhuVuc = document.getElementById('navKhuVuc');
+  if (navKhuVuc) navKhuVuc.style.display = isChuTaiKhoan_() ? 'flex' : 'none';
 }
 function hideUserBar_(){
   const bar = document.getElementById('userBar');
