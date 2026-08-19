@@ -8,6 +8,22 @@ import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 /** "T3" -> "Thứ 3", "T7" -> "Thứ 7" — cho tin Telegram dễ đọc hơn mã viết tắt. */
 const TEN_NHOM_TP = { T3: 'Thứ 3', T7: 'Thứ 7' };
 
+/**
+ * Danh sách Khu vực theo đúng thứ tự hiển thị.
+ * Ưu tiên bảng cấu hình (config_list, loại 'khu_vuc') — đây là nơi Trưởng
+ * phòng tự thêm/tách Khu vực mới qua trang "Quản lý khu vực"; nếu bảng cấu
+ * hình chưa có gì thì dùng danh sách cứng trong hang-so.js để khỏi trống
+ * trơn (giống hệt cách hoc-vien.js / muc-tieu-giao-duc.js đang làm — thêm
+ * 19/08/2026, để trang "Nhập số liệu theo tuần" thấy được Khu vực mới tách).
+ */
+async function layDanhSachKhuVuc(db) {
+  const rows = await db.all(
+    "SELECT gia_tri FROM config_list WHERE loai = 'khu_vuc' ORDER BY thu_tu, id"
+  );
+  const ds = rows.map((r) => String(r.gia_tri || '').trim()).filter(Boolean);
+  return ds.length ? ds : KHU_VUC_LIST.slice();
+}
+
 function thangTruoc(thang) {
   const [y, m] = thang.split('-').map(Number);
   const d = new Date(Date.UTC(y, m - 2, 1));
@@ -41,7 +57,8 @@ export async function getTPSummary({ db }, thang) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
   const truoc = thangTruoc(thang);
 
-  const [soLieu, soLieuTruoc, baoCao] = await Promise.all([
+  const [dsKV, soLieu, soLieuTruoc, baoCao] = await Promise.all([
+    layDanhSachKhuVuc(db),
     db.all('SELECT khu_vuc, loai, tuan, so_luong FROM tp_tho_phuong WHERE thang = ?', [thang]),
     db.all('SELECT khu_vuc, loai, tuan, so_luong FROM tp_tho_phuong WHERE thang = ?', [truoc]),
     db.all('SELECT khu_vuc, tuan, nhom, thoi_gian, thoi_gian_ms, snap_1lan, snap_4lan FROM tp_bao_cao WHERE thang = ?', [thang]),
@@ -64,7 +81,7 @@ export async function getTPSummary({ db }, thang) {
   // to gấp mấy lần thực tế.
   const tong = (w) => Math.max(0, ...w);
 
-  return KHU_VUC_LIST.map((kv) => {
+  return dsKV.map((kv) => {
     const one = lay(soLieu, kv, '1lan');
     const four = lay(soLieu, kv, '4lan');
 
