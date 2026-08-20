@@ -261,3 +261,45 @@ export async function donDepTPKhuVuc({ db }, khuVuc) {
   const ketQua = await resetTPTheoKhuVuc_(db, kv);
   return { success: true, khuVuc: kv, tpDaXoa: ketQua.xoa };
 }
+
+/**
+ * Dọn dẹp TẤT CẢ Khu vực cùng lúc (Chỉ tài khoản chủ) — chạy đúng bước
+ * "xoá số TP kẹt cứng" (resetTPTheoKhuVuc_) cho MỌI Khu vực đang có trong
+ * danh sách (đọc ĐỘNG từ config_list, không dùng danh sách cứng
+ * KHU_VUC_LIST, để tự bắt luôn cả Khu vực thêm sau này như TT Châu).
+ *
+ * Thêm 20/08/2026 lần 3, sau khi anh Rise phát hiện: bản sửa "≥1/≥4 lần phải
+ * cộng dồn từ đầu tháng" (xem diem-danh.js, hàm getDiemDanhTPGoiY) CHỈ sửa
+ * CÔNG THỨC tính GỢI Ý cho các ô CHƯA có số lưu sẵn — không tự động ghi đè
+ * những số ĐÃ LƯU trước đó, vì đúng cơ chế "không ghi đè số đã gõ tay" ở
+ * giao diện (xem giải thích đầy đủ ở resetTPTheoKhuVuc_ phía trên) không
+ * phân biệt được số đã lưu là do người gõ tay hay do chính tính năng tự
+ * điền lưu lại từ TRƯỚC khi có bản sửa công thức. Kiểm tra thực tế
+ * (20/08/2026) cho thấy: không chỉ riêng khu SĐ, mà có tới 14 ô ở 8 Khu vực
+ * đang lưu số CŨ (tính theo công thức sai — đếm theo đúng 1 Tuần riêng lẻ)
+ * khác với số ĐÚNG theo công thức mới (cộng dồn cả tháng) — anh Rise phát
+ * hiện qua việc "sửa ≥4 lần nhưng ≥1 lần vẫn sai", đúng bản chất là cùng 1
+ * nguyên nhân: những ô đã có số lưu sẵn (đa số Tuần của ≥1 lần) không được
+ * cập nhật, còn vài ô ≥4 lần "trông như đã đúng" chỉ vì số cũ tình cờ trùng
+ * số mới.
+ *
+ * Hàm này cho phép dọn TẤT CẢ Khu vực trong 1 lần bấm — tránh phải vào
+ * Quản lý khu vực bấm tay từng khu vực một (mục 3, nút 🧹 Dọn dẹp).
+ *
+ * ⚠️ Y HỆT donDepTPKhuVuc: xoá SỐ đã lưu (mọi Tuần, mọi Khu vực, kể cả đã
+ * báo cáo) để tính lại 100% THEO ĐIỂM DANH ngay lần xem kế tiếp — nếu Tuần
+ * nào từng gõ tay số KHÁC Điểm danh (có lý do thực tế, ví dụ Điểm danh nhập
+ * thiếu), số gõ tay đó CŨNG bị thay bằng số tính theo Điểm danh, không giữ
+ * lại. KHÔNG đụng tới `tp_bao_cao` (nhãn/mốc "đã báo cáo" giữ nguyên).
+ */
+export async function donDepTPTatCaKhuVuc({ db }) {
+  const ds = await db.all("SELECT gia_tri FROM config_list WHERE loai = 'khu_vuc' ORDER BY thu_tu, id");
+  const chiTiet = [];
+  let tongXoa = 0;
+  for (const r of ds) {
+    const ketQua = await resetTPTheoKhuVuc_(db, r.gia_tri);
+    chiTiet.push({ khuVuc: r.gia_tri, tpDaXoa: ketQua.xoa });
+    tongXoa += ketQua.xoa;
+  }
+  return { success: true, tongSoKhuVuc: ds.length, tongXoa, chiTiet };
+}
