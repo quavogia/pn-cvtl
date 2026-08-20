@@ -16,12 +16,14 @@
 // dao_tao_tien_do, dao_tao_viec_giao, le_hoi_tien_do, so_moc.
 //
 // 6 BẢNG "TỔNG HỢP CẢ KHU VỰC" (không gắn với riêng ai) CỐ Ý KHÔNG đụng tới:
-// tp_tho_phuong, tp_bao_cao, muc_tieu_kv, nhat_ky_don_thuan, chot_ky,
-// le_hoi_cau_hinh. Số liệu TP đã báo cáo (tp_bao_cao) của Khu vực cũ vẫn giữ
-// nguyên làm lịch sử "đã báo cáo thật"; những tuần CHƯA báo cáo thì tính năng
-// "tự động điền từ Điểm danh" (getDiemDanhTPGoiY, sửa 18/08/2026) sẽ tự cập
-// nhật lại đúng số cho cả Khu vực cũ (giảm xuống) lẫn Khu vực mới (tăng lên)
-// ngay sau khi bảng diem_danh đã chuyển xong, không cần làm gì thêm.
+// tp_bao_cao, muc_tieu_kv, nhat_ky_don_thuan, chot_ky, le_hoi_cau_hinh.
+// RIÊNG tp_tho_phuong (số ≥1/≥4 lần theo Tuần) CÓ đụng tới, xem
+// resetTPTheoKhuVuc_ bên dưới: xoá SỐ (không đụng mốc tp_bao_cao) của MỌI
+// Tuần ở cả Khu vực cũ lẫn Khu vực mới, để tính năng "tự động điền từ Điểm
+// danh" (getDiemDanhTPGoiY, sửa 18/08/2026) tính lại đúng số theo roster mới
+// ngay lần xem kế tiếp — kể cả Tuần ĐÃ báo cáo (sửa 20/08/2026, theo yêu cầu
+// anh Rise: "chuyển đi rồi thì tính bên mới còn bên cũ thì không tính", xem
+// giải thích đầy đủ ở resetTPTheoKhuVuc_).
 // =====================================================================
 
 import { KHU_VUC_LIST } from '../hang-so.js';
@@ -84,10 +86,13 @@ async function danhLaiThuTuRoster_(db, khuVuc) {
 }
 
 /**
- * Xoá các dòng `tp_tho_phuong` (MỌI tháng) của 1 Khu vực mà Tuần đó CHƯA hề
- * có báo cáo nào (không T3, không T7) — để tính năng "tự động điền từ Điểm
- * danh" (getDiemDanhTPGoiY, sửa 18/08/2026) tính lại đúng số theo roster MỚI
- * ngay lần xem kế tiếp, thay vì bị kẹt đứng yên ở số cũ.
+ * Xoá TOÀN BỘ các dòng `tp_tho_phuong` (MỌI tháng, MỌI Tuần) của 1 Khu vực —
+ * để tính năng "tự động điền từ Điểm danh" (getDiemDanhTPGoiY, sửa
+ * 18/08/2026) tính lại đúng số theo roster MỚI ngay lần xem kế tiếp, thay vì
+ * bị kẹt đứng yên ở số cũ. KHÔNG đụng tới `tp_bao_cao` (mốc "đã báo cáo") —
+ * Tuần nào đã báo cáo vẫn hiện đúng nhãn/khoá "đã báo cáo" như cũ, chỉ riêng
+ * CON SỐ ≥1/≥4 lần được tính lại cho khớp với ai đang thật sự thuộc Khu vực
+ * này (xem thêm ở dưới).
  *
  * ⚠️ Lý do bắt buộc phải có bước này, không thể chỉ dựa vào lời hứa "tự động
  * điền" có sẵn (phát hiện 19/08/2026, qua báo cáo thật của anh Rise sau khi
@@ -95,36 +100,43 @@ async function danhLaiThuTuRoster_(db, khuVuc) {
  * (`window._tpAutoTrack_`) chỉ SỐNG TRONG BỘ NHỚ của 1 lần tải trang — không
  * phân biệt được "số đang có là do TỰ ĐỘNG điền + lưu ở một phiên TRƯỚC đó"
  * hay "số do người dùng THẬT SỰ gõ tay" một khi trang được tải lại mới. Kết
- * quả: hễ 1 Tuần CHƯA báo cáo đã từng có số > 0 được lưu (dù là do tự động
- * điền từ trước), mọi lần tải trang MỚI sau đó đều coi số đó là "đã gõ tay",
- * không bao giờ tự cập nhật lại nữa — dù Khu vực vừa đổi hẳn số người. Xoá
- * hẳn dòng lưu (chỉ với Tuần CHƯA báo cáo) là cách chắc chắn nhất buộc lần
- * xem kế tiếp phải tính lại từ đầu theo đúng roster hiện tại.
+ * quả: hễ 1 Tuần đã từng có số > 0 được lưu (dù là do tự động điền từ
+ * trước), mọi lần tải trang MỚI sau đó đều coi số đó là "đã gõ tay", không
+ * bao giờ tự cập nhật lại nữa — dù Khu vực vừa đổi hẳn số người. Xoá hẳn
+ * dòng lưu là cách chắc chắn nhất buộc lần xem kế tiếp phải tính lại từ đầu
+ * theo đúng roster hiện tại.
  *
- * CHỈ xoá Tuần hoàn toàn chưa báo cáo (không T3 lẫn T7) — Tuần đã báo cáo dù
- * chỉ 1 trong 2 (T3 hoặc T7) vẫn giữ nguyên số đã lưu, coi là mốc lịch sử đã
- * chốt một phần (đúng nguyên tắc đã áp dụng cho các Khu vực khác — xem đầu
- * file). Muốn Tuần đó tính lại thì bấm "Hủy báo cáo" trước.
+ * ⚠️⚠️ SỬA 20/08/2026 (theo yêu cầu trực tiếp của anh Rise, sau khi thấy K
+ * Thành vẫn hiện 9 người dù đã chuyển 7 người sang TT Châu): BAN ĐẦU (bản
+ * 19/08/2026) hàm này CHỈ xoá Tuần hoàn toàn CHƯA báo cáo, cố ý giữ nguyên
+ * số của Tuần ĐÃ báo cáo coi là "mốc lịch sử đã chốt". Anh Rise chỉ ra điều
+ * này SAI THỰC TẾ cho đúng tình huống tách/chuyển khu vực: "chuyển đi rồi
+ * thì tính bên mới còn bên cũ thì không tính" — nghĩa là khi ai đó đã rời
+ * khỏi Khu vực, số ≥1/≥4 lần của Khu vực CŨ phải phản ánh đúng những người
+ * CÒN LẠI, kể cả với các Tuần đã lỡ báo cáo trước đó (vì lúc báo cáo, người
+ * đó vẫn còn tính trong Khu vực cũ — sau khi chuyển đi thì số đó không còn
+ * đúng thực tế nữa). Anh Rise đã chọn rõ: **tính lại số, nhưng GIỮ NGUYÊN
+ * trạng thái/nhãn "đã báo cáo"** — không huỷ báo cáo, không mở khoá gì, chỉ
+ * riêng con số hiển thị được cập nhật lại. Do `saveTPWeek` (hàm lưu số, xem
+ * `tho-phuong.js`) hoàn toàn KHÔNG kiểm tra `tp_bao_cao` trước khi ghi, và
+ * bảng Điểm danh/nhãn "đã báo cáo" đọc riêng từ `tp_bao_cao` (không đọc từ
+ * `tp_tho_phuong`), nên chỉ cần xoá dòng `tp_tho_phuong` (không đụng
+ * `tp_bao_cao`) là tự động điền sẽ tính lại và LƯU số mới ngay ở lần xem kế
+ * tiếp, mà nhãn/khoá "đã báo cáo" vẫn nguyên vẹn — đúng ý anh Rise.
  */
-async function resetTPChuaBaoCao_(db, khuVuc) {
-  const tuanChuaBaoCao = await db.all(
-    `SELECT DISTINCT t.thang AS thang, t.tuan AS tuan
-       FROM tp_tho_phuong t
-      WHERE t.khu_vuc = ?
-        AND NOT EXISTS (
-          SELECT 1 FROM tp_bao_cao b
-           WHERE b.khu_vuc = t.khu_vuc AND b.thang = t.thang AND b.tuan = t.tuan
-        )`,
+async function resetTPTheoKhuVuc_(db, khuVuc) {
+  const tuanCoSo = await db.all(
+    `SELECT DISTINCT thang, tuan FROM tp_tho_phuong WHERE khu_vuc = ?`,
     [khuVuc]
   );
-  if (!tuanChuaBaoCao.length) return { xoa: 0 };
+  if (!tuanCoSo.length) return { xoa: 0 };
   await db.batch(
-    tuanChuaBaoCao.map((r) => ({
+    tuanCoSo.map((r) => ({
       sql: 'DELETE FROM tp_tho_phuong WHERE khu_vuc = ? AND thang = ? AND tuan = ?',
       params: [khuVuc, r.thang, r.tuan],
     }))
   );
-  return { xoa: tuanChuaBaoCao.length };
+  return { xoa: tuanCoSo.length };
 }
 
 /**
@@ -215,11 +227,12 @@ export async function chuyenThanhVienKhuVuc({ db }, khuVucCu, danhSachTen, khuVu
   await danhLaiThuTuRoster_(db, kvCu);
   await danhLaiThuTuRoster_(db, kvMoi);
 
-  // Xoá số TP "kẹt cứng" của các Tuần CHƯA báo cáo ở cả 2 Khu vực — bắt buộc
-  // để tính năng tự động điền tính lại đúng theo roster mới ngay lần xem kế
-  // tiếp (xem giải thích đầy đủ ở resetTPChuaBaoCao_, thêm 19/08/2026).
-  const tpXoaCu = await resetTPChuaBaoCao_(db, kvCu);
-  const tpXoaMoi = await resetTPChuaBaoCao_(db, kvMoi);
+  // Xoá số TP "kẹt cứng" ở cả 2 Khu vực (MỌI Tuần, kể cả đã báo cáo — sửa
+  // 20/08/2026, xem giải thích đầy đủ ở resetTPTheoKhuVuc_) — bắt buộc để
+  // tính năng tự động điền tính lại đúng theo roster mới ngay lần xem kế
+  // tiếp, không chỉ riêng Tuần chưa báo cáo.
+  const tpXoaCu = await resetTPTheoKhuVuc_(db, kvCu);
+  const tpXoaMoi = await resetTPTheoKhuVuc_(db, kvMoi);
 
   return {
     success: true,
@@ -233,16 +246,18 @@ export async function chuyenThanhVienKhuVuc({ db }, khuVucCu, danhSachTen, khuVu
 
 /**
  * Dọn dẹp thủ công (Chỉ tài khoản chủ) — chạy lại đúng bước "xoá số TP kẹt
- * cứng của Tuần chưa báo cáo" (xem resetTPChuaBaoCao_) cho MỘT Khu vực chỉ
- * định, KHÔNG động tới bất kỳ bảng nào khác. Dùng để dọn lại những Khu vực
- * đã bị TÁCH/CHUYỂN thành viên TRƯỚC KHI có bước dọn tự động này (thêm
- * 19/08/2026, ngay sau khi tách TT Châu — anh Rise phát hiện số TP của K
- * Thành/Đ Uyên đứng yên không cập nhật theo roster mới). Từ nay về sau,
- * `chuyenThanhVienKhuVuc` đã tự làm bước này — hàm này chỉ cần dùng LẠI cho
- * các lần tách/chuyển đã lỡ làm trước bản sửa 19/08/2026.
+ * cứng" (xem resetTPTheoKhuVuc_) cho MỘT Khu vực chỉ định, KHÔNG động tới
+ * bất kỳ bảng nào khác. Dùng để dọn lại những Khu vực đã bị TÁCH/CHUYỂN
+ * thành viên TRƯỚC KHI có bước dọn tự động này (thêm 19/08/2026, ngay sau
+ * khi tách TT Châu — anh Rise phát hiện số TP của K Thành/Đ Uyên đứng yên
+ * không cập nhật theo roster mới), hoặc dùng lại bất kỳ lúc nào cần tính lại
+ * số cho một Khu vực (ví dụ sau bản sửa 20/08/2026, dùng để tính lại cả các
+ * Tuần đã báo cáo — xem resetTPTheoKhuVuc_). Từ nay về sau,
+ * `chuyenThanhVienKhuVuc` đã tự làm bước này ngay khi chuyển — hàm này vẫn
+ * hữu ích để chạy LẠI thủ công cho các lần tách/chuyển đã lỡ làm trước đó.
  */
 export async function donDepTPKhuVuc({ db }, khuVuc) {
   const kv = batBuoc(khuVuc, 'Khu vực');
-  const ketQua = await resetTPChuaBaoCao_(db, kv);
+  const ketQua = await resetTPTheoKhuVuc_(db, kv);
   return { success: true, khuVuc: kv, tpDaXoa: ketQua.xoa };
 }
