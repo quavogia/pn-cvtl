@@ -292,10 +292,43 @@ console.log('\n3) Gợi ý số liệu TP từ Điểm danh — sửa lỗi map 
   kiem('tuần 1,2,4,5 khu SĐ CHƯA ai điểm danh -> hasData = false (đừng tự điền 0 nhầm)',
     sd?.hasData[0] === false && sd?.hasData[1] === false && sd?.hasData[3] === false && sd?.hasData[4] === false,
     JSON.stringify(sd?.hasData));
-  kiem('khu vực Đ Uyên trả riêng, không lẫn số liệu của SĐ',
-    duyen?.weeks1[0] === 1 && duyen?.weeks1[2] === 0, JSON.stringify(duyen));
+  kiem('khu vực Đ Uyên trả riêng, không lẫn số liệu của SĐ (weeks4 Đ Uyên = 0 mọi tuần, ' +
+    'khác hẳn số của SĐ)', duyen?.weeks1[0] === 1 && duyen?.weeks4.every((n) => n === 0), JSON.stringify(duyen));
+  kiem('Đ Uyên Tuần 3 KHÔNG có dữ liệu mới (hasData=false) dù ≥1 lần cộng dồn vẫn giữ 1 ' +
+    '(cộng dồn từ Tuần 1, không phải bị lẫn số liệu SĐ)',
+    duyen?.hasData[2] === false && duyen?.weeks1[2] === 1, JSON.stringify(duyen));
   kiem('KHÔNG cần truyền khu vực vẫn lấy đủ MỌI khu vực trong 1 lần gọi',
     Object.keys(r.result || {}).length >= 2, JSON.stringify(Object.keys(r.result || {})));
+}
+
+console.log('\n3b) Gợi ý ≥1/≥4 lần phải CỘNG DỒN từ đầu tháng, không chỉ tính riêng 1 tuần (sửa lỗi lần 2, 20/08/2026, anh Rise phát hiện khu SĐ có 4 người ≥4 buổi cộng dồn cả tháng nhưng ô chỉ hiện 3)');
+{
+  // "X" đi đều 1 buổi/tuần suốt 4 tuần liền (KHÔNG tuần nào đủ 4/4) — đúng
+  // kiểu ca thật của N Khánh Hoàng: cộng dồn đủ 4 buổi vào cuối Tuần 4,
+  // nhưng công thức CŨ (chỉ đếm riêng từng tuần) sẽ never đếm người này.
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'X đi đều mỗi tuần 1 buổi', 1, 'T3toi', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'X đi đều mỗi tuần 1 buổi', 2, 'T3toi', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'X đi đều mỗi tuần 1 buổi', 3, 'T3toi', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'X đi đều mỗi tuần 1 buổi', 4, 'T3toi', '211'], NV);
+  // "Y" đi đủ 4/4 buổi RIÊNG trong đúng Tuần 2 (kiểu cũ vẫn phải tiếp tục
+  // đúng — không được để bản sửa làm hỏng ca đã chạy đúng từ trước).
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'Y đủ 4 buổi 1 tuần', 2, 'T3toi', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'Y đủ 4 buổi 1 tuần', 2, 'CNsang', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'Y đủ 4 buổi 1 tuần', 2, 'CNchieu', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Trâm', 'Y đủ 4 buổi 1 tuần', 2, 'CNtoi', '211'], NV);
+
+  const r = await goi('getDiemDanhTPGoiY', [TH], NV);
+  const kt = r.result?.['K Trâm'];
+  kiem('≥4 lần Tuần 1,2,3 khu K Trâm CHƯA đủ 4 người cộng dồn (X mới 1/2/3 buổi)',
+    kt?.weeks4[0] === 0 && kt?.weeks4[2] === 1, JSON.stringify(kt));
+  kiem('≥4 lần Tuần 2 = 1 người (chỉ Y, đủ 4/4 TRONG tuần đó — hành vi cũ vẫn đúng)',
+    kt?.weeks4[1] === 1, JSON.stringify(kt));
+  kiem('≥4 lần Tuần 4 TỰ NHẢY thành 2 người — X vừa cộng dồn đủ 4 buổi (1+1+1+1), Y vẫn còn tính (4 buổi cộng dồn từ Tuần 2)',
+    kt?.weeks4[3] === 2, JSON.stringify(kt));
+  kiem('≥1 lần Tuần 1 = 1 người (chỉ X, Y chưa có buổi nào)',
+    kt?.weeks1[0] === 1, JSON.stringify(kt));
+  kiem('hasData đúng 4 tuần đầu có dữ liệu, Tuần 5 chưa ai điểm danh',
+    kt?.hasData[0] === true && kt?.hasData[3] === true && kt?.hasData[4] === false, JSON.stringify(kt?.hasData));
 }
 
 console.log('\n4) Báo cáo T3/T7 và khoá ô');
