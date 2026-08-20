@@ -384,7 +384,7 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   // "Duyệt truy cập" trong web, chỉ tài khoản chủ — thêm 17/08/2026)
   // + themKhuVucMoi/chuyenThanhVienKhuVuc (màn hình "Quản lý khu vực",
   // chỉ tài khoản chủ — thêm 19/08/2026).
-  kiem('danh mục đủ 78 hàm', ten.length === 78, 'thực tế: ' + ten.length);
+  kiem('danh mục đủ 79 hàm', ten.length === 79, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
