@@ -10,7 +10,7 @@
 //
 // TRẠNG THÁI: đã chuyển xong toàn bộ 60 hàm cũ, cộng thêm 11 hàm mới của
 // nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng), cộng thêm
-// các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — tổng 77.
+// các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — tổng 79.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -133,6 +133,7 @@ export const DANH_MUC = {
   themKhuVucMoi:           { doc: false, chuThoi: true, fn: khuVuc.themKhuVucMoi },
   chuyenThanhVienKhuVuc:   { doc: false, chuThoi: true, fn: khuVuc.chuyenThanhVienKhuVuc },
   donDepTPKhuVuc:          { doc: false, chuThoi: true, fn: khuVuc.donDepTPKhuVuc },
+  donDepTPTatCaKhuVuc:     { doc: false, chuThoi: true, fn: khuVuc.donDepTPTatCaKhuVuc },
 };
 
 export const DANH_SACH_DOC = new Set(
