@@ -150,12 +150,14 @@ console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 ngườ
 
   // Gieo dữ liệu Ở BẢNG TỔNG HỢP KHU VỰC (không gắn riêng ai) — mọi bảng
   // KHÔNG được đụng tới khi chuyển thành viên, RIÊNG tp_tho_phuong có 1 ngoại
-  // lệ có chủ đích (thêm 19/08/2026): Tuần CHƯA báo cáo bị XOÁ để tính lại
-  // đúng theo roster mới; Tuần ĐÃ báo cáo (có tp_bao_cao) vẫn giữ nguyên.
+  // lệ có chủ đích: xoá SỐ của MỌI Tuần (kể cả đã báo cáo, sửa 20/08/2026)
+  // để tính lại đúng theo roster mới — KHÔNG đụng tới tp_bao_cao (mốc "đã
+  // báo cáo" vẫn giữ nguyên, chỉ riêng con số được tính lại).
   // Tuần 1: CHƯA báo cáo -> phải bị xoá sau khi chuyển.
   sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
     .run('2026-08', kvCu, '1lan', 1, 9);
-  // Tuần 2: ĐÃ báo cáo (T3) -> phải giữ nguyên, không bị xoá.
+  // Tuần 2: ĐÃ báo cáo (T3) -> CŨNG phải bị xoá (sửa 20/08/2026), nhưng mốc
+  // tp_bao_cao (nhãn/khoá "đã báo cáo") vẫn giữ nguyên.
   sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
     .run('2026-08', kvCu, '1lan', 2, 7);
   sqlite.prepare(
@@ -195,10 +197,12 @@ console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 ngườ
 
   kiem('tp_tho_phuong: Tuần CHƯA báo cáo (Tuần 1) của Khu vực cũ đã bị XOÁ để tính lại',
     demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc=? AND tuan=1`, kvCu) === 0);
-  kiem('tp_tho_phuong: Tuần ĐÃ báo cáo (Tuần 2) của Khu vực cũ vẫn giữ nguyên số cũ (7)',
-    dem_(`SELECT so_luong FROM tp_tho_phuong WHERE khu_vuc=? AND tuan=2`, kvCu) === 7);
+  kiem('tp_tho_phuong: Tuần ĐÃ báo cáo (Tuần 2) của Khu vực cũ CŨNG bị xoá số (sửa 20/08/2026)',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc=? AND tuan=2`, kvCu) === 0);
+  kiem('tp_bao_cao: mốc "đã báo cáo" của Tuần 2 vẫn giữ nguyên, không bị đụng tới',
+    demSo_(`SELECT COUNT(*) c FROM tp_bao_cao WHERE khu_vuc=? AND tuan=2 AND nhom='T3'`, kvCu) === 1);
   kiem('chuyenThanhVienKhuVuc trả về đúng số dòng TP đã xoá ở Khu vực cũ',
-    r.result?.tpDaXoaKhuVucCu === 1, JSON.stringify(r.result));
+    r.result?.tpDaXoaKhuVucCu === 2, JSON.stringify(r.result));
   kiem('BẢNG TỔNG HỢP nhat_ky_don_thuan CỦA KHU VỰC CŨ không bị đụng tới',
     demSo_(`SELECT COUNT(*) c FROM nhat_ky_don_thuan WHERE khu_vuc=?`, kvCu) === 1);
 
@@ -322,11 +326,14 @@ console.log('\n9) donDepTPKhuVuc — dọn thủ công cho các lần tách/chuy
 
   let r = await goi('donDepTPKhuVuc', ['K Thành']);
   kiem('chạy thành công', r.result?.success === true, JSON.stringify(r));
-  kiem('trả về đúng số dòng đã xoá (1)', r.result?.tpDaXoa === 1, JSON.stringify(r.result));
+  kiem('trả về đúng số dòng đã xoá (2 — cả Tuần đã báo cáo, sửa 20/08/2026)',
+    r.result?.tpDaXoa === 2, JSON.stringify(r.result));
   kiem('Tuần 4 (chưa báo cáo) đã bị xoá',
     demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='K Thành' AND tuan=4`) === 0);
-  kiem('Tuần 1 (đã báo cáo) vẫn giữ nguyên',
-    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='K Thành' AND tuan=1`) === 1);
+  kiem('Tuần 1 (đã báo cáo) CŨNG bị xoá số (sửa 20/08/2026)',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='K Thành' AND tuan=1`) === 0);
+  kiem('Tuần 1: mốc tp_bao_cao vẫn giữ nguyên (không huỷ báo cáo)',
+    demSo_(`SELECT COUNT(*) c FROM tp_bao_cao WHERE khu_vuc='K Thành' AND tuan=1 AND nhom='T3'`) === 1);
 
   r = await goi('donDepTPKhuVuc', ['Khu vực không có gì để xoá']);
   kiem('Khu vực không có dòng TP nào -> vẫn thành công, trả về 0', r.result?.success === true && r.result?.tpDaXoa === 0);
