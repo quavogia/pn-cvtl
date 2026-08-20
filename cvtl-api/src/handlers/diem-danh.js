@@ -119,6 +119,22 @@ export async function getDiemDanhRoster({ db }, thang) {
  * `hasData[i]` = tuần đó khu vực này đã THẬT SỰ có ít nhất 1 người được điểm
  * danh (dù chỉ 1 buổi) — dùng để phân biệt "tuần chưa ai điểm danh, đừng tự
  * điền 0" với "tuần đã điểm danh xong, đúng là 0 người đạt ≥1/≥4 lần".
+ *
+ * (Sửa LẦN 2, 20/08/2026, anh Rise phát hiện: khu vực SĐ có 4 người tổng
+ * cộng dồn cả tháng đã đạt ≥4 buổi (đúng như cột "T.K" trên bảng Điểm danh),
+ * nhưng ô "≥4 lần" vẫn chỉ hiện 3 — không phải do bị "kẹt", mà do CÔNG THỨC
+ * tính SAI kiểu ngay từ đầu.) Bản trước đếm `soBuoi` CHỈ TRONG ĐÚNG 1 TUẦN
+ * riêng lẻ (do `GROUP BY ... tuan ...` không cộng dồn sang tuần khác) —
+ * nghĩa là "≥4 lần" thực chất đang đếm "ai đi đủ 4/4 buổi trong CÙNG 1
+ * TUẦN", khác hẳn với đúng ý nghĩa đã ghi ngay trên giao diện ("T.K = tổng
+ * số buổi đã điểm danh CỘNG DỒN TRONG THÁNG, dùng để tự động điền ≥1/≥4
+ * lần" — xem chú thích cạnh bảng Điểm danh trong `index.html`). Hậu quả:
+ * một người đi đều 1 buổi/tuần suốt 4 tuần (cộng dồn đủ 4 buổi) không bao
+ * giờ được tính, vì không tuần nào riêng lẻ đạt đủ 4/4. Bản sửa lần 2 này
+ * CỘNG DỒN số buổi của từng người qua các Tuần (Tuần 1, rồi Tuần 1+2, rồi
+ * Tuần 1+2+3, ...) trước khi so sánh ngưỡng ≥1/≥4, đúng như cách tính cột
+ * "T.K" — kết quả tự nhảy đúng ngay tại Tuần mà người đó vừa đạt đủ ngưỡng
+ * cộng dồn, không cần đợi "đủ trong đúng 1 tuần" nữa.
  */
 export async function getDiemDanhTPGoiY({ db }, thang) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
@@ -131,6 +147,22 @@ export async function getDiemDanhTPGoiY({ db }, thang) {
     [thang]
   );
 
+  // Gom số buổi theo TỪNG NGƯỜI (khu vực + tên), mỗi người 1 mảng 5 phần tử
+  // — số buổi đã điểm danh RIÊNG của từng Tuần (chưa cộng dồn) — để cộng
+  // dồn dần theo Tuần ở bước dưới.
+  const theoNguoi = new Map(); // key: "khuVuc|ten" -> { khuVuc, soBuoi: [0,0,0,0,0], coDuLieu: [bool x5] }
+  for (const r of rows) {
+    const i = Number(r.tuan) - 1;
+    if (i < 0 || i > 4) continue;
+    const key = r.khu_vuc + '|' + r.ten;
+    if (!theoNguoi.has(key)) {
+      theoNguoi.set(key, { khuVuc: r.khu_vuc, soBuoi: [0, 0, 0, 0, 0], coDuLieu: [false, false, false, false, false] });
+    }
+    const o = theoNguoi.get(key);
+    o.soBuoi[i] = r.soBuoi;
+    o.coDuLieu[i] = true;
+  }
+
   const map = {};
   function laySlot(kv) {
     if (!map[kv]) {
@@ -138,13 +170,15 @@ export async function getDiemDanhTPGoiY({ db }, thang) {
     }
     return map[kv];
   }
-  for (const r of rows) {
-    const i = Number(r.tuan) - 1;
-    if (i < 0 || i > 4) continue;
-    const slot = laySlot(r.khu_vuc);
-    slot.hasData[i] = true;
-    if (r.soBuoi >= 1) slot.weeks1[i]++;
-    if (r.soBuoi >= 4) slot.weeks4[i]++;
+  for (const o of theoNguoi.values()) {
+    const slot = laySlot(o.khuVuc);
+    let congDon = 0;
+    for (let i = 0; i < 5; i++) {
+      if (o.coDuLieu[i]) slot.hasData[i] = true;
+      congDon += o.soBuoi[i]; // cộng dồn từ đầu tháng tới hết Tuần i, y hệt cột "T.K"
+      if (congDon >= 1) slot.weeks1[i]++;
+      if (congDon >= 4) slot.weeks4[i]++;
+    }
   }
   return map;
 }
