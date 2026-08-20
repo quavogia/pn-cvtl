@@ -15,6 +15,8 @@ import { bocD1 } from './db.js';
 import { nhanDienNguoiGoi } from './auth.js';
 import { DANH_MUC } from './registry.js';
 import { CAU_LENH_TAO_BANG } from './schema-sql.js';
+import { guiTelegram, thoatHtml } from './telegram.js';
+import { kiemTraSucKhoeDuLieu, soanTinBatThuong } from './handlers/kiem-tra-suc-khoe.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -117,6 +119,24 @@ export default {
         }
       }
 
+      // Kiểm tra sức khoẻ DỮ LIỆU thủ công (mới 20/08/2026) — dùng để tự tay
+      // gọi thử phép kiểm tra dùng chung với việc chạy TỰ ĐỘNG mỗi đêm (xem
+      // `scheduled` bên dưới cùng file này, và handlers/kiem-tra-suc-khoe.js
+      // để biết phép kiểm tra là gì). Luôn cần đúng MA_CAI_DAT mới gọi được.
+      // Có bất thường thì CŨNG gửi Telegram luôn (không chỉ trả JSON) — để
+      // dùng route này cũng thử được luôn đường báo Telegram có hoạt động.
+      if (url.pathname === '/kiem-tra-suc-khoe') {
+        if (!env.MA_CAI_DAT || url.searchParams.get('ma') !== env.MA_CAI_DAT) {
+          return json({ error: 'Sai mã cài đặt.' }, 403);
+        }
+        const db = bocD1(env.DB);
+        const ketQua = await kiemTraSucKhoeDuLieu({ db });
+        if (ketQua.batThuong.length > 0) {
+          await guiTelegram(env, soanTinBatThuong(ketQua, thoatHtml));
+        }
+        return json({ result: ketQua });
+      }
+
       // Nhập dữ liệu từ hệ thống cũ sang. Chỉ dùng lúc chuyển đổi.
       // Body: {"bang":"diem_danh","cot":["thang",...],"dong":[[...],[...]]}
       if (url.pathname === '/nhap-du-lieu') {
@@ -191,6 +211,21 @@ export default {
     } catch (e) {
       // Lưới an toàn cuối cùng — vẫn là JSON.
       return json({ error: (e && e.message) || 'Lỗi không xác định phía máy chủ.' });
+    }
+  },
+
+  // Cloudflare Cron Trigger (mới 20/08/2026, xem [triggers] trong
+  // wrangler.toml + handlers/kiem-tra-suc-khoe.js) — tự chạy mỗi đêm, KHÔNG
+  // cần ai bấm gì, KHÔNG cần trình duyệt/phiên đăng nhập nào. Chạy đúng
+  // ngay trên máy chủ nên không bị tường lửa/giới hạn mạng nào cản (khác
+  // với việc máy ảo Claude không gọi thẳng được vào máy chủ này). Chỉ gửi
+  // Telegram khi THẬT SỰ có bất thường — im lặng nếu mọi thứ bình thường,
+  // để khỏi làm phiền anh Rise mỗi ngày.
+  async scheduled(event, env, ctx) {
+    const db = bocD1(env.DB);
+    const ketQua = await kiemTraSucKhoeDuLieu({ db });
+    if (ketQua.batThuong.length > 0) {
+      await guiTelegram(env, soanTinBatThuong(ketQua, thoatHtml));
     }
   },
 };
