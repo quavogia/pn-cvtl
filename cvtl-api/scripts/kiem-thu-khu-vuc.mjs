@@ -348,9 +348,10 @@ console.log('\n10) Phân quyền — chỉ tài khoản chủ');
   kiem('themKhuVucMoi chỉ dành cho tài khoản chủ', DANH_MUC.themKhuVucMoi.chuThoi === true);
   kiem('chuyenThanhVienKhuVuc chỉ dành cho tài khoản chủ', DANH_MUC.chuyenThanhVienKhuVuc.chuThoi === true);
   kiem('donDepTPKhuVuc chỉ dành cho tài khoản chủ', DANH_MUC.donDepTPKhuVuc.chuThoi === true);
-  kiem('cả 3 đều là hàm ghi (doc: false)',
+  kiem('donDepTPTatCaKhuVuc chỉ dành cho tài khoản chủ', DANH_MUC.donDepTPTatCaKhuVuc.chuThoi === true);
+  kiem('cả 4 đều là hàm ghi (doc: false)',
     DANH_MUC.themKhuVucMoi.doc === false && DANH_MUC.chuyenThanhVienKhuVuc.doc === false &&
-    DANH_MUC.donDepTPKhuVuc.doc === false);
+    DANH_MUC.donDepTPKhuVuc.doc === false && DANH_MUC.donDepTPTatCaKhuVuc.doc === false);
 }
 
 // =====================================================================
@@ -361,6 +362,63 @@ console.log('\n11) Độ phủ — mọi hàm export của khu-vuc.js đều đ�
   const trongDanhMuc = Object.keys(DANH_MUC);
   const thieu = canPhu.filter((t) => !trongDanhMuc.includes(t));
   kiem('mọi hàm export đều đã nối vào danh mục', thieu.length === 0, 'còn thiếu: ' + thieu.join(', '));
+}
+
+// =====================================================================
+console.log('\n12) donDepTPTatCaKhuVuc — dọn TẤT CẢ khu vực trong 1 lần bấm (mới, 20/08/2026 lần 3)');
+// Sinh ra sau khi anh Rise phát hiện: sửa xong công thức "≥1/≥4 lần cộng dồn"
+// (diem-danh.js) không tự cập nhật những số ĐÃ LƯU trước đó — phải dọn dẹp
+// (xoá số cũ) cho TỪNG khu vực mới tính lại đúng. Trước đây phải bấm tay 🧹
+// Dọn dẹp cho từng khu vực một; hàm này dọn HẾT trong 1 lần bấm.
+{
+  taoCSDL();
+  // 3 khu vực có số TP "kẹt" cần dọn (2 dòng ở K Thành, 1 dòng ở Đ Uyên),
+  // 1 khu vực (K Trâm) hoàn toàn không có gì để xoá — phải vẫn chạy qua bình
+  // thường, không báo lỗi.
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', 'K Thành', '1lan', 4, 9);
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', 'K Thành', '1lan', 1, 6);
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', 'Đ Uyên', '1lan', 3, 4);
+  sqlite.prepare(
+    'INSERT INTO tp_bao_cao (thang, khu_vuc, tuan, nhom, thoi_gian, thoi_gian_ms, snap_1lan, snap_4lan) VALUES (?,?,?,?,?,?,?,?)'
+  ).run('2026-08', 'K Thành', 1, 'T3', '15/08/2026 23:10', Date.now(), 6, 0);
+
+  let r = await goi('donDepTPTatCaKhuVuc', []);
+  kiem('chạy thành công', r.result?.success === true, JSON.stringify(r));
+  kiem('tổng số khu vực đúng bằng 7 (đọc động từ config_list, không phải danh sách cứng)',
+    r.result?.tongSoKhuVuc === 7, JSON.stringify(r.result));
+  kiem('tổng số dòng đã xoá đúng bằng 3 (2 ở K Thành + 1 ở Đ Uyên)',
+    r.result?.tongXoa === 3, JSON.stringify(r.result));
+  const ktKThanh = r.result?.chiTiet?.find((x) => x.khuVuc === 'K Thành');
+  const ktDUyen = r.result?.chiTiet?.find((x) => x.khuVuc === 'Đ Uyên');
+  const ktKTram = r.result?.chiTiet?.find((x) => x.khuVuc === 'K Trâm');
+  kiem('chi tiết K Thành đúng 2 dòng đã xoá', ktKThanh?.tpDaXoa === 2, JSON.stringify(ktKThanh));
+  kiem('chi tiết Đ Uyên đúng 1 dòng đã xoá', ktDUyen?.tpDaXoa === 1, JSON.stringify(ktDUyen));
+  kiem('chi tiết K Trâm (không có gì để xoá) vẫn có mặt, đúng 0 dòng', ktKTram?.tpDaXoa === 0, JSON.stringify(ktKTram));
+  kiem('tp_tho_phuong của K Thành đã xoá sạch',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='K Thành'`) === 0);
+  kiem('tp_tho_phuong của Đ Uyên đã xoá sạch',
+    demSo_(`SELECT COUNT(*) c FROM tp_tho_phuong WHERE khu_vuc='Đ Uyên'`) === 0);
+  kiem('tp_bao_cao (mốc đã báo cáo) của K Thành KHÔNG bị đụng tới',
+    demSo_(`SELECT COUNT(*) c FROM tp_bao_cao WHERE khu_vuc='K Thành' AND tuan=1 AND nhom='T3'`) === 1);
+
+  // Chạy lại lần 2 ngay sau đó -> không còn gì để xoá, vẫn thành công (không lỗi khi gọi lặp lại).
+  r = await goi('donDepTPTatCaKhuVuc', []);
+  kiem('gọi lại lần 2 vẫn thành công, tổng xoá = 0 (đã dọn sạch từ lần trước)',
+    r.result?.success === true && r.result?.tongXoa === 0, JSON.stringify(r.result));
+
+  // Khu vực THÊM MỚI sau (TT Châu, qua themKhuVucMoi) cũng phải được dọn —
+  // xác nhận hàm đọc DANH SÁCH ĐỘNG (config_list), không phải KHU_VUC_LIST cứng.
+  await goi('themKhuVucMoi', ['TT Châu', null]);
+  sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
+    .run('2026-08', 'TT Châu', '4lan', 2, 5);
+  r = await goi('donDepTPTatCaKhuVuc', []);
+  kiem('khu vực mới thêm (TT Châu) CŨNG được tính vào tổng số khu vực (8)',
+    r.result?.tongSoKhuVuc === 8, JSON.stringify(r.result));
+  kiem('khu vực mới thêm (TT Châu) CŨNG được dọn dẹp đúng',
+    r.result?.chiTiet?.find((x) => x.khuVuc === 'TT Châu')?.tpDaXoa === 1, JSON.stringify(r.result?.chiTiet));
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
