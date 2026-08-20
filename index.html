@@ -969,6 +969,13 @@
           </div>
           <button type="button" onclick="donDepTPUI_()" style="padding:8px 16px;border-radius:6px;background:#ea580c;color:#fff;border:none;font-size:14px;cursor:pointer;">🧹 Dọn dẹp</button>
         </div>
+        <p style="font-size:12px;color:#64748b;margin-top:14px;">
+          <b>Mới 20/08/2026:</b> sau khi sửa lỗi công thức "≥1/≥4 lần" (tính cộng dồn từ đầu
+          tháng thay vì chỉ đúng 1 Tuần), những số ĐÃ LƯU từ trước không tự cập nhật theo công
+          thức mới — cùng lý do như trên. Bấm nút dưới đây để dọn 1 LẦN cho TẤT CẢ khu vực, khỏi
+          phải bấm tay từng khu vực một.
+        </p>
+        <button type="button" onclick="donDepTPTatCaUI_()" style="padding:8px 16px;border-radius:6px;background:#b91c1c;color:#fff;border:none;font-size:14px;cursor:pointer;">🧹🧹 Dọn dẹp TẤT CẢ khu vực</button>
       </div>
     </div>
 
@@ -2947,6 +2954,22 @@ function donDepTPUI_(){
   }).withFailureHandler(function(err){
     showMsg('Không dọn được: ' + err.message, false);
   }).donDepTPKhuVuc(kv);
+}
+
+function donDepTPTatCaUI_(){
+  if (!confirm('Dọn dẹp số TP kẹt của TẤT CẢ khu vực?\n\n' +
+    'Sẽ xoá số TP đã lưu của TẤT CẢ các Tuần, TẤT CẢ khu vực (kể cả Tuần đã báo cáo) để tính ' +
+    'lại 100% theo Điểm danh hiện tại. Nếu Tuần nào đã gõ tay số khác Điểm danh (có lý do thực ' +
+    'tế riêng), số đó cũng sẽ bị thay bằng số tính theo Điểm danh, không giữ lại. Nhãn "đã báo ' +
+    'cáo" vẫn giữ nguyên, không bị mất hay mở khoá lại.')) return;
+  google.script.run.withSuccessHandler(function(r){
+    const soKv = (r && r.tongSoKhuVuc) || 0;
+    const soXoa = (r && r.tongXoa) || 0;
+    showMsg('Đã dọn xong ' + soKv + ' khu vực — đã xoá ' + soXoa + ' dòng số TP cũ. Đang tải lại trang…', true);
+    setTimeout(function(){ location.reload(); }, 900);
+  }).withFailureHandler(function(err){
+    showMsg('Không dọn được: ' + err.message, false);
+  }).donDepTPTatCaKhuVuc();
 }
 
 function tpddRowHtml_(m, nhom, isFirst, isLast){
