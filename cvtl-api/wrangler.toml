@@ -6,3 +6,9 @@ compatibility_date = "2026-08-01"
 binding = "DB"
 database_name = "cvtl-db"
 database_id = "74e2ab5b-b246-497b-b706-be58d3015493"
+
+# Tự chạy phép kiểm tra sức khoẻ dữ liệu mỗi đêm (mới 20/08/2026, xem
+# src/handlers/kiem-tra-suc-khoe.js + hàm `scheduled` trong src/index.js).
+# "0 23 * * *" = 23:00 UTC = 06:00 giờ Việt Nam (UTC+7) mỗi ngày.
+[triggers]
+crons = ["0 23 * * *"]
