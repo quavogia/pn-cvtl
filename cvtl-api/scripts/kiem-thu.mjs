@@ -250,6 +250,38 @@ console.log('\n1b) Đăng nhập — mã Google nằm ở ô "token", KHÔNG n�
     thuHoi.result?.authorized === false, JSON.stringify(thuHoi));
   kiem('mã phiên của người bị thu hồi quyền bị huỷ',
     dem('SELECT COUNT(*) c FROM phien_dang_nhap WHERE token=?', BI_THU_HOI) === 0);
+
+  // ---------------------------------------------------------------
+  // laChu trong checkAccess (mới 21/08/2026, phục vụ nút "Cấp quyền
+  // Admin"/"Duyệt truy cập" hiện đúng cho MỌI Admin, không chỉ riêng 1
+  // email cứng như trước — xem isChuTaiKhoan_() ở index.html).
+  // ---------------------------------------------------------------
+  const PHIEN_CHU = 'SESS.kiemthuchu';
+  db.run('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)',
+    [PHIEN_CHU, 'rise.shine1948@gmail.com', 'Chu', NAY, NAY + 86400000]);
+  const vaoChu = await chay(PHIEN_CHU);
+  kiem('checkAccess trả về laChu=true cho tài khoản có la_chu=1 trong CSDL',
+    vaoChu.result?.laChu === true, JSON.stringify(vaoChu));
+
+  const PHIEN_NV2 = 'SESS.kiemthunv2';
+  db.run('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)',
+    [PHIEN_NV2, 'nhanvien@gmail.com', 'Nhan vien', NAY, NAY + 86400000]);
+  const vaoNv = await chay(PHIEN_NV2);
+  kiem('checkAccess trả về laChu=false cho tài khoản thường (la_chu=0)',
+    vaoNv.result?.laChu === false, JSON.stringify(vaoNv));
+
+  // Tấm lưới an toàn: mail chủ gốc LUÔN laChu=true dù cột la_chu trong CSDL
+  // lỡ là 0 — tránh tuyệt đối việc tự khoá mất quyền của chính chủ khi bắt
+  // đầu có nhiều Admin khác.
+  db.run("INSERT INTO access_control (email, trang_thai, ten, la_chu) VALUES ('rise.shine1948@gmail.com','da_duyet','Chu',0) ON CONFLICT(email) DO UPDATE SET la_chu=0");
+  const PHIEN_CHU2 = 'SESS.kiemthuchu2';
+  db.run('INSERT INTO phien_dang_nhap (token, email, ten, tao_luc, het_han_luc) VALUES (?,?,?,?,?)',
+    [PHIEN_CHU2, 'rise.shine1948@gmail.com', 'Chu', NAY, NAY + 86400000]);
+  const vaoChu2 = await chay(PHIEN_CHU2);
+  kiem('mail chủ gốc LUÔN laChu=true dù cột la_chu trong CSDL lỡ là 0 (lưới an toàn chống tự khoá)',
+    vaoChu2.result?.laChu === true, JSON.stringify(vaoChu2));
+  // Khôi phục lại la_chu=1 cho đúng dữ liệu mẫu, tránh ảnh hưởng các phần kiểm thử sau.
+  db.run("UPDATE access_control SET la_chu = 1 WHERE email = 'rise.shine1948@gmail.com'");
 }
 
 console.log('\n2) Điểm danh — ghi và đọc');
@@ -384,7 +416,7 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   // "Duyệt truy cập" trong web, chỉ tài khoản chủ — thêm 17/08/2026)
   // + themKhuVucMoi/chuyenThanhVienKhuVuc (màn hình "Quản lý khu vực",
   // chỉ tài khoản chủ — thêm 19/08/2026).
-  kiem('danh mục đủ 79 hàm', ten.length === 79, 'thực tế: ' + ten.length);
+  kiem('danh mục đủ 83 hàm', ten.length === 83, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
