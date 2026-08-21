@@ -10,7 +10,9 @@
 //
 // TRẠNG THÁI: đã chuyển xong toàn bộ 60 hàm cũ, cộng thêm 11 hàm mới của
 // nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng), cộng thêm
-// các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — tổng 79.
+// các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — cộng
+// thêm 4 hàm quản lý Admin (getApprovedAccess/revokeAccess/grantAdmin/
+// revokeAdmin, mới 21/08/2026) — tổng 83.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -34,6 +36,13 @@ export const DANH_MUC = {
   getPendingAccess:       { doc: false, chuThoi: true, fn: truyCap.getPendingAccess },
   approveAccessRequest:   { doc: false, chuThoi: true, fn: truyCap.approveAccessRequest },
   denyAccessRequest:      { doc: false, chuThoi: true, fn: truyCap.denyAccessRequest },
+
+  // Quản lý người ĐÃ được cấp quyền — xem/gỡ quyền, cấp/gỡ quyền Admin
+  // (mới 21/08/2026, theo yêu cầu anh Rise). Chỉ Admin (chuThoi) mới gọi được.
+  getApprovedAccess:      { doc: false, chuThoi: true, fn: truyCap.getApprovedAccess },
+  revokeAccess:           { doc: false, chuThoi: true, fn: truyCap.revokeAccess },
+  grantAdmin:             { doc: false, chuThoi: true, fn: truyCap.grantAdmin },
+  revokeAdmin:            { doc: false, chuThoi: true, fn: truyCap.revokeAdmin },
 
   // --- Cấu hình dùng chung ---
   getDropdownOptions:     { doc: true,  fn: cauHinh.getDropdownOptions },
