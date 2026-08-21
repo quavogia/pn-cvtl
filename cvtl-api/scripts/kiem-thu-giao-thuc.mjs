@@ -158,6 +158,79 @@ console.log('\n=== KIỂM THỬ màn hình "Duyệt truy cập" trong web (17/08
 
   j = await goiFn('getPendingAccess', [], 'SESS.chuthu');
   ktraHtml('sau khi từ chối, danh sách chờ trống', Array.isArray(j.result) && j.result.length === 0, JSON.stringify(j.result));
+
+  // ===================================================================
+  // Danh sách "Đã cấp quyền" + gỡ quyền + cấp/gỡ quyền Admin (mới
+  // 21/08/2026, theo yêu cầu anh Rise: "anh cần hiện lại những mail đã cấp
+  // quyền, bên cạnh đó cũng có thêm cả nút gỡ quyền và cấp quyền admin
+  // nữa"). Tại điểm này CSDL đã có 4 người 'da_duyet' cộng dồn từ các khối
+  // kiểm thử phía trên trong CÙNG 1 CSDL: chu-thu@gmail.com (la_chu=1),
+  // nv-thu@gmail.com (la_chu=0, cả hai có sẵn từ đầu block này),
+  // nguoimoi@gmail.com (duyệt qua link Telegram) và cho1@gmail.com (duyệt
+  // qua approveAccessRequest) — dùng .find() theo email thay vì giả định
+  // đúng vị trí trong mảng, để không phụ thuộc thứ tự các khối kiểm thử
+  // khác chạy trước.
+  // ===================================================================
+  j = await goiFn('getApprovedAccess', [], 'SESS.nvthu');
+  ktraHtml('nhân viên thường KHÔNG xem được danh sách đã cấp quyền', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('getApprovedAccess', [], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ xem được danh sách đã cấp quyền, đủ 4 người',
+    Array.isArray(j.result) && j.result.length === 4, JSON.stringify(j.result));
+  ktraHtml('Admin (la_chu=1) xếp lên đầu danh sách',
+    j.result?.[0]?.email === 'chu-thu@gmail.com' && j.result[0].laChu === true, JSON.stringify(j.result));
+  ktraHtml('người thường (la_chu=0) laChu = false',
+    j.result?.find((x) => x.email === 'nv-thu@gmail.com')?.laChu === false, JSON.stringify(j.result));
+
+  j = await goiFn('grantAdmin', ['nv-thu@gmail.com'], 'SESS.nvthu');
+  ktraHtml('nhân viên thường KHÔNG tự cấp Admin cho ai được', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('grantAdmin', ['nguoi-la@gmail.com'], 'SESS.chuthu');
+  ktraHtml('KHÔNG cấp được Admin cho email chưa được duyệt truy cập', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('grantAdmin', ['nv-thu@gmail.com'], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ cấp Admin cho nhân viên thường thành công', j.result?.ok === true, JSON.stringify(j));
+  hang = sqlite.prepare("SELECT la_chu FROM access_control WHERE email='nv-thu@gmail.com'").get();
+  ktraHtml('CSDL cập nhật la_chu=1 sau khi cấp Admin', hang?.la_chu === 1, JSON.stringify(hang));
+
+  j = await goiFn('getApprovedAccess', [], 'SESS.chuthu');
+  ktraHtml('sau khi cấp, nv-thu@gmail.com hiện laChu=true trong danh sách',
+    j.result?.find((x) => x.email === 'nv-thu@gmail.com')?.laChu === true, JSON.stringify(j.result));
+
+  j = await goiFn('revokeAdmin', ['nv-thu@gmail.com'], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ gỡ Admin của nv-thu thành công', j.result?.ok === true, JSON.stringify(j));
+  hang = sqlite.prepare("SELECT la_chu, trang_thai FROM access_control WHERE email='nv-thu@gmail.com'").get();
+  ktraHtml('CSDL cập nhật la_chu=0 sau khi gỡ Admin, vẫn còn da_duyet (chỉ mất Admin, không mất quyền truy cập)',
+    hang?.la_chu === 0 && hang?.trang_thai === 'da_duyet', JSON.stringify(hang));
+
+  // Tài khoản chủ GỐC (CHU_VINH_VIEN) không ai gỡ được Admin, kể cả Admin khác.
+  sqlite.exec("INSERT INTO access_control (email, trang_thai, ten, la_chu) VALUES ('rise.shine1948@gmail.com','da_duyet','Rise',0)");
+  j = await goiFn('revokeAdmin', ['rise.shine1948@gmail.com'], 'SESS.chuthu');
+  ktraHtml('KHÔNG ai gỡ được quyền Admin của tài khoản chủ gốc', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('revokeAccess', ['nv-thu@gmail.com'], 'SESS.nvthu');
+  ktraHtml('nhân viên thường KHÔNG tự gỡ quyền của ai được', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('revokeAccess', ['rise.shine1948@gmail.com'], 'SESS.chuthu');
+  ktraHtml('KHÔNG ai gỡ được quyền truy cập của tài khoản chủ gốc', !!j.error, JSON.stringify(j));
+
+  j = await goiFn('revokeAccess', ['nv-thu@gmail.com'], 'SESS.chuthu');
+  ktraHtml('tài khoản chủ gỡ quyền truy cập của nv-thu thành công', j.result?.ok === true, JSON.stringify(j));
+  hang = sqlite.prepare("SELECT trang_thai, la_chu FROM access_control WHERE email='nv-thu@gmail.com'").get();
+  ktraHtml('CSDL cập nhật tu_choi + la_chu=0 sau khi gỡ quyền truy cập',
+    hang?.trang_thai === 'tu_choi' && hang?.la_chu === 0, JSON.stringify(hang));
+
+  // Sau khi bị gỡ quyền, phiên đăng nhập cũ của nv-thu không còn dùng được nữa
+  // NGAY LẬP TỨC ở lần gọi kế tiếp (router kiểm tra access_control mỗi lần gọi,
+  // không chỉ lúc đăng nhập) — kiểm bằng checkAccess với đúng mã phiên cũ.
+  j = await goiFn('checkAccess', [], 'SESS.nvthu');
+  ktraHtml('phiên đăng nhập cũ của người vừa bị gỡ quyền không còn hiệu lực',
+    j.result?.authorized === false, JSON.stringify(j));
+
+  j = await goiFn('getApprovedAccess', [], 'SESS.chuthu');
+  ktraHtml('sau khi gỡ quyền, nv-thu@gmail.com không còn trong danh sách "đã cấp quyền"',
+    Array.isArray(j.result) && j.result.length === 4 && !j.result.some((x) => x.email === 'nv-thu@gmail.com'),
+    JSON.stringify(j.result));
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
