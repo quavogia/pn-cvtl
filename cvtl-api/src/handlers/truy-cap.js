@@ -13,7 +13,7 @@
 //    Nếu chỉ xử lý loại thứ nhất thì **cứ F5 là bị bắt đăng nhập lại**.
 //    Bản Apps Script cũ dùng verifyAnyToken_() để nhận cả hai — phải giữ đúng vậy.
 
-import { xacThucGoogleJwt, taoPhien } from '../auth.js';
+import { xacThucGoogleJwt, taoPhien, CHU_VINH_VIEN } from '../auth.js';
 import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 
 // Địa chỉ máy chủ — dùng để dựng đường link "Cấp quyền 1-chạm" gửi kèm tin
@@ -72,13 +72,21 @@ export async function checkAccess(ctx, thamSo) {
   }
 
   const quyen = await db.first(
-    'SELECT trang_thai, ten FROM access_control WHERE lower(email) = lower(?)',
+    'SELECT trang_thai, ten, la_chu FROM access_control WHERE lower(email) = lower(?)',
     [email]
   );
 
+  // laChu (mới 21/08/2026): true nếu tài khoản này được cấp quyền Admin
+  // (la_chu=1 trong CSDL) — dùng để giao diện tự hiện đúng các mục chỉ-Admin
+  // (Hủy báo cáo, Quản lý khu vực, Duyệt truy cập...), thay cho cách cũ chỉ
+  // so email cứng với đúng 1 địa chỉ (isChuTaiKhoan_() ở index.html). Email
+  // CHU_VINH_VIEN LUÔN được coi là Admin dù cột la_chu lỡ chưa/không còn là 1
+  // trong CSDL — tránh tuyệt đối việc tự khoá mất quyền của chính chủ.
+  const laChu = (!!quyen && quyen.la_chu === 1) || email === CHU_VINH_VIEN;
+
   // Tên trường "name" và "pending" giữ đúng như bản cũ — giao diện đang đọc
   // res.email / res.pending / res.sessionToken.
-  const chung = { email, name: ten, ten };
+  const chung = { email, name: ten, ten, laChu };
 
   if (!quyen) {
     return { authorized: false, pending: false, ...chung, trangThai: 'chua_dang_ky' };
@@ -169,10 +177,11 @@ export async function getPendingAccess({ db }) {
 export async function approveAccessRequest({ db }, email) {
   const e = String(email || '').toLowerCase().trim();
   if (!e) throw new Error('Thiếu email cần cấp quyền.');
+  const nay = new Date().toISOString();
   await db.run(
-    `INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau) VALUES (?, 'da_duyet', '', ?)
-     ON CONFLICT (email) DO UPDATE SET trang_thai = 'da_duyet'`,
-    [e, new Date().toISOString()]
+    `INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau, ngay_duyet) VALUES (?, 'da_duyet', '', ?, ?)
+     ON CONFLICT (email) DO UPDATE SET trang_thai = 'da_duyet', ngay_duyet = excluded.ngay_duyet`,
+    [e, nay, nay]
   );
   return { ok: true };
 }
@@ -183,5 +192,80 @@ export async function denyAccessRequest({ db }, email) {
   const e = String(email || '').toLowerCase().trim();
   if (!e) throw new Error('Thiếu email cần từ chối.');
   await db.run(`UPDATE access_control SET trang_thai = 'tu_choi' WHERE lower(email) = lower(?)`, [e]);
+  return { ok: true };
+}
+
+/**
+ * Danh sách người ĐÃ được cấp quyền truy cập (mới 21/08/2026, theo yêu cầu
+ * anh Rise: "anh cần hiện lại những mail đã cấp quyền, bên cạnh đó cũng có
+ * thêm cả nút gỡ quyền và cấp quyền admin nữa"). Khác với getPendingAccess
+ * (chỉ người đang CHỜ duyệt), đây là người ĐÃ da_duyet — dùng để anh Rise
+ * xem toàn bộ danh sách, gỡ quyền, hoặc cấp/gỡ quyền Admin ngay trong web.
+ * Admin xếp lên đầu (la_chu DESC), sau đó theo tên cho dễ tìm.
+ */
+export async function getApprovedAccess({ db }) {
+  const ds = await db.all(
+    `SELECT email, ten, ngay_duyet, la_chu FROM access_control
+     WHERE trang_thai = 'da_duyet' ORDER BY la_chu DESC, lower(ten) ASC, lower(email) ASC`
+  );
+  return ds.map((r) => {
+    const email = String(r.email || '').toLowerCase();
+    const laChuVinhVien = email === CHU_VINH_VIEN;
+    return {
+      email: r.email,
+      ten: r.ten || '',
+      ngayDuyet: r.ngay_duyet || '',
+      laChu: r.la_chu === 1 || laChuVinhVien,
+      laChuVinhVien, // true = tài khoản chủ gốc, không ai gỡ được (kể cả Admin khác)
+    };
+  });
+}
+
+/**
+ * Gỡ quyền truy cập đã cấp — người này mất quyền đăng nhập ngay lập tức
+ * (mọi lệnh gọi kế tiếp của họ bị chặn ở router vì trang_thai không còn là
+ * 'da_duyet', xem src/index.js), phải "Gửi yêu cầu truy cập" xin lại từ đầu
+ * nếu muốn dùng lại về sau. KHÔNG đụng tới dữ liệu khác của họ (Điểm danh,
+ * Trụ đỡ...). Gỡ quyền truy cập thì đồng thời cũng mất luôn quyền Admin
+ * (nếu có) — hợp lý vì không còn đăng nhập được thì Admin cũng vô nghĩa.
+ */
+export async function revokeAccess({ db }, email) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) throw new Error('Thiếu email cần gỡ quyền.');
+  if (e === CHU_VINH_VIEN) throw new Error('Không thể gỡ quyền của tài khoản chủ chính.');
+  await db.run(
+    `UPDATE access_control SET trang_thai = 'tu_choi', la_chu = 0 WHERE lower(email) = lower(?)`,
+    [e]
+  );
+  return { ok: true };
+}
+
+/**
+ * Cấp quyền Admin (la_chu=1) cho một email ĐÃ được duyệt truy cập từ trước.
+ * Admin có TOÀN BỘ quyền như tài khoản chủ: Hủy báo cáo, Quản lý khu vực
+ * (thêm/chuyển/dọn dẹp TP), Duyệt truy cập, và cấp/gỡ Admin cho người khác
+ * — theo đúng lựa chọn của anh Rise (21/08/2026, "Full quyền như anh").
+ */
+export async function grantAdmin({ db }, email) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) throw new Error('Thiếu email cần cấp quyền Admin.');
+  const quyen = await db.first(`SELECT trang_thai FROM access_control WHERE lower(email) = lower(?)`, [e]);
+  if (!quyen || quyen.trang_thai !== 'da_duyet') {
+    throw new Error('Chỉ cấp được quyền Admin cho người ĐÃ được duyệt truy cập.');
+  }
+  await db.run(`UPDATE access_control SET la_chu = 1 WHERE lower(email) = lower(?)`, [e]);
+  return { ok: true };
+}
+
+/**
+ * Gỡ quyền Admin — người này vẫn còn quyền truy cập bình thường (vẫn đăng
+ * nhập/dùng web được), chỉ mất các quyền chỉ-Admin. Không thể gỡ Admin của
+ * tài khoản chủ chính (an toàn: luôn phải còn ít nhất 1 người có toàn quyền).
+ */
+export async function revokeAdmin({ db }, email) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) throw new Error('Thiếu email cần gỡ quyền Admin.');
+  if (e === CHU_VINH_VIEN) throw new Error('Không thể gỡ quyền Admin của tài khoản chủ chính.');
+  await db.run(`UPDATE access_control SET la_chu = 0 WHERE lower(email) = lower(?)`, [e]);
   return { ok: true };
 }
