@@ -14,6 +14,13 @@
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 const PHIEN_HAN_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
 
+// Mail chủ gốc — LUÔN được coi là Admin (la_chu=1) dù cột la_chu trong CSDL
+// lỡ là 0/NULL vì lý do gì đó — tấm lưới an toàn cuối cùng để không bao giờ
+// tự khoá mất quyền của chính chủ khi bắt đầu có nhiều Admin (mới 21/08/2026,
+// theo yêu cầu anh Rise thêm nút cấp/gỡ quyền Admin). Dùng chung ở đây và ở
+// handlers/truy-cap.js (getApprovedAccess/revokeAccess/revokeAdmin).
+export const CHU_VINH_VIEN = 'rise.shine1948@gmail.com';
+
 let jwksCache = { keys: null, hetHan: 0 };
 
 function b64urlToBytes(s) {
@@ -112,5 +119,5 @@ export async function nhanDienNguoiGoi(db, token, clientId) {
   const quyen = await db.first('SELECT trang_thai, la_chu FROM access_control WHERE email = ?', [email]);
   if (!quyen || quyen.trang_thai !== 'da_duyet') throw new Error('CHUA_DUOC_CAP_QUYEN');
 
-  return { email, ten, laChu: quyen.la_chu === 1 };
+  return { email, ten, laChu: quyen.la_chu === 1 || email === CHU_VINH_VIEN };
 }
