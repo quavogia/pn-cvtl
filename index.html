@@ -290,7 +290,7 @@
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
          bỏ lỡ/tắt tiếng không ai để ý. -->
-    <button type="button" class="nav-btn" id="navDuyet" data-panel="duyet" style="display:none;" onclick="showPanel('duyet'); loadDuyetTruyCap();">
+    <button type="button" class="nav-btn" id="navDuyet" data-panel="duyet" style="display:none;" onclick="showPanel('duyet'); loadDuyetTruyCap(); loadApprovedAccess();">
       <span class="nav-icon">🔑</span> Duyệt truy cập <span id="duyetBadge" class="nav-badge" style="display:none;"></span>
     </button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
@@ -891,6 +891,23 @@
           <thead><tr><th>Tên</th><th>Email</th><th>Xin lúc</th><th></th></tr></thead>
           <tbody id="duyetTableBody">
             <tr><td colspan="4" style="color:#94a3b8;">Đang tải…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h1 style="margin-top:32px;">Đã cấp quyền</h1>
+      <p style="font-size:13px;color:#64748b;margin-top:-8px;">
+        Toàn bộ người ĐANG có quyền truy cập (mới 21/08/2026). <b>Admin</b> có TOÀN BỘ quyền như
+        Trưởng phòng: Hủy báo cáo, Quản lý khu vực, Duyệt truy cập, và cấp/gỡ Admin cho người
+        khác. "🚫 Gỡ quyền" xoá hẳn quyền đăng nhập của người đó — muốn dùng lại phải xin cấp
+        quyền từ đầu. Tài khoản chủ gốc không ai gỡ được (kể cả Admin khác), để không bao giờ
+        khoá mất quyền của chính chủ.
+      </p>
+      <div class="card">
+        <table>
+          <thead><tr><th>Tên</th><th>Email</th><th>Ngày duyệt</th><th>Vai trò</th><th></th></tr></thead>
+          <tbody id="daCapQuyenTableBody">
+            <tr><td colspan="5" style="color:#94a3b8;">Đang tải…</td></tr>
           </tbody>
         </table>
       </div>
@@ -2775,11 +2792,15 @@ function renderTPDDTable_(){
   '</tbody>';
 }
 
-// Tài khoản chủ (Trưởng phòng) — dùng để: (1) không bị khoá ô Điểm danh sau
-// khi đã báo cáo, (2) là người duy nhất nhìn thấy nút "Hủy báo cáo" (thêm
-// 16/08/2026, theo yêu cầu anh Rise, để tự sửa khi báo cáo nhầm).
+// Tài khoản Admin (Trưởng phòng + những người được cấp quyền Admin) — dùng
+// để: (1) không bị khoá ô Điểm danh sau khi đã báo cáo, (2) nhìn thấy nút
+// "Hủy báo cáo" (16/08/2026), (3) vào được "Quản lý khu vực"/"Duyệt truy
+// cập". SỬA 21/08/2026 (theo yêu cầu anh Rise, thêm nút "cấp quyền admin"):
+// trước đây so cứng đúng 1 email của Trưởng phòng — giờ đọc cờ `laChu` máy
+// chủ trả về lúc đăng nhập (xem checkAccess ở handlers/truy-cap.js), để CÓ
+// THỂ cấp quyền Admin đầy đủ cho nhiều người, không chỉ riêng 1 tài khoản.
 function isChuTaiKhoan_(){
-  return window._authEmail === 'rise.shine1948@gmail.com';
+  return !!window._laChu;
 }
 
 // =====================================================================
@@ -2836,6 +2857,7 @@ function approveTruyCap(email){
   google.script.run.withSuccessHandler(function(){
     showMsg('Đã cấp quyền cho ' + email, true);
     loadDuyetTruyCap();
+    loadApprovedAccess();
   }).withFailureHandler(function(err){
     showMsg('Không cấp quyền được: ' + err.message, false);
   }).approveAccessRequest(email);
@@ -2849,6 +2871,93 @@ function denyTruyCap(email){
   }).withFailureHandler(function(err){
     showMsg('Không từ chối được: ' + err.message, false);
   }).denyAccessRequest(email);
+}
+
+// =====================================================================
+// ĐÃ CẤP QUYỀN — danh sách người đang có quyền truy cập + gỡ quyền + cấp/gỡ
+// quyền Admin (mới 21/08/2026, theo yêu cầu anh Rise: "anh cần hiện lại
+// những mail đã cấp quyền, bên cạnh đó cũng có thêm cả nút gỡ quyền và cấp
+// quyền admin nữa"). Admin ở đây có TOÀN BỘ quyền như Trưởng phòng — xem
+// isChuTaiKhoan_() ở trên, giờ đọc cờ laChu máy chủ trả về thay vì so 1
+// email cứng, để tài khoản Admin mới cấp cũng thấy đủ các mục chỉ-Admin.
+// =====================================================================
+function loadApprovedAccess(){
+  if (!isChuTaiKhoan_()) return;
+  google.script.run.withSuccessHandler(function(list){
+    renderApprovedTable_(list || []);
+  }).withFailureHandler(function(err){
+    const body = document.getElementById('daCapQuyenTableBody');
+    if (body) body.innerHTML = '<tr><td colspan="5" style="color:#dc2626;">Không tải được: ' + esc(err.message) + '</td></tr>';
+  }).getApprovedAccess();
+}
+
+function renderApprovedTable_(list){
+  const body = document.getElementById('daCapQuyenTableBody');
+  if (!body) return;
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="5" style="color:#94a3b8;">Chưa có ai được cấp quyền.</td></tr>';
+    return;
+  }
+  body.innerHTML = list.map(function(p){
+    const emailSafe = esc(p.email).replace(/'/g, "\\'");
+    const vaiTro = p.laChuVinhVien
+      ? '<span style="color:#b91c1c;font-weight:600;">👑 Chủ tài khoản</span>'
+      : (p.laChu ? '<span style="color:#0369a1;font-weight:600;">🛡️ Admin</span>' : 'Thành viên');
+    let hanhDong;
+    if (p.laChuVinhVien) {
+      // Tài khoản chủ gốc — không hiện nút nào, không ai gỡ được (an toàn
+      // chống tự khoá mất quyền, xem CHU_VINH_VIEN ở src/auth.js).
+      hanhDong = '<span style="color:#94a3b8;font-size:12px;">(cố định)</span>';
+    } else if (p.laChu) {
+      hanhDong =
+        '<button type="button" class="edit" onclick="goAdminTruyCap(\'' + emailSafe + '\')">🛡️ Gỡ Admin</button>' +
+        '<button type="button" class="danger" onclick="goQuyenTruyCap(\'' + emailSafe + '\')">🚫 Gỡ quyền</button>';
+    } else {
+      hanhDong =
+        '<button type="button" class="edit" onclick="capAdminTruyCap(\'' + emailSafe + '\')">🛡️ Cấp Admin</button>' +
+        '<button type="button" class="danger" onclick="goQuyenTruyCap(\'' + emailSafe + '\')">🚫 Gỡ quyền</button>';
+    }
+    return '<tr>' +
+      '<td>' + esc(p.ten || '(không rõ)') + '</td>' +
+      '<td>' + esc(p.email) + '</td>' +
+      '<td>' + fmtNgayGio_(p.ngayDuyet) + '</td>' +
+      '<td>' + vaiTro + '</td>' +
+      '<td style="white-space:nowrap;">' + hanhDong + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function capAdminTruyCap(email){
+  if (!confirm('Cấp quyền ADMIN cho ' + email + '?\n\nAdmin sẽ có TOÀN BỘ quyền như anh: Hủy báo cáo, ' +
+    'Quản lý khu vực, Duyệt truy cập, và cấp/gỡ Admin cho người khác.')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã cấp quyền Admin cho ' + email, true);
+    loadApprovedAccess();
+  }).withFailureHandler(function(err){
+    showMsg('Không cấp được: ' + err.message, false);
+  }).grantAdmin(email);
+}
+
+function goAdminTruyCap(email){
+  if (!confirm('Gỡ quyền Admin của ' + email + '? (Người này vẫn còn quyền truy cập bình thường, ' +
+    'chỉ mất các quyền chỉ-Admin.)')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã gỡ quyền Admin của ' + email, true);
+    loadApprovedAccess();
+  }).withFailureHandler(function(err){
+    showMsg('Không gỡ được: ' + err.message, false);
+  }).revokeAdmin(email);
+}
+
+function goQuyenTruyCap(email){
+  if (!confirm('Gỡ HẲN quyền truy cập của ' + email + '?\n\nNgười này sẽ KHÔNG đăng nhập được nữa, ' +
+    'phải "Gửi yêu cầu truy cập" xin lại từ đầu nếu muốn dùng lại.')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã gỡ quyền truy cập của ' + email, true);
+    loadApprovedAccess();
+  }).withFailureHandler(function(err){
+    showMsg('Không gỡ được: ' + err.message, false);
+  }).revokeAccess(email);
 }
 
 // =====================================================================
@@ -4336,6 +4445,11 @@ const GOOGLE_CLIENT_ID = '48721787270-7s0r6r5e960ddr01tv9cg8p16akehip7.apps.goog
 
 window._authToken = '';
 window._authEmail = '';
+// laChu (mới 21/08/2026): true nếu tài khoản đang đăng nhập có quyền Admin
+// (la_chu=1 ở CSDL, xem checkAccess ở truy-cap.js) — thay cho cách cũ chỉ so
+// đúng 1 email cứng, để CÓ THỂ cấp quyền Admin cho nhiều người, không chỉ
+// riêng chủ tài khoản gốc. Xem isChuTaiKhoan_() bên dưới.
+window._laChu = false;
 
 // Ghi nhớ đăng nhập: lưu token vào localStorage của trình duyệt để lần sau
 // mở lại trang KHÔNG phải bấm đăng nhập lại (trừ khi token hết hạn ~1 giờ
@@ -4458,6 +4572,7 @@ function dangXuat(){
   clearSavedAuthToken_();
   window._authToken = '';
   window._authEmail = '';
+  window._laChu = false;
   try {
     if (window.google && window.google.accounts && window.google.accounts.id) {
       window.google.accounts.id.disableAutoSelect();
@@ -4511,6 +4626,7 @@ function onGoogleSignIn_(response){
   window._authToken = response.credential;
   google.script.run.withSuccessHandler(function(res){
     window._authEmail = res.email;
+    window._laChu = !!res.laChu;
     if (res.authorized) {
       if (res.sessionToken) window._authToken = res.sessionToken;
       saveAuthToken_(window._authToken);
@@ -4539,6 +4655,7 @@ function tryAutoLoginFromStorage_(){
   window._authToken = saved;
   google.script.run.withSuccessHandler(function(res){
     window._authEmail = res.email;
+    window._laChu = !!res.laChu;
     if (res.authorized) {
       // Gia hạn thêm 30 ngày mỗi lần vào lại thành công (sliding window) ->
       // hễ còn ghé web tối thiểu 1 lần/30 ngày là không bao giờ bị bắt đăng
@@ -4550,6 +4667,7 @@ function tryAutoLoginFromStorage_(){
     } else {
       clearSavedAuthToken_();
       window._authToken = '';
+      window._laChu = false;
       initGoogleSignIn_();
     }
   }).withFailureHandler(function(err){
