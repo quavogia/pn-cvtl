@@ -73,10 +73,11 @@ export default {
         if (!email) return trang('❌ Thiếu email', 'Đường link không có email cần cấp quyền.');
 
         const db = bocD1(env.DB);
+        const nayDuyet = new Date().toISOString();
         await db.run(
-          `INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau) VALUES (?, 'da_duyet', '', ?)
-           ON CONFLICT (email) DO UPDATE SET trang_thai = 'da_duyet'`,
-          [email, new Date().toISOString()]
+          `INSERT INTO access_control (email, trang_thai, ten, ngay_yeu_cau, ngay_duyet) VALUES (?, 'da_duyet', '', ?, ?)
+           ON CONFLICT (email) DO UPDATE SET trang_thai = 'da_duyet', ngay_duyet = excluded.ngay_duyet`,
+          [email, nayDuyet, nayDuyet]
         );
         return trang('✅ Đã cấp quyền truy cập', email + '<br><br>Có thể đóng trang này.');
       }
