@@ -117,6 +117,21 @@
   .dd-table th{font-weight:600;color:#94a3b8;font-size:11px;text-align:center;padding:3px 2px 6px;white-space:nowrap;}
   .dd-table td{padding:3px;text-align:center;}
   .dd-table tbody td:first-child{text-align:left;font-weight:600;color:#475569;padding-right:8px;white-space:nowrap;}
+  /* CỘT TÊN THÀNH VIÊN DÍNH CỐ ĐỊNH BÊN TRÁI khi kéo ngang (thêm 22/08/2026,
+     theo yêu cầu anh Rise: "cố định tên thành viên để khi kéo ngang sang tuần 4
+     tuần 5 thì vẫn hiện tên người để không nhập nhầm").
+     Vài điểm phải để ý, đừng sửa nhầm về sau:
+     - Chỉ nhắm ô đầu của HÀNG TIÊU ĐỀ THỨ NHẤT (`thead tr:first-child`) — hàng
+       tiêu đề thứ hai (Tối/Sáng/Chiều/Tối) có ô đầu là buổi của Tuần 1, nếu
+       viết `thead th:first-child` sẽ ghim nhầm ô "Tối" của Tuần 1.
+     - Bắt buộc có nền TRẮNG ĐỤC, nếu không các ô số đang trượt qua sẽ hiện
+       xuyên qua chữ tên.
+     - z-index ô tiêu đề (3) phải cao hơn ô thân bảng (2) để dòng "Tuần 1/2/..."
+       không bị tên người đè lên.
+     - box-shadow thay cho border-right: bảng dùng border-collapse nên viền của
+       ô dính hay bị nuốt mất khi cuộn. */
+  .dd-table thead tr:first-child th:first-child{position:sticky;left:0;z-index:3;background:#fff;box-shadow:1px 0 0 #e2e8f0;}
+  .dd-table tbody td:first-child{position:sticky;left:0;z-index:2;background:#fff;box-shadow:1px 0 0 #e2e8f0;}
   .dd-table input{width:44px;padding:5px 3px;text-align:center;font-size:13px;transition:background .3s;}
   .dd-table input.saved{background:#dcfce7;}
   .dd-table td.dd-tk{font-weight:700;color:var(--primary);}
