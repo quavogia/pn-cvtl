@@ -1007,65 +1007,74 @@
  *  toàn bộ phần logic phía dưới mà không cần viết lại.
  * ========================================================= */
 // ---------------------------------------------------------------------
-// CÔNG TẮC ĐỔI MÁY CHỦ (có đường lùi ngay lập tức)
+// MÁY CHỦ — CHỈ CÒN MỘT (Cloudflare Workers + D1)
 //
-// Từ 13/08/2026, mặc định đã chuyển sang máy chủ MỚI (Cloudflare) — nhanh
-// hơn khoảng 20-50 lần và không bao giờ trả về lỗi "Unexpected token '<'".
-// Máy chủ CŨ (Google Apps Script) vẫn còn nguyên, chưa tắt, dùng làm đường lùi.
+// Từ 13/08/2026 cả phòng đã chạy máy chủ MỚI (Cloudflare) — nhanh hơn khoảng
+// 20-50 lần và không bao giờ trả về lỗi "Unexpected token '<'".
 //
-// NẾU MÁY CHỦ MỚI CÓ TRỤC TRẶC — cách quay về bản cũ ngay lập tức:
-//   Cách 1 — thêm vào cuối địa chỉ trang:  ?mayChu=cu
-//   Cách 2 — mở Console của trình duyệt rồi gõ:  dungMayChuCu()
-//   Cách 3 (cho CẢ PHÒNG) — đổi đúng 1 chữ ở dòng MAC_DINH bên dưới,
-//           từ 'moi' về lại 'cu', rồi lưu lên GitHub.
-//
-// Quay lại máy chủ mới: gõ  dungMayChuMoi()  (hoặc thêm ?mayChu=moi)
-//
-// Mỗi máy chủ có chỗ nhớ đăng nhập RIÊNG nên đổi qua đổi lại thoải mái,
-// không bên nào làm mất đăng nhập của bên nào.
+// ⚠️ 22/08/2026: ĐÃ BỎ HẲN công tắc đổi về máy chủ CŨ (Google Apps Script).
+// Công tắc đó chính là nguyên nhân lỗi "hai tài khoản thấy hai bảng xếp hạng
+// Lễ hội khác nhau" — xem giải thích đầy đủ ngay trên _mayChuDangDung bên
+// dưới. Địa chỉ máy chủ cũ vẫn ghi lại ở đây làm tư liệu, KHÔNG còn được
+// dùng ở bất kỳ đâu trong mã nguồn.
 // ---------------------------------------------------------------------
-const MAY_CHU_CU  = 'https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec';
+// (Tư liệu — không dùng nữa) máy chủ cũ:
+// https://script.google.com/macros/s/AKfycbxDU7SXsnAkdRfAi8EXkknxwKHqCba1G4lIqs5H572do6mbkNkstvJVdDpsiL9LkBg/exec
 const MAY_CHU_MOI = 'https://cvtl-api.rise-shine1948.workers.dev';
-const MAC_DINH    = 'moi';  // <-- đổi về 'cu' nếu cần quay lại Apps Script
 
 const MAY_CHU_LS_KEY = 'cvtl_may_chu_v1';
 
+// Giữ lại đúng TÊN hai hàm này (có thể còn nằm trong ghi chú/bookmark cũ),
+// nhưng cả hai giờ đều đưa về máy chủ MỚI — không còn cách nào ghim một máy
+// vào máy chủ cũ nữa (xem giải thích đầy đủ ở _mayChuDangDung bên dưới).
 function dungMayChuMoi(){
-  try { localStorage.setItem(MAY_CHU_LS_KEY, 'moi'); } catch(e){}
+  try { localStorage.removeItem(MAY_CHU_LS_KEY); } catch(e){}
   location.reload();
 }
 function dungMayChuCu(){
-  try { localStorage.setItem(MAY_CHU_LS_KEY, 'cu'); } catch(e){}
+  alert('Máy chủ cũ (Google Apps Script) đã ngừng được cập nhật từ 18/08/2026 nên không dùng lại được nữa — dữ liệu ở đó đã cũ. Trang sẽ dùng máy chủ mới.');
+  try { localStorage.removeItem(MAY_CHU_LS_KEY); } catch(e){}
   location.reload();
 }
 window.dungMayChuMoi = dungMayChuMoi;
 window.dungMayChuCu = dungMayChuCu;
 
+// ⚠️⚠️ SỬA 22/08/2026 — KHOÁ CỨNG VỀ MÁY CHỦ MỚI, BỎ HẲN ĐƯỜNG LÙI.
+// Lý do (lỗi thật anh Rise báo 22/08/2026, đã điều tra và xác nhận bằng dữ
+// liệu): hai tài khoản mở bảng "Xếp hạng Lễ hội Lời" CÙNG LÚC lại thấy hai
+// bộ số liệu khác nhau — người thì ở "TT Châu", người thì vẫn ở "K Thành"/
+// "Đ Uyên" (tên khu vực TRƯỚC khi tách TT Châu ngày 19/08), tiến độ cũng
+// thấp hơn. Kiểm tra thẳng trên CSDL mới (Cloudflare D1) cho thấy dữ liệu
+// hoàn toàn sạch: không ai bị dính 2 khu vực, không dòng tiến độ nào trùng
+// hay mồ côi, chỉ có đúng 1 lễ hội đang chạy. Nghĩa là máy chủ MỚI không
+// thể trả về hai kết quả khác nhau.
+//
+// Thủ phạm chính là cơ chế chuyển máy chủ ngay bên trên: chỉ cần MỘT LẦN mở
+// web bằng link có "?mayChu=cu" (hồi còn chạy thử song song), trình duyệt đó
+// ghi 'cu' vào localStorage và GHIM VĨNH VIỄN — F5, thoát hẳn Chrome, đăng
+// xuất rồi đăng nhập lại đều KHÔNG xoá. Máy đó từ đó về sau đọc dữ liệu từ
+// máy chủ CŨ (Google Apps Script + Google Sheets), vốn đã ngừng cập nhật từ
+// lúc chuyển sang Cloudflare (~18/08) nên đóng băng ở dữ liệu TRƯỚC khi tách
+// TT Châu — khớp chính xác với ảnh chụp anh Rise gửi. Đã kiểm chứng
+// 22/08/2026: máy chủ cũ VẪN CÒN SỐNG và vẫn trả lời bình thường, nên máy bị
+// ghim không hề báo lỗi gì — chỉ lặng lẽ hiện số liệu cũ, rất khó phát hiện.
+//
+// Máy chủ mới đã chạy ổn định cả phòng nhiều ngày, nên đường lùi này giờ chỉ
+// còn là cái bẫy. Từ đây: LUÔN dùng máy chủ mới, đồng thời XOÁ LUÔN chữ 'cu'
+// còn sót trong localStorage để mọi máy đang bị ghim tự khỏi ngay lần vào kế
+// tiếp, không cần ai làm gì thêm.
 const _mayChuDangDung = (function(){
-  // Ưu tiên 1: địa chỉ trang (?mayChu=moi) — tiện gửi link cho người khác thử.
-  try {
-    const q = new URLSearchParams(location.search).get('mayChu');
-    if (q === 'moi' || q === 'cu') {
-      try { localStorage.setItem(MAY_CHU_LS_KEY, q); } catch(e){}
-      return q;
-    }
-  } catch(e){}
-  // Ưu tiên 2: lựa chọn đã lưu trên máy này.
-  try {
-    const luu = localStorage.getItem(MAY_CHU_LS_KEY);
-    if (luu === 'moi' || luu === 'cu') return luu;
-  } catch(e){}
-  // Ưu tiên 3: mặc định chung.
-  return MAC_DINH;
+  try { localStorage.removeItem(MAY_CHU_LS_KEY); } catch(e){}
+  return 'moi';
 })();
 
-const API_BASE = (_mayChuDangDung === 'moi') ? MAY_CHU_MOI : MAY_CHU_CU;
+const API_BASE = MAY_CHU_MOI;
 
 // (Đã bỏ dải chữ "Đang chạy thử MÁY CHỦ MỚI" ở góc màn hình — 18/08/2026, anh Rise
 // báo dải chữ này che mất nội dung trên điện thoại. Máy chủ mới giờ là bản chính thức, cả
 // phòng đã dùng ổn định nhiều ngày, không còn ở giai đoạn "thử" nữa nên bỏ hẳn cho gọn.
-// Cách quay về máy chủ cũ khi cần (dungMayChuCu() / ?mayChu=cu) vẫn còn nguyên, xem đầu file.
-console.log('[CVTL] Máy chủ đang dùng:', _mayChuDangDung === 'moi' ? 'MỚI (Cloudflare)' : 'CŨ (Apps Script)');
+// Từ 22/08/2026 không còn máy chủ cũ để quay về nữa — xem _mayChuDangDung ở trên.
+console.log('[CVTL] Máy chủ đang dùng: MỚI (Cloudflare) —', API_BASE, '| _mayChuDangDung =', _mayChuDangDung);
 const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
   'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs', 'getTopNguoiDanDat',
   'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan', 'getPersonalGoalsAllKhuVuc',
@@ -4583,18 +4592,20 @@ function dangXuat(){
 window.dangXuat = dangXuat;
 
 // ---------------------------------------------------------------------
-// TỰ ĐỘNG ĐĂNG XUẤT SAU 10 PHÚT KHÔNG HOẠT ĐỘNG
+// TỰ ĐỘNG ĐĂNG XUẤT SAU 30 PHÚT KHÔNG HOẠT ĐỘNG
 // Đếm lại từ đầu mỗi khi có thao tác chuột/bàn phím/cuộn trang. Hết giờ mà
 // không có thao tác nào -> tự đăng xuất, quay về màn hình đăng nhập.
 // Cho phép đổi thời gian qua ?authTimeoutMs=... (chỉ để KIỂM THỬ tự động —
-// không cần chờ thật 10 phút mỗi lần chạy kiểm thử giao diện).
+// không cần chờ thật 30 phút mỗi lần chạy kiểm thử giao diện).
+// (Nâng 10 -> 30 phút ngày 22/08/2026 theo yêu cầu anh Rise: đang nhập liệu
+// mà rời máy một lát quay lại đã bị bắt đăng nhập lại, quá phiền.)
 // ---------------------------------------------------------------------
 const INACTIVITY_TIMEOUT_MS = (function(){
   try {
     const q = new URLSearchParams(location.search).get('authTimeoutMs');
     if (q && Number(q) > 0) return Number(q);
   } catch(e){}
-  return 10 * 60 * 1000; // 10 phút
+  return 30 * 60 * 1000; // 30 phút
 })();
 let _inactivityTimer = null;
 
