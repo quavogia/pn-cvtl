@@ -10,10 +10,10 @@
 //                             (được chọn theo tên) từ Khu vực này sang Khu
 //                             vực khác (mới hoặc đã có sẵn).
 //
-// ⚠️ CHỈ 10 BẢNG "THEO TỪNG NGƯỜI" (có cả cột khu_vuc lẫn ten, nhận diện
+// ⚠️ CHỈ 11 BẢNG "THEO TỪNG NGƯỜI" (có cả cột khu_vuc lẫn ten, nhận diện
 // đúng MỘT người) mới được chuyển: hoc_vien, muc_tieu_ca_nhan,
 // giao_duc_thanh_vien, diem_danh, diem_danh_roster, diem_danh_ghi_chu,
-// dao_tao_tien_do, dao_tao_viec_giao, le_hoi_tien_do, so_moc.
+// dao_tao_tien_do, dao_tao_viec_giao, le_hoi_tien_do, so_moc, cv_cong_viec.
 //
 // 6 BẢNG "TỔNG HỢP CẢ KHU VỰC" (không gắn với riêng ai) CỐ Ý KHÔNG đụng tới:
 // tp_bao_cao, muc_tieu_kv, nhat_ky_don_thuan, chot_ky, le_hoi_cau_hinh.
@@ -30,7 +30,7 @@ import { KHU_VUC_LIST } from '../hang-so.js';
 import { chuoi, batBuoc } from '../tien-ich.js';
 
 /**
- * Mô tả 10 bảng "theo từng người" cần chuyển.
+ * Mô tả 11 bảng "theo từng người" cần chuyển.
  * coCotId: true  -> bảng có cột `id` tự tăng, chuyển bằng UPDATE ... WHERE id = ?
  * coCotId: false -> không có `id` (khoá chính là các cột nghiệp vụ), chuyển
  *                   bằng UPDATE ... WHERE <đúng các cột trong `khoa`>.
@@ -51,6 +51,9 @@ const BANG_THEO_NGUOI = [
   { bang: 'dao_tao_viec_giao',   coCotId: true },
   { bang: 'le_hoi_tien_do',      coCotId: false, khoa: ['ma_le_hoi', 'khu_vuc', 'ten'] },
   { bang: 'so_moc',              coCotId: true },
+  // Điểm danh công việc (thêm 23/08/2026) — chuyển theo người luôn, để ai
+  // đổi khu vực thì số liệu công việc đã nhập đi theo, không bị bỏ lại.
+  { bang: 'cv_cong_viec',        coCotId: false, khoa: ['khu_vuc', 'ten', 'thang', 'tuan', 'buoi', 'ngay'] },
 ];
 
 /** Chuyển toàn bộ dòng của 1 người trong 1 bảng, trả về số dòng đã chuyển / bỏ qua. */
