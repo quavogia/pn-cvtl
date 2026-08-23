@@ -11,11 +11,21 @@
 //
 // ⚠️ Những điểm đã CHỐT VỚI ANH RISE (qua AskUserQuestion, 23/08/2026) —
 // đọc kỹ trước khi định sửa gì ở đây:
-//   1. Danh sách người **DÙNG CHUNG bảng Điểm danh** của khu vực đó
-//      (`diem_danh_roster`), KHÔNG có danh sách riêng. Anh Rise: "chuyển tab
-//      đó vào tab trudo trong mỗi khu vực, quản lý thành viên sẽ dễ dàng
-//      hơn". Vì vậy ở đây KHÔNG có hàm thêm/xoá/đổi thứ tự người — làm việc
-//      đó ở bảng Điểm danh, bên này tự hiện theo.
+//   1. Danh sách người LẤY NỀN từ bảng Điểm danh của khu vực đó
+//      (`diem_danh_roster`). Anh Rise: "chuyển tab đó vào tab trudo trong mỗi
+//      khu vực, quản lý thành viên sẽ dễ dàng hơn".
+//   1b. ⭐ BỔ SUNG 23/08/2026 (lần 2) — anh Rise: "thêm phần xóa hoặc nhập
+//      thêm người mới nữa". Đã chốt lại qua AskUserQuestion:
+//        · Nút ✕ ở bảng này = **CHỈ ẨN Ở BẢNG CÔNG VIỆC**, người đó VẪN CÒN
+//          nguyên ở bảng Điểm danh.
+//        · Ô "Thêm người" ở bảng này = **CHỈ THÊM VÀO BẢNG CÔNG VIỆC**,
+//          KHÔNG hiện sang bảng Điểm danh.
+//      Nói cách khác: hai bảng ĐỘC LẬP nhau, sửa bên này không đụng bên kia.
+//      Công thức danh sách hiển thị:
+//          (người trong `diem_danh_roster`)  −  (người bị ẩn)  +  (người tự thêm)
+//      Cả "ẩn" lẫn "tự thêm" đều nằm trong MỘT bảng `cv_nguoi`, phân biệt
+//      bằng cột `kieu` = 'an' | 'them'. Một bảng thay vì hai để khỏi phải lo
+//      đồng bộ chéo, và để `chuyenThanhVienKhuVuc` chỉ phải mang theo 1 bảng.
 //   2. Mỗi người ĐÚNG 3 dòng Sáng / Chiều / Tối (cột "Thời Gian" của sheet).
 //   3. Hiện **CẢ 6 TUẦN cùng lúc** (kéo ngang), không bấm chọn từng tuần.
 //   4. Ô ngày cho gõ **TỰ DO** (số, chữ, mã... đều được) — cố ý KHÔNG hiểu ý
@@ -110,13 +120,29 @@ export async function getCVCongViec({ db }, khuVuc, thang) {
   const kv = batBuoc(khuVuc, 'Khu vực');
   const t = kiemThang(thang);
 
-  const [roster, oCell] = await Promise.all([
+  const [rosterGoc, rieng, oCell] = await Promise.all([
     db.all('SELECT ten FROM diem_danh_roster WHERE khu_vuc = ? ORDER BY thu_tu, id', [kv]),
+    db.all('SELECT ten, kieu FROM cv_nguoi WHERE khu_vuc = ? ORDER BY thu_tu, ten', [kv]),
     db.all(
       'SELECT ten, tuan, buoi, ngay, gia_tri FROM cv_cong_viec WHERE khu_vuc = ? AND thang = ?',
       [kv, t]
     ),
   ]);
+
+  // Danh sách hiển thị = (Điểm danh − người bị ẩn) + (người tự thêm).
+  // Người tự thêm xếp SAU cùng, theo thu_tu — thứ tự phần nền vẫn khớp bảng
+  // Điểm danh nên nhìn hai bảng không bị lệch.
+  const bAn = new Set(rieng.filter((r) => chuoi(r.kieu) === 'an').map((r) => chuoi(r.ten)));
+  const tenGoc = new Set(rosterGoc.map((r) => chuoi(r.ten)));
+  const dsAn = rosterGoc.map((r) => chuoi(r.ten)).filter((x) => bAn.has(x));
+  const roster = rosterGoc
+    .map((r) => ({ ten: chuoi(r.ten), tuTao: false }))
+    .filter((r) => !bAn.has(r.ten))
+    .concat(
+      rieng
+        .filter((r) => chuoi(r.kieu) === 'them' && !tenGoc.has(chuoi(r.ten)))
+        .map((r) => ({ ten: chuoi(r.ten), tuTao: true }))
+    );
 
   // Gom ô theo tên -> buổi -> "tuần-ngày"
   const bang = new Map();
@@ -137,15 +163,88 @@ export async function getCVCongViec({ db }, khuVuc, thang) {
   return {
     khuVuc: kv,
     thang: t,
+    // Người đang bị ẩn — giao diện hiện thành 1 dòng nhỏ dưới bảng kèm nút
+    // "hiện lại", nếu không thì ẩn xong sẽ KHÔNG CÒN ĐƯỜNG NÀO gọi họ về.
+    dsAn,
     thanhVien: roster.map((r) => {
-      const ten = chuoi(r.ten);
+      const ten = r.ten;
       const hop = bang.get(ten) || {};
       const o = {};
       for (const b of CV_BUOI_LIST) o[b] = hop[b] || {};
       const d = dem.get(ten) || { sang: 0, chieu: 0, toi: 0 };
-      return { ten, o, tongBuoi: d, tongNguoi: d.sang + d.chieu + d.toi };
+      // tuTao = người do chính bảng này thêm vào (không có ở bảng Điểm danh)
+      return { ten, tuTao: r.tuTao, o, tongBuoi: d, tongNguoi: d.sang + d.chieu + d.toi };
     }),
   };
+}
+
+/**
+ * Thêm 1 người CHỈ VÀO BẢNG CÔNG VIỆC (không đụng bảng Điểm danh).
+ * Nếu tên đó vốn có trong bảng Điểm danh nhưng đang bị ẩn -> coi như "hiện
+ * lại" (bỏ dòng 'an'), thay vì báo lỗi khó hiểu cho người dùng.
+ */
+export async function addCVNguoi({ db }, khuVuc, ten) {
+  const kv = batBuoc(khuVuc, 'Khu vực');
+  const tenTV = batBuoc(ten, 'Tên thành viên');
+
+  const [coTrongRoster, dangCo] = await Promise.all([
+    db.first('SELECT 1 AS x FROM diem_danh_roster WHERE khu_vuc=? AND ten=?', [kv, tenTV]),
+    db.first('SELECT kieu FROM cv_nguoi WHERE khu_vuc=? AND ten=?', [kv, tenTV]),
+  ]);
+
+  if (coTrongRoster) {
+    if (dangCo && chuoi(dangCo.kieu) === 'an') {
+      await db.run('DELETE FROM cv_nguoi WHERE khu_vuc=? AND ten=?', [kv, tenTV]);
+      return { success: true, hienLai: true };
+    }
+    throw new Error('"' + tenTV + '" đã có sẵn trong danh sách rồi.');
+  }
+  if (dangCo && chuoi(dangCo.kieu) === 'them') {
+    throw new Error('"' + tenTV + '" đã có sẵn trong danh sách rồi.');
+  }
+
+  const max = await db.first('SELECT COALESCE(MAX(thu_tu), 0) AS m FROM cv_nguoi WHERE khu_vuc = ?', [kv]);
+  await db.run(
+    `INSERT INTO cv_nguoi (khu_vuc, ten, kieu, thu_tu) VALUES (?,?, 'them', ?)
+     ON CONFLICT (khu_vuc, ten) DO UPDATE SET kieu = 'them'`,
+    [kv, tenTV, (max?.m || 0) + 1]
+  );
+  return { success: true, hienLai: false };
+}
+
+/**
+ * Bỏ 1 người khỏi BẢNG CÔNG VIỆC.
+ *  · Người vốn từ bảng Điểm danh  -> ghi 1 dòng 'an' (bảng Điểm danh KHÔNG đổi).
+ *  · Người do bảng này tự thêm    -> xoá hẳn dòng 'them'.
+ * ⚠️ Cả hai trường hợp đều KHÔNG xoá số liệu trong `cv_cong_viec` — hiện lại
+ * hoặc thêm lại đúng tên là số cũ về đủ. Cố ý, để lỡ tay không mất dữ liệu.
+ */
+export async function hideCVNguoi({ db }, khuVuc, ten) {
+  const kv = batBuoc(khuVuc, 'Khu vực');
+  const tenTV = batBuoc(ten, 'Tên thành viên');
+
+  const coTrongRoster = await db.first(
+    'SELECT 1 AS x FROM diem_danh_roster WHERE khu_vuc=? AND ten=?', [kv, tenTV]
+  );
+  if (coTrongRoster) {
+    const max = await db.first('SELECT COALESCE(MAX(thu_tu), 0) AS m FROM cv_nguoi WHERE khu_vuc = ?', [kv]);
+    await db.run(
+      `INSERT INTO cv_nguoi (khu_vuc, ten, kieu, thu_tu) VALUES (?,?, 'an', ?)
+       ON CONFLICT (khu_vuc, ten) DO UPDATE SET kieu = 'an'`,
+      [kv, tenTV, (max?.m || 0) + 1]
+    );
+    return { success: true, kieu: 'an' };
+  }
+  await db.run("DELETE FROM cv_nguoi WHERE khu_vuc=? AND ten=? AND kieu='them'", [kv, tenTV]);
+  return { success: true, kieu: 'them' };
+}
+
+/** Gọi 1 người đang bị ẩn quay lại bảng công việc. */
+export async function unhideCVNguoi({ db }, khuVuc, ten) {
+  const kv = batBuoc(khuVuc, 'Khu vực');
+  const tenTV = batBuoc(ten, 'Tên thành viên');
+  await db.run("DELETE FROM cv_nguoi WHERE khu_vuc=? AND ten=? AND kieu='an'", [kv, tenTV]);
+  return { success: true };
 }
 
 /**
