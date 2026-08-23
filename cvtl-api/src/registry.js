@@ -12,7 +12,9 @@
 // nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng), cộng thêm
 // các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — cộng
 // thêm 4 hàm quản lý Admin (getApprovedAccess/revokeAccess/grantAdmin/
-// revokeAdmin, mới 21/08/2026) — tổng 83.
+// revokeAdmin, mới 21/08/2026) — cộng thêm 6 hàm "Điểm danh công việc"
+// (getCVDiemDanh/addCVThanhVien/updateCVThanhVien/deleteCVThanhVien/
+// moveCVThanhVien/saveCVCell, mới 23/08/2026) — tổng 89.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -26,6 +28,7 @@ import * as lich from './handlers/lich-lam-viec.js';
 import * as thongKeTP from './handlers/thong-ke-tp.js';
 import * as truDo from './handlers/tru-do.js';
 import * as khuVuc from './handlers/khu-vuc.js';
+import * as congViec from './handlers/cong-viec.js';
 
 export const DANH_MUC = {
   // --- Đăng nhập / phân quyền (không yêu cầu đã duyệt) ---
@@ -143,6 +146,16 @@ export const DANH_MUC = {
   chuyenThanhVienKhuVuc:   { doc: false, chuThoi: true, fn: khuVuc.chuyenThanhVienKhuVuc },
   donDepTPKhuVuc:          { doc: false, chuThoi: true, fn: khuVuc.donDepTPKhuVuc },
   donDepTPTatCaKhuVuc:     { doc: false, chuThoi: true, fn: khuVuc.donDepTPTatCaKhuVuc },
+
+  // --- Điểm danh công việc (thêm 23/08/2026, xem handlers/cong-viec.js) ---
+  // Danh sách thành viên RIÊNG, không dính bảng Điểm danh. Cố ý KHÔNG đặt
+  // chuThoi: cả phòng cùng nhập, giống bảng Điểm danh hiện có.
+  getCVDiemDanh:           { doc: true,  fn: congViec.getCVDiemDanh },
+  addCVThanhVien:          { doc: false, fn: congViec.addCVThanhVien },
+  updateCVThanhVien:       { doc: false, fn: congViec.updateCVThanhVien },
+  deleteCVThanhVien:       { doc: false, fn: congViec.deleteCVThanhVien },
+  moveCVThanhVien:         { doc: false, fn: congViec.moveCVThanhVien },
+  saveCVCell:              { doc: false, fn: congViec.saveCVCell },
 };
 
 export const DANH_SACH_DOC = new Set(
