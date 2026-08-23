@@ -167,8 +167,19 @@
   .cv-table tr.cv-het td{border-bottom:2px solid #94a3b8;}
   .cv-fix1, .cv-fix2, .cv-fix3{position:sticky;z-index:2;background:#fff;}
   .cv-fix1{left:0;width:44px;min-width:44px;}
-  .cv-fix2{left:44px;width:150px;min-width:150px;text-align:left;font-weight:600;color:#475569;padding-left:8px;}
-  .cv-fix3{left:194px;width:60px;min-width:60px;font-weight:700;color:#1e3a8a;font-size:11px;background:#eff6ff;}
+  .cv-fix2{left:44px;width:200px;min-width:200px;text-align:left;font-weight:600;color:#475569;padding-left:8px;}
+  .cv-fix3{left:244px;width:60px;min-width:60px;font-weight:700;color:#1e3a8a;font-size:11px;background:#eff6ff;}
+  /* Ô tên: tên bên trái, nút ✕ nép sát phải. Nút mờ sẵn, đậm lên khi rê chuột
+     — để không rối mắt nhưng vẫn thấy được là bấm được. */
+  .cv-fix2 .cv-ten-wrap{display:flex;align-items:center;gap:4px;}
+  .cv-fix2 .cv-ten{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .cv-x{border:none;background:transparent;color:#cbd5e1;cursor:pointer;font-size:13px;line-height:1;padding:2px 4px;border-radius:4px;flex-shrink:0;}
+  .cv-x:hover{background:#fee2e2;color:#dc2626;}
+  /* Người do chính bảng này thêm (không có trong bảng Điểm danh) */
+  .cv-rieng{display:inline-block;font-size:9px;font-weight:700;padding:1px 4px;border-radius:6px;background:#dcfce7;color:#166534;flex-shrink:0;}
+  .cv-an-box{margin-top:8px;font-size:12px;color:#64748b;}
+  .cv-an-box button{border:1px solid #cbd5e1;background:#fff;color:#475569;cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;margin:0 4px 4px 0;}
+  .cv-an-box button:hover{background:#eff6ff;border-color:#2563eb;color:#1d4ed8;}
   .cv-table thead th.cv-fix1, .cv-table thead th.cv-fix2, .cv-table thead th.cv-fix3{z-index:3;background:#f1f5f9;}
   .dd-goiy{font-size:11px;color:#94a3b8;display:block;margin-top:2px;}
   .dd-goiy button{font-size:10px;padding:1px 6px;margin-left:4px;background:#e2e8f0;color:#334155;border-radius:6px;}
@@ -747,12 +758,20 @@
             Danh sách người lấy từ bảng <b>Điểm danh</b> của khu vực này — thêm/xoá người ở tab <b>TP</b>.
             Đổi tháng bằng ô <b>"Xem tháng"</b> ở trên cùng.
           </p>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+            <input type="text" id="cv_newTen" placeholder="Tên người muốn thêm..."
+                   style="width:230px;padding:6px 10px;font-size:13px;"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addCVNguoiUI();}">
+            <button class="btn" type="button" onclick="addCVNguoiUI()">+ Thêm người</button>
+            <span style="font-size:11px;color:#94a3b8;">chỉ thêm vào bảng này, không hiện ở bảng Điểm danh</span>
+          </div>
           <p id="cvEmpty" style="color:#94a3b8;font-size:13px;display:none;">
-            Khu vực này chưa có ai trong bảng Điểm danh — thêm người ở tab "TP" trước.
+            Bảng đang trống — thêm người bằng ô ở trên, hoặc thêm vào bảng Điểm danh ở tab "TP".
           </p>
           <div style="overflow-x:auto;">
             <table class="cv-table" id="cvTable"></table>
           </div>
+          <div class="cv-an-box" id="cvAnBox" style="display:none;"></div>
         </div>
       </div>
 
@@ -4504,8 +4523,12 @@ document.getElementById('lichForm').addEventListener('submit', function(e){
  * anh Rise: mỗi người 3 dòng Sáng / Chiều / Tối, hiện CẢ 6 TUẦN × 7 ngày
  * cùng lúc (kéo ngang), cột "Tổng" mỗi dòng + số đỏ tổng của cả người.
  *
- * ⚠️ Danh sách người DÙNG CHUNG bảng Điểm danh của khu vực (máy chủ đọc từ
- * `diem_danh_roster`) — nên ở đây KHÔNG có nút thêm/xoá/đổi thứ tự người.
+ * ⚠️ Danh sách người LẤY NỀN từ bảng Điểm danh của khu vực (máy chủ đọc từ
+ * `diem_danh_roster`), rồi cộng/trừ bằng bảng riêng `cv_nguoi`:
+ *        hiển thị = (Điểm danh) − (người bị ẩn) + (người tự thêm)
+ * ⚠️⚠️ Anh Rise đã CHỐT (23/08/2026 lần 2): thêm/ẩn ở bảng này **KHÔNG** đụng
+ * tới bảng Điểm danh, và ngược lại. Nút ✕ ở đây là "ẩn khỏi bảng này", KHÔNG
+ * phải "xoá khỏi Điểm danh" — người bị ẩn liệt kê ở dòng dưới bảng để gọi lại.
  * ⚠️ Các số "Tổng" đều do MÁY CHỦ tính, giao diện chỉ hiển thị — để không
  * bao giờ lệch với dữ liệu thật.
  * ⚠️ Tháng lấy từ ô "Xem tháng" chung của trang Hiện trạng khu vực
@@ -4533,6 +4556,7 @@ function renderCVTable_(d){
   if (!table) return;
   const ds = (d && d.thanhVien) || [];
   empty.style.display = ds.length ? 'none' : '';
+  renderCVAnBox_((d && d.dsAn) || []);
   if (!ds.length) { table.innerHTML = ''; return; }
 
   // Hàng tiêu đề 1: gộp 7 ngày thành 1 ô "Tuần n" (giống sheet).
@@ -4552,23 +4576,37 @@ function renderCVTable_(d){
   let body = '';
   ds.forEach(function(tv, i){
     const tenAttr = esc(tv.ten);
+    const tenJS = esc(tv.ten).replace(/'/g, "\\'");
     CV_BUOI_.forEach(function(b, k){
       const dau = k === 0;
       const cuoi = k === CV_BUOI_.length - 1;
       body += '<tr' + (cuoi ? ' class="cv-het"' : '') + '>';
       if (dau) {
+        // Nhãn "riêng" cho người do chính bảng này thêm — để nhìn là biết ngay
+        // ai KHÔNG có trong bảng Điểm danh, khỏi thắc mắc vì sao 2 bảng lệch.
+        const nhan = tv.tuTao ? '<span class="cv-rieng" title="Chỉ có ở bảng này, không có trong bảng Điểm danh">riêng</span>' : '';
         body += '<td class="cv-fix1" rowspan="3">' + (i + 1) + '</td>' +
-                '<td class="cv-fix2" rowspan="3">' + tenAttr + '</td>';
+                '<td class="cv-fix2" rowspan="3"><span class="cv-ten-wrap">' +
+                  '<span class="cv-ten" title="' + tenAttr + '">' + tenAttr + '</span>' + nhan +
+                  '<button type="button" class="cv-x" title="Bỏ khỏi bảng này (bảng Điểm danh không đổi)" ' +
+                    'onclick="hideCVNguoiUI_(\'' + tenJS + '\', ' + (tv.tuTao ? 1 : 0) + ')">✕</button>' +
+                '</span></td>';
       }
       body += '<td class="cv-fix3">' + b.nhan + '</td>';
       for (let t = 1; t <= CV_SO_TUAN_; t++) {
         CV_NGAY_.forEach(function(n, j){
           const khoa = t + '-' + n;
           const val = (tv.o && tv.o[b.ma] && tv.o[b.ma][khoa]) || '';
+          // data-r / data-c = toạ độ ô trong lưới, dùng cho phím mũi tên.
+          // ⚠️ BẮT BUỘC phải dùng toạ độ chứ KHÔNG dùng chỉ số cột như bảng
+          // Điểm danh (ddCellKeyNav): bảng này có ô rowspan="3" nên dòng đầu
+          // của mỗi người có nhiều <td> hơn 2 dòng sau — lấy theo chỉ số cột
+          // sẽ nhảy lệch ô khi bấm lên/xuống.
           body += '<td class="cv-ngay' + (j === 0 ? ' cv-tuan-dau' : '') + '">' +
             '<input type="text" value="' + esc(val) + '" data-ten="' + tenAttr +
             '" data-buoi="' + b.ma + '" data-tuan="' + t + '" data-ngay="' + n +
-            '" onchange="saveCVCellUI_(this)"></td>';
+            '" data-r="' + (i * CV_BUOI_.length + k) + '" data-c="' + ((t - 1) * 7 + j) + '"' +
+            ' onchange="saveCVCellUI_(this)" onkeydown="cvCellKeyNav(event)"></td>';
         });
       }
       body += '<td class="cv-tong cv-tuan-dau" data-cv-tong="' + tenAttr + '|' + b.ma + '">' +
@@ -4582,6 +4620,103 @@ function renderCVTable_(d){
   });
 
   table.innerHTML = '<thead><tr>' + h1 + '</tr><tr>' + h2 + '</tr></thead><tbody>' + body + '</tbody>';
+}
+
+// Dòng "Đang ẩn: ..." dưới bảng. BẮT BUỘC phải có — nếu không, ẩn một người
+// xong sẽ KHÔNG CÒN đường nào gọi họ trở lại bảng.
+function renderCVAnBox_(dsAn){
+  const box = document.getElementById('cvAnBox');
+  if (!box) return;
+  if (!dsAn || !dsAn.length) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = '';
+  box.innerHTML = 'Đang ẩn khỏi bảng này (vẫn còn nguyên ở bảng Điểm danh) — bấm để hiện lại: ' +
+    dsAn.map(function(t){
+      return '<button type="button" onclick="unhideCVNguoiUI_(\'' + esc(t).replace(/'/g, "\\'") + '\')">↩ ' + esc(t) + '</button>';
+    }).join(' ');
+}
+
+// Thêm 1 người CHỈ vào bảng này (máy chủ tự hiểu: nếu tên đó đang bị ẩn thì
+// coi như hiện lại, thay vì báo lỗi khó hiểu).
+function addCVNguoiUI(){
+  if (!selectedKV) { showMsg('Chưa chọn Khu vực', false); return; }
+  const inp = document.getElementById('cv_newTen');
+  const ten = (inp.value || '').trim();
+  if (!ten) { showMsg('Chưa nhập tên', false); return; }
+  inp.value = '';
+  google.script.run.withSuccessHandler(function(r){
+    showMsg((r && r.hienLai) ? ('Đã hiện lại ' + ten) : ('Đã thêm ' + ten), true);
+    loadCVCongViec_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi thêm: ' + err.message, false);
+    inp.value = ten;   // trả lại chữ đã gõ để anh Rise không phải gõ lại
+  }).addCVNguoi(selectedKV, ten);
+}
+
+// Bỏ 1 người khỏi bảng này. Lời xác nhận nói RÕ là bảng Điểm danh không đổi
+// và số liệu không mất — để không ai ngần ngại hoặc hiểu nhầm là xoá hẳn.
+function hideCVNguoiUI_(ten, tuTao){
+  if (!selectedKV) return;
+  const loi = tuTao
+    ? 'Bỏ "' + ten + '" khỏi bảng Điểm danh công việc?\n\n' +
+      '• Người này chỉ có ở bảng công việc nên sẽ biến mất khỏi danh sách.\n' +
+      '• Số liệu đã nhập KHÔNG bị xoá — thêm lại đúng tên là hiện lại đầy đủ.'
+    : 'Ẩn "' + ten + '" khỏi bảng Điểm danh công việc?\n\n' +
+      '• Bảng ĐIỂM DANH KHÔNG bị ảnh hưởng, người này vẫn còn nguyên bên đó.\n' +
+      '• Số liệu đã nhập KHÔNG bị xoá.\n' +
+      '• Muốn hiện lại thì bấm nút ở dòng "Đang ẩn" ngay dưới bảng.';
+  if (!confirm(loi)) return;
+  google.script.run.withSuccessHandler(function(){
+    loadCVCongViec_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).hideCVNguoi(selectedKV, ten);
+}
+
+function unhideCVNguoiUI_(ten){
+  if (!selectedKV) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã hiện lại ' + ten, true);
+    loadCVCongViec_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).unhideCVNguoi(selectedKV, ten);
+}
+
+// Di chuyển giữa các ô bằng phím mũi tên + Enter, giống Google Sheets — anh
+// Rise: "hiện tại phải dùng chuột chỏ vào ô nào thì mới nhập được ô đó".
+//   · Trái/Phải chỉ nhảy ô khi con trỏ ĐÃ ở đầu/cuối chữ đang gõ, để không
+//     phá thao tác sửa chữ bình thường trong ô.
+//   · Lên/Xuống và Enter luôn nhảy sang dòng kế (ô 1 dòng, không có ý nghĩa dọc).
+//   · Enter nhảy XUỐNG: thứ tự dòng là Sáng → Chiều → Tối → Sáng của người kế.
+// ⚠️ Tìm ô đích bằng toạ độ data-r/data-c chứ KHÔNG bằng chỉ số cột trong
+// hàng — bảng này có ô rowspan="3" nên số <td> mỗi hàng khác nhau.
+function cvCellKeyNav(e){
+  const key = e.key;
+  const inp = e.target;
+  if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' &&
+      key !== 'ArrowDown' && key !== 'Enter') return;
+  if (key === 'ArrowLeft' && inp.selectionStart !== 0) return;
+  if (key === 'ArrowRight' && inp.selectionEnd !== inp.value.length) return;
+
+  const table = inp.closest('table');
+  if (!table) return;
+  let r = Number(inp.dataset.r);
+  let c = Number(inp.dataset.c);
+  if (!Number.isInteger(r) || !Number.isInteger(c)) return;
+
+  if (key === 'ArrowLeft') c -= 1;
+  else if (key === 'ArrowRight') c += 1;
+  else if (key === 'ArrowUp') r -= 1;
+  else r += 1;                       // ArrowDown + Enter
+  if (r < 0 || c < 0) return;
+
+  const dich = table.querySelector('input[data-r="' + r + '"][data-c="' + c + '"]');
+  if (!dich) return;                 // ra khỏi bảng thì đứng yên, không nhảy lung tung
+  e.preventDefault();
+  dich.focus();
+  dich.select();
+  // Ô có thể đang nằm ngoài vùng nhìn thấy (bảng rộng 42 cột) — kéo vào cho thấy.
+  if (dich.scrollIntoView) dich.scrollIntoView({ block: 'nearest', inline: 'nearest' });
 }
 
 // Lưu 1 ô. Máy chủ trả về các số Tổng MỚI của chính người đó -> cập nhật ngay
