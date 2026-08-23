@@ -12,9 +12,8 @@
 // nhóm Trụ đỡ (sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng), cộng thêm
 // các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — cộng
 // thêm 4 hàm quản lý Admin (getApprovedAccess/revokeAccess/grantAdmin/
-// revokeAdmin, mới 21/08/2026) — cộng thêm 6 hàm "Điểm danh công việc"
-// (getCVDiemDanh/addCVThanhVien/updateCVThanhVien/deleteCVThanhVien/
-// moveCVThanhVien/saveCVCell, mới 23/08/2026) — tổng 89.
+// revokeAdmin, mới 21/08/2026) — cộng thêm 2 hàm "Điểm danh công việc"
+// (getCVCongViec/saveCVCongViec, mới 23/08/2026) — tổng 85.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -148,14 +147,11 @@ export const DANH_MUC = {
   donDepTPTatCaKhuVuc:     { doc: false, chuThoi: true, fn: khuVuc.donDepTPTatCaKhuVuc },
 
   // --- Điểm danh công việc (thêm 23/08/2026, xem handlers/cong-viec.js) ---
-  // Danh sách thành viên RIÊNG, không dính bảng Điểm danh. Cố ý KHÔNG đặt
+  // Nằm trong tab con "Trudo" của từng Khu vực, DÙNG CHUNG danh sách người
+  // của bảng Điểm danh nên KHÔNG cần hàm thêm/xoá người. Cố ý KHÔNG đặt
   // chuThoi: cả phòng cùng nhập, giống bảng Điểm danh hiện có.
-  getCVDiemDanh:           { doc: true,  fn: congViec.getCVDiemDanh },
-  addCVThanhVien:          { doc: false, fn: congViec.addCVThanhVien },
-  updateCVThanhVien:       { doc: false, fn: congViec.updateCVThanhVien },
-  deleteCVThanhVien:       { doc: false, fn: congViec.deleteCVThanhVien },
-  moveCVThanhVien:         { doc: false, fn: congViec.moveCVThanhVien },
-  saveCVCell:              { doc: false, fn: congViec.saveCVCell },
+  getCVCongViec:           { doc: true,  fn: congViec.getCVCongViec },
+  saveCVCongViec:          { doc: false, fn: congViec.saveCVCongViec },
 };
 
 export const DANH_SACH_DOC = new Set(
