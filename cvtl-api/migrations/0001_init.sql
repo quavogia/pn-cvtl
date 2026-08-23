@@ -307,3 +307,42 @@ CREATE TABLE IF NOT EXISTS chot_ky (
   nguoi_chot   TEXT,
   chot_luc     INTEGER NOT NULL
 );
+
+-- ---------------------------------------------------------------------
+-- 21. ĐIỂM DANH CÔNG VIỆC   (thêm 23/08/2026, theo yêu cầu anh Rise)
+-- Chép lại bố cục sổ ghi chép của WISBranch, BỎ cột "Số sự sống".
+--
+-- ⚠️ Danh sách thành viên ở đây là RIÊNG, cố ý KHÔNG dùng chung với
+-- diem_danh_roster (anh Rise chọn 23/08/2026) — thêm/xoá người bên này
+-- không ảnh hưởng gì tới bảng Điểm danh đang dùng, và ngược lại.
+--
+-- Khoá chính dùng `id` (không dùng tên) để hai người TRÙNG TÊN vẫn là hai
+-- dòng độc lập — đúng bài học từ các lỗi trùng tên trước đây.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cv_thanh_vien (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ten         TEXT NOT NULL,
+  gioi_tinh   TEXT,
+  ban_nganh   TEXT,
+  dia_vuc     TEXT,
+  khu_vuc     TEXT,
+  chuc_trach  TEXT,
+  chuc_phan   TEXT,
+  thu_tu      INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS ix_cvtv_thutu ON cv_thanh_vien (thu_tu, id);
+
+-- Mỗi ô nhập = 1 dòng. buoi: sang | chieu | toi (đúng 3 dòng "Phân loại"
+-- 1/2/3 của sổ gốc). ngay: CN,T2,T3,T4,T5,T6,T7.
+-- Ô để TRỐNG thì XOÁ hẳn dòng (không lưu chuỗi rỗng) — nhờ vậy "Tổng cộng"
+-- chỉ cần đếm số dòng, không phải lọc chuỗi rỗng.
+CREATE TABLE IF NOT EXISTS cv_diem_danh (
+  thanh_vien_id INTEGER NOT NULL,
+  thang         TEXT NOT NULL,
+  tuan          INTEGER NOT NULL,
+  buoi          TEXT NOT NULL,
+  ngay          TEXT NOT NULL,
+  gia_tri       TEXT NOT NULL,
+  PRIMARY KEY (thanh_vien_id, thang, tuan, buoi, ngay)
+);
+CREATE INDEX IF NOT EXISTS ix_cvdd_thang ON cv_diem_danh (thang, tuan);
