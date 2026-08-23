@@ -95,7 +95,15 @@ console.log('1) Đăng ký hàm trong danh mục');
   // Cả phòng cùng nhập được, giống bảng Điểm danh.
   kiem('getCVCongViec KHÔNG giới hạn riêng tài khoản chủ', !DANH_MUC.getCVCongViec.chuThoi);
   kiem('saveCVCongViec KHÔNG giới hạn riêng tài khoản chủ', !DANH_MUC.saveCVCongViec.chuThoi);
-  // KHÔNG còn hàm quản lý danh sách riêng nữa (đã bỏ 23/08/2026).
+  // 3 hàm chỉnh danh sách riêng của bảng công việc (thêm 23/08/2026 lần 2).
+  kiem('có hàm addCVNguoi', !!DANH_MUC.addCVNguoi);
+  kiem('có hàm hideCVNguoi', !!DANH_MUC.hideCVNguoi);
+  kiem('có hàm unhideCVNguoi', !!DANH_MUC.unhideCVNguoi);
+  kiem('cả 3 hàm chỉnh danh sách đều là hàm GHI',
+    DANH_MUC.addCVNguoi.doc !== true && DANH_MUC.hideCVNguoi.doc !== true && DANH_MUC.unhideCVNguoi.doc !== true);
+  kiem('cả 3 hàm KHÔNG giới hạn riêng tài khoản chủ',
+    !DANH_MUC.addCVNguoi.chuThoi && !DANH_MUC.hideCVNguoi.chuThoi && !DANH_MUC.unhideCVNguoi.chuThoi);
+  // KHÔNG còn hàm quản lý danh sách riêng CỦA BẢN v1 nữa (đã bỏ 23/08/2026).
   for (const f of ['addCVThanhVien', 'deleteCVThanhVien', 'moveCVThanhVien', 'updateCVThanhVien', 'getCVDiemDanh'])
     kiem('đã BỎ hàm cũ ' + f, !DANH_MUC[f]);
 }
@@ -274,6 +282,122 @@ console.log('\n8) Chuyển khu vực thì số liệu công việc ĐI THEO ngư
 
   g = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
   kiem('khu vực cũ không còn người đó', !g.result.thanhVien.some(x => x.ten === 'N Thị Ngân'));
+}
+
+// =====================================================================
+// Anh Rise (23/08/2026 lần 2): "thêm phần xóa hoặc nhập thêm người mới nữa".
+// Đã CHỐT qua AskUserQuestion: sửa ở bảng công việc KHÔNG đụng bảng Điểm danh.
+// Đây là trọng tâm dễ sai nhất của lần sửa này -> kiểm rất kỹ.
+console.log('\n9) Thêm / Ẩn / Hiện lại người — KHÔNG đụng bảng Điểm danh');
+{
+  const tenTrongBang = async (kv) =>
+    (await goi('getCVCongViec', [kv, '2026-08'])).result.thanhVien.map(x => x.ten);
+  const rosterDiemDanh = (kv) =>
+    sqlite.prepare('SELECT ten FROM diem_danh_roster WHERE khu_vuc=? ORDER BY thu_tu, id')
+      .all(kv).map(x => x.ten);
+
+  // --- 9a. Thêm người mới ---
+  taoCSDL();
+  let r = await goi('addCVNguoi', ['Đ Uyên', 'Cô Loan']);
+  kiem('thêm người mới thành công', r.result?.success === true, JSON.stringify(r));
+  kiem('người mới hiện ở bảng công việc', (await tenTrongBang('Đ Uyên')).includes('Cô Loan'));
+  kiem('⭐ người mới KHÔNG hiện ở bảng Điểm danh',
+    !rosterDiemDanh('Đ Uyên').includes('Cô Loan'), JSON.stringify(rosterDiemDanh('Đ Uyên')));
+  kiem('người mới xếp SAU CÙNG, phần nền vẫn đúng thứ tự Điểm danh',
+    JSON.stringify(await tenTrongBang('Đ Uyên')) ===
+    JSON.stringify(['Đ T Ngọc Uyên', 'N Thị Ngân', 'N Thị Hiệu', 'Cô Loan']),
+    JSON.stringify(await tenTrongBang('Đ Uyên')));
+  kiem('người mới được đánh dấu tuTao = true',
+    (await goi('getCVCongViec', ['Đ Uyên', '2026-08'])).result.thanhVien.find(x => x.ten === 'Cô Loan')?.tuTao === true);
+  kiem('người từ Điểm danh có tuTao = false',
+    (await goi('getCVCongViec', ['Đ Uyên', '2026-08'])).result.thanhVien.find(x => x.ten === 'N Thị Ngân')?.tuTao === false);
+  kiem('khu vực khác KHÔNG thấy người vừa thêm',
+    !(await tenTrongBang('K Thành')).includes('Cô Loan'));
+
+  // --- 9b. Người mới nhập được số liệu bình thường ---
+  await luu('Đ Uyên', 'Cô Loan', '2026-08', 2, 'sang', 'T4', '105');
+  let g = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('người tự thêm nhập ô bình thường',
+    g.result.thanhVien.find(x => x.ten === 'Cô Loan')?.o.sang['2-T4'] === '105');
+  kiem('người tự thêm vẫn đủ 3 buổi',
+    Object.keys(g.result.thanhVien.find(x => x.ten === 'Cô Loan').o).join(',') === 'sang,chieu,toi');
+
+  // --- 9c. Chặn thêm trùng ---
+  r = await goi('addCVNguoi', ['Đ Uyên', 'Cô Loan']);
+  kiem('thêm trùng người TỰ THÊM -> báo lỗi', /đã có sẵn/.test(r.error || ''), JSON.stringify(r));
+  r = await goi('addCVNguoi', ['Đ Uyên', 'N Thị Ngân']);
+  kiem('thêm trùng người CỦA ĐIỂM DANH -> báo lỗi', /đã có sẵn/.test(r.error || ''), JSON.stringify(r));
+  r = await goi('addCVNguoi', ['Đ Uyên', '   ']);
+  kiem('thêm tên rỗng -> báo lỗi', !!r.error, JSON.stringify(r));
+
+  // --- 9d. Ẩn người của bảng Điểm danh ---
+  taoCSDL();
+  await luu('Đ Uyên', 'N Thị Ngân', '2026-08', 1, 'toi', 'CN', '207');
+  r = await goi('hideCVNguoi', ['Đ Uyên', 'N Thị Ngân']);
+  kiem('ẩn người thành công, đúng kiểu "an"', r.result?.kieu === 'an', JSON.stringify(r));
+  kiem('người bị ẩn biến mất khỏi bảng công việc',
+    !(await tenTrongBang('Đ Uyên')).includes('N Thị Ngân'));
+  kiem('⭐ người bị ẩn VẪN CÒN NGUYÊN ở bảng Điểm danh',
+    rosterDiemDanh('Đ Uyên').includes('N Thị Ngân'), JSON.stringify(rosterDiemDanh('Đ Uyên')));
+  kiem('⭐ số liệu đã nhập KHÔNG bị xoá',
+    Number(sqlite.prepare('SELECT COUNT(*) c FROM cv_cong_viec WHERE ten=?').get('N Thị Ngân').c) === 1);
+  g = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('máy chủ trả về danh sách người đang ẩn (dsAn)',
+    JSON.stringify(g.result.dsAn) === JSON.stringify(['N Thị Ngân']), JSON.stringify(g.result.dsAn));
+  kiem('những người còn lại vẫn đúng thứ tự',
+    JSON.stringify(await tenTrongBang('Đ Uyên')) === JSON.stringify(['Đ T Ngọc Uyên', 'N Thị Hiệu']));
+
+  // --- 9e. Hiện lại ---
+  r = await goi('unhideCVNguoi', ['Đ Uyên', 'N Thị Ngân']);
+  kiem('hiện lại thành công', r.result?.success === true);
+  g = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('hiện lại thì về ĐÚNG VỊ TRÍ CŨ (không nhảy xuống cuối)',
+    JSON.stringify(g.result.thanhVien.map(x => x.ten)) ===
+    JSON.stringify(['Đ T Ngọc Uyên', 'N Thị Ngân', 'N Thị Hiệu']),
+    JSON.stringify(g.result.thanhVien.map(x => x.ten)));
+  kiem('hiện lại thì số cũ về đủ',
+    g.result.thanhVien.find(x => x.ten === 'N Thị Ngân')?.o.toi['1-CN'] === '207');
+  kiem('dsAn rỗng trở lại', g.result.dsAn.length === 0);
+
+  // --- 9f. Thêm lại tên đang bị ẩn = hiện lại (không báo lỗi khó hiểu) ---
+  await goi('hideCVNguoi', ['Đ Uyên', 'N Thị Hiệu']);
+  r = await goi('addCVNguoi', ['Đ Uyên', 'N Thị Hiệu']);
+  kiem('gõ lại tên đang bị ẩn thì HIỆN LẠI, không báo lỗi', r.result?.hienLai === true, JSON.stringify(r));
+  kiem('và người đó quay lại bảng', (await tenTrongBang('Đ Uyên')).includes('N Thị Hiệu'));
+
+  // --- 9g. Bỏ người TỰ THÊM thì xoá hẳn dòng, không để rác ---
+  taoCSDL();
+  await goi('addCVNguoi', ['Đ Uyên', 'Cô Thương']);
+  await luu('Đ Uyên', 'Cô Thương', '2026-08', 1, 'sang', 'CN', '9');
+  r = await goi('hideCVNguoi', ['Đ Uyên', 'Cô Thương']);
+  kiem('bỏ người tự thêm -> đúng kiểu "them"', r.result?.kieu === 'them', JSON.stringify(r));
+  kiem('không còn dòng nào trong cv_nguoi',
+    Number(sqlite.prepare('SELECT COUNT(*) c FROM cv_nguoi WHERE ten=?').get('Cô Thương').c) === 0);
+  kiem('người tự thêm bị bỏ thì không hiện nữa',
+    !(await tenTrongBang('Đ Uyên')).includes('Cô Thương'));
+  kiem('không xuất hiện nhầm trong dsAn (họ vốn không thuộc Điểm danh)',
+    (await goi('getCVCongViec', ['Đ Uyên', '2026-08'])).result.dsAn.length === 0);
+  kiem('⭐ số liệu của họ vẫn còn, thêm lại là về đủ',
+    Number(sqlite.prepare('SELECT COUNT(*) c FROM cv_cong_viec WHERE ten=?').get('Cô Thương').c) === 1);
+  await goi('addCVNguoi', ['Đ Uyên', 'Cô Thương']);
+  g = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('thêm lại thì số cũ hiện lại đầy đủ',
+    g.result.thanhVien.find(x => x.ten === 'Cô Thương')?.o.sang['1-CN'] === '9');
+
+  // --- 9h. Chuyển khu vực mang theo cả phần chỉnh danh sách ---
+  taoCSDL();
+  await goi('addCVNguoi', ['Đ Uyên', 'Cô Duyên']);
+  await luu('Đ Uyên', 'Cô Duyên', '2026-08', 3, 'chieu', 'T5', '77');
+  r = await goi('chuyenThanhVienKhuVuc', ['Đ Uyên', ['Cô Duyên'], 'TT Châu'], CHU);
+  kiem('chuyển người TỰ THÊM sang khu vực khác thành công', r.result?.success === true, JSON.stringify(r));
+  kiem('cv_nguoi nằm trong danh sách bảng được chuyển',
+    !!r.result?.ketQua?.[0]?.chiTiet?.find(x => x.bang === 'cv_nguoi'),
+    JSON.stringify(r.result?.ketQua?.[0]?.chiTiet?.map(x => x.bang)));
+  kiem('khu vực MỚI thấy người đó', (await tenTrongBang('TT Châu')).includes('Cô Duyên'));
+  kiem('khu vực CŨ không còn', !(await tenTrongBang('Đ Uyên')).includes('Cô Duyên'));
+  g = await goi('getCVCongViec', ['TT Châu', '2026-08']);
+  kiem('số liệu theo sang khu vực mới',
+    g.result.thanhVien.find(x => x.ten === 'Cô Duyên')?.o.chieu['3-T5'] === '77');
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
