@@ -140,40 +140,36 @@
   .dd-table .dd-week-odd{background:#eff6ff;}
   .dd-table .dd-week-even{background:#f8fafc;}
   .dd-table td.dd-week-odd input, .dd-table td.dd-week-even input{background:transparent;}
-  /* ===== BẢNG ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026) =====================
-     Chép bố cục sổ ghi chép của WISBranch. Ba cột đầu (No / Phân loại /
-     Họ tên) DÍNH CỐ ĐỊNH bên trái khi kéo ngang — cùng lý do với bảng Điểm
-     danh: kéo sang Thứ 6, Thứ 7 vẫn phải thấy tên người, không nhập nhầm.
-     ⚠️ Dùng border-collapse:separate (KHÔNG phải collapse) vì viền của ô
-     dính hay bị "nuốt" mất khi cuộn nếu để collapse.
+  /* ===== BẢNG ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026, sửa lại cùng ngày) ===
+     Chép đúng sheet "CVTL PN" của anh Rise: mỗi người 3 dòng Sáng/Chiều/Tối,
+     hiện CẢ 6 TUẦN × 7 ngày cùng lúc (kéo ngang). Bảng nằm trong tab con
+     "Trudo" của từng Khu vực; danh sách người lấy từ bảng Điểm danh.
+     Ba cột đầu (STT / Họ và Tên / Thời Gian) DÍNH CỐ ĐỊNH bên trái — bảng
+     rộng tới 42 cột ngày, không có cột dính thì chắc chắn nhập nhầm dòng.
+     ⚠️ border-collapse:separate (KHÔNG phải collapse) vì viền của ô dính hay
+     bị "nuốt" mất khi cuộn.
      ⚠️ Bề rộng 3 cột dính phải KHỚP với các giá trị left bên dưới
-     (0 / 40 / 104) — sửa bề rộng thì phải sửa cả left, nếu không các cột sẽ
+     (0 / 44 / 194) — sửa bề rộng thì phải sửa cả left, nếu không các cột sẽ
      chồng lên nhau lúc cuộn. Trang có *{box-sizing:border-box} nên width đã
-     bao gồm cả viền, cộng thẳng là đúng. */
-  .cv-table{border-collapse:separate;border-spacing:0;font-size:13px;background:#fff;}
+     gồm cả viền, cộng thẳng là đúng. */
+  .cv-table{border-collapse:separate;border-spacing:0;font-size:12px;background:#fff;}
   .cv-table th, .cv-table td{border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;padding:2px 3px;text-align:center;vertical-align:middle;}
-  .cv-table thead th{background:#f1f5f9;color:#475569;font-size:11px;font-weight:700;white-space:nowrap;padding:6px 4px;border-top:1px solid #e2e8f0;}
+  .cv-table thead th{background:#f1f5f9;color:#475569;font-size:11px;font-weight:700;white-space:nowrap;padding:5px 4px;border-top:1px solid #e2e8f0;}
   .cv-table th:first-child, .cv-table td:first-child{border-left:1px solid #e2e8f0;}
-  .cv-table input, .cv-table select{width:100%;padding:4px 3px;font-size:12px;border:1px solid transparent;background:transparent;text-align:center;border-radius:4px;transition:background .3s;}
-  .cv-table input:focus, .cv-table select:focus{border-color:#2563eb;background:#fff;outline:none;}
+  .cv-table th.cv-tuan-hdr{background:#e0e7ff;color:#1e3a8a;font-size:12px;font-weight:800;letter-spacing:.3px;}
+  .cv-table .cv-tuan-dau{border-left:2px solid #94a3b8;}
+  .cv-table input{width:100%;padding:3px 2px;font-size:12px;border:1px solid transparent;background:transparent;text-align:center;border-radius:4px;transition:background .3s;}
+  .cv-table input:focus{border-color:#2563eb;background:#fff;outline:none;}
   .cv-table input.saved{background:#dcfce7;}
-  .cv-table td.cv-buoi{font-weight:700;color:#1e3a8a;font-size:11px;background:#eff6ff;}
-  .cv-table td.cv-ngay{background:#f7fee7;min-width:64px;}
-  .cv-table td.cv-tong{font-weight:800;color:var(--primary);font-size:14px;background:#f8fafc;}
-  .cv-table td.cv-tong-truoc{color:#64748b;background:#f8fafc;}
-  .cv-table tr.cv-het td{border-bottom:2px solid #cbd5e1;}
-  .cv-table .cv-act{display:flex;gap:2px;justify-content:center;}
-  .cv-table .cv-act button{font-size:10px;padding:2px 5px;background:#e2e8f0;color:#334155;border:none;border-radius:5px;cursor:pointer;}
-  .cv-table .cv-act button.cv-xoa{background:#fee2e2;color:#b91c1c;}
+  .cv-table td.cv-ngay{background:#f7fee7;min-width:52px;padding:0;}
+  .cv-table td.cv-tong{font-weight:700;color:var(--primary);background:#f8fafc;min-width:52px;}
+  .cv-table td.cv-tong-nguoi{font-weight:800;color:#b91c1c;font-size:14px;background:#fef2f2;min-width:56px;}
+  .cv-table tr.cv-het td{border-bottom:2px solid #94a3b8;}
   .cv-fix1, .cv-fix2, .cv-fix3{position:sticky;z-index:2;background:#fff;}
-  .cv-fix1{left:0;width:40px;min-width:40px;}
-  .cv-fix2{left:40px;width:64px;min-width:64px;}
-  .cv-fix3{left:104px;width:170px;min-width:170px;}
+  .cv-fix1{left:0;width:44px;min-width:44px;}
+  .cv-fix2{left:44px;width:150px;min-width:150px;text-align:left;font-weight:600;color:#475569;padding-left:8px;}
+  .cv-fix3{left:194px;width:60px;min-width:60px;font-weight:700;color:#1e3a8a;font-size:11px;background:#eff6ff;}
   .cv-table thead th.cv-fix1, .cv-table thead th.cv-fix2, .cv-table thead th.cv-fix3{z-index:3;background:#f1f5f9;}
-  .cv-table td.cv-fix2{background:#eff6ff;}
-  .cv-table td.cv-fix3 input{text-align:left;font-weight:600;color:#475569;}
-  .cv-tuan-pill{padding:5px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-size:13px;cursor:pointer;}
-  .cv-tuan-pill.active{background:var(--primary);color:#fff;border-color:var(--primary);}
   .dd-goiy{font-size:11px;color:#94a3b8;display:block;margin-top:2px;}
   .dd-goiy button{font-size:10px;padding:1px 6px;margin-left:4px;background:#e2e8f0;color:#334155;border-radius:6px;}
   .tp-trend.up{color:#16a34a;}
@@ -335,7 +331,6 @@
     <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
     <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
     <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
-    <button type="button" class="nav-btn" data-panel="congviec" onclick="showPanel('congviec'); moCongViec_();"><span class="nav-icon">🧾</span> Điểm danh công việc</button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
@@ -736,6 +731,29 @@
             <tbody id="kvBuoiBody"></tbody>
           </table>
         </div>
+
+        <!-- ===== ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026, theo yêu cầu anh Rise) =====
+             Chép đúng sheet "CVTL PN" anh Rise đang dùng. Đặt ngay trong tab con
+             Trudo của từng Khu vực — anh Rise chốt: "chuyển tab đó vào tab trudo
+             trong mỗi khu vực, quản lý thành viên sẽ dễ dàng hơn".
+             Danh sách người DÙNG CHUNG bảng Điểm danh nên ở đây KHÔNG có ô thêm
+             người; thêm/xoá người làm ở tab con "TP" như trước nay. -->
+        <div class="card">
+          <h3 style="margin:0 0 4px">Điểm danh công việc — <span id="cv_kvName">—</span></h3>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">
+            Mỗi người 3 dòng <b>Sáng / Chiều / Tối</b>, hiện đủ <b>Tuần 1 → Tuần 6</b> (kéo ngang để xem).
+            Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu — xoá trắng ô là bỏ.
+            Cột <b>Tổng</b> ở mỗi dòng = số ô đã nhập của buổi đó trong cả tháng; <b>số đỏ</b> = tổng cả 3 buổi.
+            Danh sách người lấy từ bảng <b>Điểm danh</b> của khu vực này — thêm/xoá người ở tab <b>TP</b>.
+            Đổi tháng bằng ô <b>"Xem tháng"</b> ở trên cùng.
+          </p>
+          <p id="cvEmpty" style="color:#94a3b8;font-size:13px;display:none;">
+            Khu vực này chưa có ai trong bảng Điểm danh — thêm người ở tab "TP" trước.
+          </p>
+          <div style="overflow-x:auto;">
+            <table class="cv-table" id="cvTable"></table>
+          </div>
+        </div>
       </div>
 
       <!-- ---- Sub-tab: Giáo dục — scoped theo 1 Khu vực đang chọn ---- -->
@@ -1046,48 +1064,6 @@
       </div>
     </div>
 
-    <!-- ============ ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026, theo yêu cầu anh Rise) ============
-         Chép lại bố cục "Sổ ghi chép hoạt động Hội Thánh" của WISBranch, BỎ cột
-         "Số sự sống"; danh sách thành viên RIÊNG (có ô tự thêm mới); mỗi người
-         đúng 3 dòng Sáng/Chiều/Tối; cột "Tổng cộng" tự đếm số ô đã nhập trong
-         tháng. Xem giải thích đầy đủ ở cvtl-api/src/handlers/cong-viec.js. -->
-    <div id="panel-congviec" class="panel">
-      <h1>Điểm danh công việc</h1>
-      <p style="font-size:13px;color:#64748b;margin-top:-8px;">
-        Mỗi người có 3 dòng <b>Sáng / Chiều / Tối</b>. Gõ bất kỳ số hoặc chữ nào vào ô ngày rồi
-        rời ô là tự lưu — xoá trắng ô là bỏ. Cột <b>Tổng cộng</b> tự đếm số ô đã nhập trong
-        THÁNG đang xem (mọi tuần), không cần gõ tay.
-        Danh sách thành viên ở đây <b>riêng biệt</b>, không dính gì tới bảng Điểm danh ở mục
-        "Hiện trạng khu vực".
-      </p>
-
-      <div class="card">
-        <div class="toolbar" style="align-items:flex-end;">
-          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-            <div>
-              <label style="font-size:12px;color:#64748b;display:block;margin:0 0 2px;">Tháng</label>
-              <input type="month" id="cvMonth" onchange="loadCongViec_()">
-            </div>
-            <div>
-              <label style="font-size:12px;color:#64748b;display:block;margin:0 0 2px;">Tuần</label>
-              <div id="cvTuanPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;">
-            <input id="cv_newTen" placeholder="Tên thành viên mới..." style="width:auto;min-width:200px;"
-                   onkeydown="if(event.key==='Enter'){event.preventDefault();addCVThanhVienUI_();}">
-            <button type="button" onclick="addCVThanhVienUI_()">+ Thêm</button>
-          </div>
-        </div>
-        <p id="cvEmpty" style="color:#94a3b8;font-size:13px;display:none;">
-          Chưa có thành viên nào. Gõ tên vào ô "Tên thành viên mới..." ở trên rồi bấm "+ Thêm".
-        </p>
-        <div style="overflow-x:auto;">
-          <table class="cv-table" id="cvTable"></table>
-        </div>
-      </div>
-    </div>
-
   </div>
 
 <script>
@@ -1175,7 +1151,7 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   // Nhóm Trụ đỡ (thêm 13/08/2026)
   'getSoMoc', 'getMocDaGhi', 'getBapTemBanner', 'getXepHang', 'getChotKy', 'getDsChotKy',
   // Điểm danh công việc (thêm 23/08/2026)
-  'getCVDiemDanh']);
+  'getCVCongViec']);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
 // giá trị sống trong CACHE_TTL_MS. Mục đích: khi chuyển qua lại Khu vực/tab đã xem
@@ -2267,7 +2243,7 @@ function loadKVSubTab(){
   if (kvTongMode) { loadKVTongPanel(); return; }
   if (kvActiveSubTab === 'muctieu') loadMucTieuPanel();
   else if (kvActiveSubTab === 'tp') loadTPPanel();
-  else if (kvActiveSubTab === 'trudo') loadKVOverview();
+  else if (kvActiveSubTab === 'trudo') { loadKVOverview(); loadCVCongViec_(); }
   else if (kvActiveSubTab === 'edu') loadEduPanel();
   else if (kvActiveSubTab === 'daotao') loadDaoTaoPanel();
   else if (kvActiveSubTab === 'lehoi') loadLeHoiPanel();
@@ -4524,208 +4500,110 @@ document.getElementById('lichForm').addEventListener('submit', function(e){
 });
 
 /** ---------- ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026) ----------------------
- * Bố cục chép từ sổ ghi chép của WISBranch, BỎ cột "Số sự sống".
- * Mỗi thành viên = ĐÚNG 3 dòng Sáng / Chiều / Tối (chính là 3 dòng "Phân
- * loại" 1/2/3 của sổ gốc — anh Rise xác nhận 23/08/2026).
- * Các cột thông tin người (Họ tên, Giới tính, ...) dùng rowspan=3 cho gọn:
- * sửa 1 lần ăn cho cả 3 dòng, khỏi phải gõ lại 3 lần và khỏi lo 3 dòng ghi
- * khác nhau thì dòng nào mới đúng.
- * Cột "Tổng cộng" do MÁY CHỦ tính (đếm số ô đã nhập trong tháng) — giao
- * diện chỉ hiển thị, không tự cộng, để không bao giờ lệch với dữ liệu thật.
+ * Nằm TRONG tab con "Trudo" của từng Khu vực. Chép đúng sheet "CVTL PN" của
+ * anh Rise: mỗi người 3 dòng Sáng / Chiều / Tối, hiện CẢ 6 TUẦN × 7 ngày
+ * cùng lúc (kéo ngang), cột "Tổng" mỗi dòng + số đỏ tổng của cả người.
+ *
+ * ⚠️ Danh sách người DÙNG CHUNG bảng Điểm danh của khu vực (máy chủ đọc từ
+ * `diem_danh_roster`) — nên ở đây KHÔNG có nút thêm/xoá/đổi thứ tự người.
+ * ⚠️ Các số "Tổng" đều do MÁY CHỦ tính, giao diện chỉ hiển thị — để không
+ * bao giờ lệch với dữ liệu thật.
+ * ⚠️ Tháng lấy từ ô "Xem tháng" chung của trang Hiện trạng khu vực
+ * (kvMonthKey()), nên đổi tháng ở trên là bảng này tự tải lại theo.
  */
 const CV_BUOI_ = [{ ma: 'sang', nhan: 'Sáng' }, { ma: 'chieu', nhan: 'Chiều' }, { ma: 'toi', nhan: 'Tối' }];
-const CV_NGAY_ = [
-  { ma: 'CN', nhan: 'Chủ nhật' }, { ma: 'T2', nhan: 'Thứ 2' }, { ma: 'T3', nhan: 'Thứ 3' },
-  { ma: 'T4', nhan: 'Thứ 4' }, { ma: 'T5', nhan: 'Thứ 5' }, { ma: 'T6', nhan: 'Thứ 6' },
-  { ma: 'T7', nhan: 'Thứ 7' }
-];
+const CV_NGAY_ = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const CV_SO_TUAN_ = 6;
-const CV_GIOI_TINH_ = ['', 'Nữ', 'Nam'];
-let cvTuanDangXem_ = 0;   // 0 = chưa đặt, sẽ tự chọn theo hôm nay
 
-// Tuần thứ mấy của tháng cho ngày hôm nay (1..6) — chỉ để CHỌN SẴN cho tiện,
-// anh Rise vẫn bấm đổi tuần thoải mái.
-function cvTuanHomNay_(){
-  const d = new Date();
-  return Math.min(CV_SO_TUAN_, Math.max(1, Math.ceil(d.getDate() / 7)));
-}
-
-function moCongViec_(){
-  const m = document.getElementById('cvMonth');
-  if (!m.value) m.value = currentMonthKey();
-  if (!cvTuanDangXem_) cvTuanDangXem_ = cvTuanHomNay_();
-  renderCVTuanPills_();
-  loadCongViec_();
-}
-
-function renderCVTuanPills_(){
-  const box = document.getElementById('cvTuanPills');
-  let h = '';
-  for (let t = 1; t <= CV_SO_TUAN_; t++) {
-    h += '<button type="button" class="cv-tuan-pill' + (t === cvTuanDangXem_ ? ' active' : '') +
-         '" onclick="cvChonTuan_(' + t + ')">Tuần ' + t + '</button>';
-  }
-  box.innerHTML = h;
-}
-
-function cvChonTuan_(t){
-  if (t === cvTuanDangXem_) return;
-  cvTuanDangXem_ = t;
-  renderCVTuanPills_();
-  loadCongViec_();
-}
-
-function loadCongViec_(){
-  const thang = document.getElementById('cvMonth').value || currentMonthKey();
-  const tuan = cvTuanDangXem_ || cvTuanHomNay_();
+function loadCVCongViec_(){
+  const ten = document.getElementById('cv_kvName');
+  if (ten) ten.textContent = selectedKV || '—';
+  if (!selectedKV) { renderCVTable_(null); return; }
   google.script.run.withSuccessHandler(function(d){
     window._cvData = d;
     renderCVTable_(d);
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Điểm danh công việc: ' + err.message, false);
-  }).getCVDiemDanh(thang, tuan);
-}
-
-function cvSelectGioiTinh_(tv){
-  return '<select onchange="saveCVInfoUI_(this)" data-id="' + tv.id + '" data-truong="gioiTinh">' +
-    CV_GIOI_TINH_.map(function(g){
-      return '<option value="' + esc(g) + '"' + (tv.gioiTinh === g ? ' selected' : '') + '>' + esc(g || '—') + '</option>';
-    }).join('') + '</select>';
-}
-
-function cvOTextInfo_(tv, truong){
-  return '<input type="text" value="' + esc(tv[truong] || '') + '" data-id="' + tv.id +
-    '" data-truong="' + truong + '" onchange="saveCVInfoUI_(this)">';
+  }).getCVCongViec(selectedKV, kvMonthKey());
 }
 
 function renderCVTable_(d){
   const table = document.getElementById('cvTable');
   const empty = document.getElementById('cvEmpty');
+  if (!table) return;
   const ds = (d && d.thanhVien) || [];
   empty.style.display = ds.length ? 'none' : '';
+  if (!ds.length) { table.innerHTML = ''; return; }
 
-  let thead = '<thead><tr>' +
-    '<th class="cv-fix1">No</th>' +
-    '<th class="cv-fix2">Phân loại</th>' +
-    '<th class="cv-fix3">Họ tên</th>' +
-    '<th style="min-width:70px;">Giới tính</th>' +
-    '<th style="min-width:95px;">Ban ngành</th>' +
-    '<th style="min-width:60px;">Địa vực</th>' +
-    '<th style="min-width:60px;">Khu vực</th>' +
-    '<th style="min-width:110px;">Chức trách</th>' +
-    '<th style="min-width:95px;">Chức phận</th>' +
-    '<th style="min-width:84px;">Xóa</th>';
-  CV_NGAY_.forEach(function(n){
-    thead += '<th class="cv-ngay-hdr">' + n.nhan + '<br>tuần ' + d.tuan + '</th>';
-  });
-  thead += '<th style="min-width:72px;">Tổng cộng</th>' +
-           '<th style="min-width:82px;">Tổng cộng<br>(Tháng trước)</th></tr></thead>';
+  // Hàng tiêu đề 1: gộp 7 ngày thành 1 ô "Tuần n" (giống sheet).
+  // Hàng tiêu đề 2: CN, T2 ... T7 của từng tuần.
+  let h1 = '<th class="cv-fix1" rowspan="2">STT</th>' +
+           '<th class="cv-fix2" rowspan="2">Họ và Tên</th>' +
+           '<th class="cv-fix3" rowspan="2">Thời Gian</th>';
+  let h2 = '';
+  for (let t = 1; t <= CV_SO_TUAN_; t++) {
+    h1 += '<th class="cv-tuan-hdr cv-tuan-dau" colspan="7">Tuần ' + t + '</th>';
+    CV_NGAY_.forEach(function(n, i){
+      h2 += '<th' + (i === 0 ? ' class="cv-tuan-dau"' : '') + '>' + n + '</th>';
+    });
+  }
+  h1 += '<th rowspan="2" class="cv-tuan-dau">Tổng</th><th rowspan="2">Tổng<br>người</th>';
 
   let body = '';
   ds.forEach(function(tv, i){
+    const tenAttr = esc(tv.ten);
     CV_BUOI_.forEach(function(b, k){
-      const dauNguoi = k === 0;
-      const cuoiNguoi = k === CV_BUOI_.length - 1;
-      body += '<tr' + (cuoiNguoi ? ' class="cv-het"' : '') + '>';
-      if (dauNguoi) body += '<td class="cv-fix1" rowspan="3">' + (i + 1) + '</td>';
-      body += '<td class="cv-fix2 cv-buoi">' + b.nhan + '</td>';
-      if (dauNguoi) {
-        body += '<td class="cv-fix3" rowspan="3">' + cvOTextInfo_(tv, 'ten') + '</td>' +
-          '<td rowspan="3">' + cvSelectGioiTinh_(tv) + '</td>' +
-          '<td rowspan="3">' + cvOTextInfo_(tv, 'banNganh') + '</td>' +
-          '<td rowspan="3">' + cvOTextInfo_(tv, 'diaVuc') + '</td>' +
-          '<td rowspan="3">' + cvOTextInfo_(tv, 'khuVuc') + '</td>' +
-          '<td rowspan="3">' + cvOTextInfo_(tv, 'chucTrach') + '</td>' +
-          '<td rowspan="3">' + cvOTextInfo_(tv, 'chucPhan') + '</td>' +
-          '<td rowspan="3"><div class="cv-act">' +
-            '<button type="button" title="Lên 1 bậc" onclick="moveCVUI_(' + tv.id + ',\'len\')">▲</button>' +
-            '<button type="button" title="Xuống 1 bậc" onclick="moveCVUI_(' + tv.id + ',\'xuong\')">▼</button>' +
-            '<button type="button" class="cv-xoa" title="Xoá người này" onclick="xoaCVUI_(' + tv.id + ')">✕</button>' +
-          '</div></td>';
+      const dau = k === 0;
+      const cuoi = k === CV_BUOI_.length - 1;
+      body += '<tr' + (cuoi ? ' class="cv-het"' : '') + '>';
+      if (dau) {
+        body += '<td class="cv-fix1" rowspan="3">' + (i + 1) + '</td>' +
+                '<td class="cv-fix2" rowspan="3">' + tenAttr + '</td>';
       }
-      CV_NGAY_.forEach(function(n){
-        const val = (tv.o && tv.o[b.ma] && tv.o[b.ma][n.ma]) || '';
-        body += '<td class="cv-ngay"><input type="text" value="' + esc(val) + '" data-id="' + tv.id +
-          '" data-buoi="' + b.ma + '" data-ngay="' + n.ma + '" onchange="saveCVCellUI_(this)"></td>';
-      });
-      if (dauNguoi) {
-        body += '<td class="cv-tong" rowspan="3" data-tong-id="' + tv.id + '">' + tv.tongCong + '</td>' +
-                '<td class="cv-tong-truoc" rowspan="3">' + (tv.tongThangTruoc || 0) + '</td>';
+      body += '<td class="cv-fix3">' + b.nhan + '</td>';
+      for (let t = 1; t <= CV_SO_TUAN_; t++) {
+        CV_NGAY_.forEach(function(n, j){
+          const khoa = t + '-' + n;
+          const val = (tv.o && tv.o[b.ma] && tv.o[b.ma][khoa]) || '';
+          body += '<td class="cv-ngay' + (j === 0 ? ' cv-tuan-dau' : '') + '">' +
+            '<input type="text" value="' + esc(val) + '" data-ten="' + tenAttr +
+            '" data-buoi="' + b.ma + '" data-tuan="' + t + '" data-ngay="' + n +
+            '" onchange="saveCVCellUI_(this)"></td>';
+        });
+      }
+      body += '<td class="cv-tong cv-tuan-dau" data-cv-tong="' + tenAttr + '|' + b.ma + '">' +
+              (tv.tongBuoi ? tv.tongBuoi[b.ma] : 0) + '</td>';
+      if (dau) {
+        body += '<td class="cv-tong-nguoi" rowspan="3" data-cv-tong-nguoi="' + tenAttr + '">' +
+                (tv.tongNguoi || 0) + '</td>';
       }
       body += '</tr>';
     });
   });
 
-  table.innerHTML = thead + '<tbody>' + (body ||
-    '<tr><td colspan="19" style="color:#94a3b8;padding:14px;">Chưa có thành viên nào.</td></tr>') + '</tbody>';
+  table.innerHTML = '<thead><tr>' + h1 + '</tr><tr>' + h2 + '</tr></thead><tbody>' + body + '</tbody>';
 }
 
-// Lưu 1 ô ngày. Máy chủ trả về Tổng cộng MỚI của chính người đó -> cập nhật
-// ngay ô "Tổng cộng" mà không phải tải lại cả bảng.
+// Lưu 1 ô. Máy chủ trả về các số Tổng MỚI của chính người đó -> cập nhật ngay
+// mà không phải tải lại cả bảng (bảng rất rộng, tải lại sẽ mất chỗ đang cuộn).
 function saveCVCellUI_(inp){
-  const thang = document.getElementById('cvMonth').value || currentMonthKey();
-  const tuan = cvTuanDangXem_ || cvTuanHomNay_();
-  const id = Number(inp.dataset.id);
-  const giaTri = inp.value;
+  const ten = inp.dataset.ten;
   inp.classList.add('saved');
   setTimeout(function(){ inp.classList.remove('saved'); }, 700);
   google.script.run.withSuccessHandler(function(r){
-    const o = document.querySelector('[data-tong-id="' + id + '"]');
-    if (o && r && typeof r.tongCong === 'number') o.textContent = r.tongCong;
+    if (!r) return;
+    if (r.tongBuoi) {
+      Object.keys(r.tongBuoi).forEach(function(b){
+        const o = document.querySelector('[data-cv-tong="' + CSS.escape(ten + '|' + b) + '"]');
+        if (o) o.textContent = r.tongBuoi[b];
+      });
+    }
+    const on = document.querySelector('[data-cv-tong-nguoi="' + CSS.escape(ten) + '"]');
+    if (on && typeof r.tongNguoi === 'number') on.textContent = r.tongNguoi;
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu: ' + err.message + ' — đang tải lại để đồng bộ.', false);
-    loadCongViec_();
-  }).saveCVCell(id, thang, tuan, inp.dataset.buoi, inp.dataset.ngay, giaTri);
-}
-
-// Lưu 1 ô thông tin người (Họ tên / Giới tính / Ban ngành / ...). Chỉ gửi
-// đúng trường vừa sửa, các trường khác máy chủ giữ nguyên.
-function saveCVInfoUI_(el){
-  const id = Number(el.dataset.id);
-  const truong = el.dataset.truong;
-  const goi = {};
-  goi[truong] = el.value;
-  el.classList.add('saved');
-  setTimeout(function(){ el.classList.remove('saved'); }, 700);
-  google.script.run.withSuccessHandler(function(){
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi lưu: ' + err.message + ' — đang tải lại để đồng bộ.', false);
-    loadCongViec_();
-  }).updateCVThanhVien(id, goi);
-}
-
-function addCVThanhVienUI_(){
-  const inp = document.getElementById('cv_newTen');
-  const ten = (inp.value || '').trim();
-  if (!ten) { showMsg('Chưa nhập tên thành viên', false); return; }
-  inp.value = '';
-  google.script.run.withSuccessHandler(function(){
-    showMsg('Đã thêm ' + ten, true);
-    loadCongViec_();
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi thêm: ' + err.message, false);
-    inp.value = ten;
-  }).addCVThanhVien({ ten: ten });
-}
-
-function xoaCVUI_(id){
-  const tv = ((window._cvData && window._cvData.thanhVien) || []).find(function(x){ return x.id === id; });
-  const ten = tv ? tv.ten : '';
-  if (!confirm('Xoá "' + ten + '" khỏi Điểm danh công việc?\n\nTOÀN BỘ số liệu đã nhập của người này (mọi tháng) sẽ bị xoá theo và KHÔNG khôi phục được.')) return;
-  google.script.run.withSuccessHandler(function(){
-    showMsg('Đã xoá ' + ten, true);
-    loadCongViec_();
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi xoá: ' + err.message, false);
-  }).deleteCVThanhVien(id);
-}
-
-function moveCVUI_(id, huong){
-  google.script.run.withSuccessHandler(function(){
-    loadCongViec_();
-  }).withFailureHandler(function(err){
-    showMsg('Lỗi đổi thứ tự: ' + err.message, false);
-  }).moveCVThanhVien(id, huong);
+    loadCVCongViec_();
+  }).saveCVCongViec(selectedKV, ten, kvMonthKey(), Number(inp.dataset.tuan), inp.dataset.buoi, inp.dataset.ngay, inp.value);
 }
 
 /** ---------- Khởi động ---------- */
