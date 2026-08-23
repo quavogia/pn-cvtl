@@ -34,5 +34,6 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE INDEX IF NOT EXISTS ix_so_moc_thang ON so_moc (thang, moc)",
   "CREATE TABLE IF NOT EXISTS chot_ky ( ky TEXT PRIMARY KEY, tu_ngay TEXT NOT NULL, den_ngay TEXT NOT NULL, khu_vuc TEXT, bang_json TEXT NOT NULL, tom_tat_json TEXT, nguoi_chot TEXT, chot_luc INTEGER NOT NULL )",
   "CREATE TABLE IF NOT EXISTS cv_cong_viec ( khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, thang TEXT NOT NULL, tuan INTEGER NOT NULL, buoi TEXT NOT NULL, ngay TEXT NOT NULL, gia_tri TEXT NOT NULL, PRIMARY KEY (khu_vuc, ten, thang, tuan, buoi, ngay) )",
-  "CREATE INDEX IF NOT EXISTS ix_cvcv_kv_thang ON cv_cong_viec (khu_vuc, thang)"
+  "CREATE INDEX IF NOT EXISTS ix_cvcv_kv_thang ON cv_cong_viec (khu_vuc, thang)",
+  "CREATE TABLE IF NOT EXISTS cv_nguoi ( khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, kieu TEXT NOT NULL, thu_tu INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (khu_vuc, ten) )"
 ];
