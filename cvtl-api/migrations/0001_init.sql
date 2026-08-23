@@ -310,39 +310,31 @@ CREATE TABLE IF NOT EXISTS chot_ky (
 
 -- ---------------------------------------------------------------------
 -- 21. ĐIỂM DANH CÔNG VIỆC   (thêm 23/08/2026, theo yêu cầu anh Rise)
--- Chép lại bố cục sổ ghi chép của WISBranch, BỎ cột "Số sự sống".
+-- Chép lại đúng sheet "CVTL PN" anh Rise đang dùng: mỗi người 3 dòng
+-- Sáng / Chiều / Tối, 6 Tuần × 7 ngày (CN..T7) hiện cùng lúc.
 --
--- ⚠️ Danh sách thành viên ở đây là RIÊNG, cố ý KHÔNG dùng chung với
--- diem_danh_roster (anh Rise chọn 23/08/2026) — thêm/xoá người bên này
--- không ảnh hưởng gì tới bảng Điểm danh đang dùng, và ngược lại.
+-- ⚠️ KHÔNG có bảng danh sách người riêng: bảng này DÙNG CHUNG danh sách
+-- Điểm danh của khu vực (`diem_danh_roster`) — anh Rise chốt 23/08/2026:
+-- "chuyển tab đó vào tab trudo trong mỗi khu vực, quản lý thành viên sẽ dễ
+-- dàng hơn". Thêm/xoá người chỉ làm ở MỘT chỗ (bảng Điểm danh).
 --
--- Khoá chính dùng `id` (không dùng tên) để hai người TRÙNG TÊN vẫn là hai
--- dòng độc lập — đúng bài học từ các lỗi trùng tên trước đây.
+-- Khoá theo (khu_vuc, ten) giống 10 bảng "theo từng người" khác — nhờ vậy
+-- `chuyenThanhVienKhuVuc` mang luôn dữ liệu này theo người khi đổi khu vực
+-- (đã thêm vào BANG_THEO_NGUOI trong handlers/khu-vuc.js). Trong một khu
+-- vực, `diem_danh_roster` đã có UNIQUE(khu_vuc, ten) nên tên không trùng.
+--
+-- Ô để TRỐNG thì XOÁ hẳn dòng (không lưu chuỗi rỗng) — nhờ vậy cột "Tổng"
+-- chỉ cần đếm số dòng (COUNT), không phải lọc chuỗi rỗng.
+--   buoi: sang | chieu | toi     ngay: CN,T2,T3,T4,T5,T6,T7     tuan: 1..6
 -- ---------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS cv_thanh_vien (
-  id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  ten         TEXT NOT NULL,
-  gioi_tinh   TEXT,
-  ban_nganh   TEXT,
-  dia_vuc     TEXT,
-  khu_vuc     TEXT,
-  chuc_trach  TEXT,
-  chuc_phan   TEXT,
-  thu_tu      INTEGER NOT NULL DEFAULT 0
+CREATE TABLE IF NOT EXISTS cv_cong_viec (
+  khu_vuc  TEXT NOT NULL,
+  ten      TEXT NOT NULL,
+  thang    TEXT NOT NULL,
+  tuan     INTEGER NOT NULL,
+  buoi     TEXT NOT NULL,
+  ngay     TEXT NOT NULL,
+  gia_tri  TEXT NOT NULL,
+  PRIMARY KEY (khu_vuc, ten, thang, tuan, buoi, ngay)
 );
-CREATE INDEX IF NOT EXISTS ix_cvtv_thutu ON cv_thanh_vien (thu_tu, id);
-
--- Mỗi ô nhập = 1 dòng. buoi: sang | chieu | toi (đúng 3 dòng "Phân loại"
--- 1/2/3 của sổ gốc). ngay: CN,T2,T3,T4,T5,T6,T7.
--- Ô để TRỐNG thì XOÁ hẳn dòng (không lưu chuỗi rỗng) — nhờ vậy "Tổng cộng"
--- chỉ cần đếm số dòng, không phải lọc chuỗi rỗng.
-CREATE TABLE IF NOT EXISTS cv_diem_danh (
-  thanh_vien_id INTEGER NOT NULL,
-  thang         TEXT NOT NULL,
-  tuan          INTEGER NOT NULL,
-  buoi          TEXT NOT NULL,
-  ngay          TEXT NOT NULL,
-  gia_tri       TEXT NOT NULL,
-  PRIMARY KEY (thanh_vien_id, thang, tuan, buoi, ngay)
-);
-CREATE INDEX IF NOT EXISTS ix_cvdd_thang ON cv_diem_danh (thang, tuan);
+CREATE INDEX IF NOT EXISTS ix_cvcv_kv_thang ON cv_cong_viec (khu_vuc, thang);
