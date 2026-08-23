@@ -13,7 +13,9 @@
 // các hàm quản trị (Hủy báo cáo, Duyệt truy cập, Quản lý khu vực) — cộng
 // thêm 4 hàm quản lý Admin (getApprovedAccess/revokeAccess/grantAdmin/
 // revokeAdmin, mới 21/08/2026) — cộng thêm 2 hàm "Điểm danh công việc"
-// (getCVCongViec/saveCVCongViec, mới 23/08/2026) — tổng 85.
+// (getCVCongViec/saveCVCongViec, mới 23/08/2026), cộng thêm 3 hàm chỉnh danh
+// sách riêng của bảng đó (addCVNguoi/hideCVNguoi/unhideCVNguoi, 23/08/2026
+// lần 2) — tổng 88.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -152,6 +154,9 @@ export const DANH_MUC = {
   // chuThoi: cả phòng cùng nhập, giống bảng Điểm danh hiện có.
   getCVCongViec:           { doc: true,  fn: congViec.getCVCongViec },
   saveCVCongViec:          { doc: false, fn: congViec.saveCVCongViec },
+  addCVNguoi:              { doc: false, fn: congViec.addCVNguoi },
+  hideCVNguoi:             { doc: false, fn: congViec.hideCVNguoi },
+  unhideCVNguoi:           { doc: false, fn: congViec.unhideCVNguoi },
 };
 
 export const DANH_SACH_DOC = new Set(
