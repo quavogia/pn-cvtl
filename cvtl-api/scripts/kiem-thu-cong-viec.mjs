@@ -2,21 +2,25 @@
 // Kiểm thử OFFLINE cho src/handlers/cong-viec.js — "Điểm danh công việc":
 //     node scripts/kiem-thu-cong-viec.mjs
 //
-// Tính năng thêm 23/08/2026 theo yêu cầu anh Rise (chép bố cục sổ ghi chép
-// của WISBranch, bỏ cột "Số sự sống", danh sách thành viên RIÊNG có ô tự
-// thêm, cột "Tổng cộng" tự đếm số ô đã nhập trong tháng).
+// Bảng này nằm TRONG tab con "Trudo" của từng Khu vực, chép đúng sheet
+// "CVTL PN" của anh Rise: mỗi người 3 dòng Sáng/Chiều/Tối, 6 Tuần × 7 ngày
+// hiện cùng lúc, danh sách người DÙNG CHUNG bảng Điểm danh của khu vực.
 //
 // Trọng tâm kiểm thử — đúng những chỗ dễ sai nhất:
-//   1. Mỗi người LUÔN có đủ 3 buổi sang/chieu/toi trong kết quả trả về,
-//      kể cả khi chưa nhập ô nào (giao diện luôn vẽ đủ 3 dòng).
-//   2. "Tổng cộng" đếm CẢ THÁNG (mọi tuần), không phải chỉ tuần đang xem —
-//      đây là chỗ rất dễ viết nhầm thành đếm theo tuần.
-//   3. Gõ rỗng = XOÁ dòng, và Tổng cộng phải giảm theo.
-//   4. Hai người TRÙNG TÊN vẫn là 2 dòng độc lập (khoá theo id, không theo
-//      tên) — bài học từ các lỗi trùng khoá theo tên của bảng cũ.
-//   5. Xoá người thì xoá luôn mọi ô đã nhập của người đó, KHÔNG đụng người khác.
-//   6. Chặn tháng/tuần/buổi/ngày không hợp lệ ngay tại máy chủ.
-//   7. Tổng cộng (Tháng trước) lấy đúng tháng liền trước.
+//   1. Danh sách người lấy ĐÚNG từ `diem_danh_roster` của khu vực đang xem,
+//      ĐÚNG thứ tự đang hiển thị ở bảng Điểm danh (thu_tu, id).
+//   2. Khu vực này KHÔNG thấy dữ liệu của khu vực kia.
+//   3. Mỗi người LUÔN có đủ 3 buổi, kể cả chưa nhập ô nào.
+//   4. Ô của 6 tuần nằm đúng khoá "<tuần>-<ngày>", tuần này không lẫn tuần kia.
+//   5. "Tổng" mỗi dòng = đếm ô của BUỔI đó trong CẢ THÁNG; tổng người = cộng
+//      3 buổi — đúng như sheet thật (đã đối chiếu: NT Ngân 4/4/6 -> 14).
+//   6. Tháng khác không cộng lẫn vào.
+//   7. Gõ rỗng = xoá; gõ đè không sinh dòng trùng; ô nhận cả CHỮ.
+//   8. Chặn tháng/tuần/buổi/ngày không hợp lệ ngay tại máy chủ.
+//   9. Xoá người khỏi bảng Điểm danh thì dòng cũ KHÔNG mất (chỉ tạm ẩn) —
+//      cố ý như vậy để không mất số liệu khi lỡ tay.
+//  10. Chuyển người sang khu vực khác thì số liệu ĐI THEO (cv_cong_viec đã
+//      nằm trong BANG_THEO_NGUOI của khu-vuc.js).
 // =====================================================================
 
 import { DatabaseSync } from 'node:sqlite';
@@ -43,14 +47,25 @@ function bocSqlite(conn) {
   };
 }
 
+// Dựng sẵn 2 khu vực có người trong bảng Điểm danh, giống thật.
 function taoCSDL() {
   sqlite = new DatabaseSync(':memory:');
   sqlite.exec(SQL_KHOI_TAO);
   db = bocSqlite(sqlite);
+  for (const [i, kv] of ['Đ Uyên', 'K Thành', 'TT Châu'].entries())
+    sqlite.prepare("INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('khu_vuc',?,?)").run(kv, i + 1);
+  const them = (kv, ten, thuTu) =>
+    sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, thu_tu) VALUES (?,?,?)').run(kv, ten, thuTu);
+  them('Đ Uyên', 'Đ T Ngọc Uyên', 1);
+  them('Đ Uyên', 'N Thị Ngân', 2);
+  them('Đ Uyên', 'N Thị Hiệu', 3);
+  them('K Thành', 'P Thị Thành', 1);
+  them('K Thành', 'T Thị Thanh Nguyên', 2);
 }
 
 let dat = 0, hong = 0;
 const NGUOI = { email: 'ai_do@gmail.com', ten: 'Ai Đó', laChu: false };
+const CHU = { email: 'chu@gmail.com', ten: 'Chủ', laChu: true };
 
 async function goi(fn, args = [], nguoiGoi = NGUOI) {
   const muc = DANH_MUC[fn];
@@ -65,235 +80,200 @@ function kiem(ten, dieuKien, chiTiet = '') {
   if (dieuKien) { dat++; console.log('  ✓', ten); }
   else { hong++; console.log('  ✗', ten, chiTiet); }
 }
+const luu = (kv, ten, thang, tuan, buoi, ngay, v) =>
+  goi('saveCVCongViec', [kv, ten, thang, tuan, buoi, ngay, v]);
 
 console.log('\n=== KIỂM THỬ ĐIỂM DANH CÔNG VIỆC (offline) ===\n');
 
 // =====================================================================
 console.log('1) Đăng ký hàm trong danh mục');
 {
-  const can = ['getCVDiemDanh', 'addCVThanhVien', 'updateCVThanhVien',
-               'deleteCVThanhVien', 'moveCVThanhVien', 'saveCVCell'];
-  for (const f of can) kiem('có hàm ' + f, !!DANH_MUC[f]);
-  kiem('getCVDiemDanh là hàm ĐỌC (doc:true, được gọi bằng GET + lưu đệm)',
-    DANH_MUC.getCVDiemDanh.doc === true);
-  kiem('saveCVCell là hàm GHI (doc khác true)', DANH_MUC.saveCVCell.doc !== true);
-  // Cố ý KHÔNG chuThoi: cả phòng cùng nhập được, giống bảng Điểm danh cũ.
-  for (const f of can) kiem(f + ' KHÔNG giới hạn riêng tài khoản chủ', !DANH_MUC[f].chuThoi);
+  kiem('có hàm getCVCongViec', !!DANH_MUC.getCVCongViec);
+  kiem('có hàm saveCVCongViec', !!DANH_MUC.saveCVCongViec);
+  kiem('getCVCongViec là hàm ĐỌC (doc:true)', DANH_MUC.getCVCongViec.doc === true);
+  kiem('saveCVCongViec là hàm GHI', DANH_MUC.saveCVCongViec.doc !== true);
+  // Cả phòng cùng nhập được, giống bảng Điểm danh.
+  kiem('getCVCongViec KHÔNG giới hạn riêng tài khoản chủ', !DANH_MUC.getCVCongViec.chuThoi);
+  kiem('saveCVCongViec KHÔNG giới hạn riêng tài khoản chủ', !DANH_MUC.saveCVCongViec.chuThoi);
+  // KHÔNG còn hàm quản lý danh sách riêng nữa (đã bỏ 23/08/2026).
+  for (const f of ['addCVThanhVien', 'deleteCVThanhVien', 'moveCVThanhVien', 'updateCVThanhVien', 'getCVDiemDanh'])
+    kiem('đã BỎ hàm cũ ' + f, !DANH_MUC[f]);
 }
 
 // =====================================================================
-console.log('\n2) Thêm thành viên + danh sách trả về');
+console.log('\n2) Danh sách người lấy từ bảng Điểm danh của ĐÚNG khu vực');
 {
   taoCSDL();
-  let r = await goi('getCVDiemDanh', ['2026-08', 4]);
-  kiem('chưa có ai -> danh sách rỗng, không báo lỗi', Array.isArray(r.result?.thanhVien) && r.result.thanhVien.length === 0, JSON.stringify(r));
-
-  r = await goi('addCVThanhVien', [{ ten: 'Võ Thị Hồng Gấm', gioiTinh: 'Nữ', banNganh: 'Tráng niên', diaVuc: '1', khuVuc: '3' }]);
-  kiem('thêm người thứ nhất được', r.result?.success === true && r.result.id > 0, JSON.stringify(r));
-  const id1 = r.result.id;
-
-  r = await goi('addCVThanhVien', [{ ten: 'Võ Hoàng Long', gioiTinh: 'Nam', banNganh: 'Thanh niên', chucTrach: 'Khu vực trưởng' }]);
-  const id2 = r.result.id;
-  kiem('thêm người thứ hai được', r.result?.success === true && id2 !== id1);
-
-  r = await goi('addCVThanhVien', [{}]);
-  kiem('thiếu Tên -> báo lỗi rõ ràng', /Tên thành viên/i.test(r.error || ''), JSON.stringify(r));
-
-  r = await goi('getCVDiemDanh', ['2026-08', 4]);
+  let r = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
   const ds = r.result.thanhVien;
-  kiem('danh sách có đúng 2 người', ds.length === 2, JSON.stringify(ds.map(x => x.ten)));
-  kiem('đúng thứ tự thêm vào', ds[0].ten === 'Võ Thị Hồng Gấm' && ds[1].ten === 'Võ Hoàng Long');
-  kiem('giữ đủ các cột thông tin (giới tính/ban ngành/địa vực/khu vực)',
-    ds[0].gioiTinh === 'Nữ' && ds[0].banNganh === 'Tráng niên' && ds[0].diaVuc === '1' && ds[0].khuVuc === '3',
-    JSON.stringify(ds[0]));
-  kiem('giữ đúng Chức trách', ds[1].chucTrach === 'Khu vực trưởng');
-  kiem('người CHƯA nhập ô nào vẫn có đủ 3 buổi sang/chieu/toi',
+  kiem('Đ Uyên có đúng 3 người', ds.length === 3, JSON.stringify(ds.map(x => x.ten)));
+  kiem('đúng thứ tự như bảng Điểm danh',
+    ds.map(x => x.ten).join(',') === 'Đ T Ngọc Uyên,N Thị Ngân,N Thị Hiệu', ds.map(x => x.ten).join(','));
+  kiem('người chưa nhập gì vẫn có đủ 3 buổi sang/chieu/toi',
     !!ds[0].o.sang && !!ds[0].o.chieu && !!ds[0].o.toi, JSON.stringify(ds[0].o));
-  kiem('chưa nhập gì -> Tổng cộng = 0', ds[0].tongCong === 0 && ds[1].tongCong === 0);
-  kiem('trả về đúng tháng trước để hiện cột "Tổng cộng (Tháng trước)"', r.result.thangTruoc === '2026-07', r.result.thangTruoc);
+  kiem('chưa nhập gì -> mọi Tổng = 0',
+    ds[0].tongNguoi === 0 && ds[0].tongBuoi.sang === 0 && ds[0].tongBuoi.chieu === 0 && ds[0].tongBuoi.toi === 0);
+
+  r = await goi('getCVCongViec', ['K Thành', '2026-08']);
+  kiem('K Thành có đúng 2 người', r.result.thanhVien.length === 2);
+  kiem('K Thành KHÔNG thấy người của Đ Uyên',
+    !r.result.thanhVien.some(x => x.ten === 'N Thị Ngân'), JSON.stringify(r.result.thanhVien.map(x => x.ten)));
+
+  r = await goi('getCVCongViec', ['TT Châu', '2026-08']);
+  kiem('khu vực chưa có ai -> danh sách rỗng, không báo lỗi',
+    Array.isArray(r.result?.thanhVien) && r.result.thanhVien.length === 0, JSON.stringify(r));
+
+  r = await goi('getCVCongViec', ['', '2026-08']);
+  kiem('thiếu Khu vực -> báo lỗi rõ ràng', /Khu vực/i.test(r.error || ''), JSON.stringify(r));
 }
 
 // =====================================================================
-console.log('\n3) Lưu ô + Tổng cộng đếm CẢ THÁNG (không phải chỉ 1 tuần)');
+console.log('\n3) "Tổng" mỗi dòng đếm CẢ THÁNG — đối chiếu đúng sheet thật của anh Rise');
 {
   taoCSDL();
-  const id = (await goi('addCVThanhVien', [{ ten: 'Le Ngoc Bao Chau' }])).result.id;
+  const KV = 'Đ Uyên', TEN = 'N Thị Ngân', TH = '2026-08';
+  // Chép đúng dòng "NT Ngân" trong ảnh chụp sheet: Sáng 4 ô (tuần 1),
+  // Chiều 4 ô (tuần 4 + 5), Tối 6 ô (tuần 4 + 5) -> tổng người 14.
+  for (const [t, n] of [[1, 'CN'], [1, 'T2'], [1, 'T4'], [1, 'T5']]) await luu(KV, TEN, TH, t, 'sang', n, '105');
+  for (const [t, n] of [[4, 'T4'], [4, 'T6'], [4, 'T7'], [5, 'CN']]) await luu(KV, TEN, TH, t, 'chieu', n, '127');
+  let r;
+  for (const [t, n] of [[4, 'T4'], [4, 'T5'], [4, 'T6'], [4, 'T7'], [5, 'CN'], [5, 'T2']])
+    r = await luu(KV, TEN, TH, t, 'toi', n, '124');
 
-  let r = await goi('saveCVCell', [id, '2026-08', 4, 'sang', 'CN', '123']);
-  kiem('lưu 1 ô được', r.result?.success === true, JSON.stringify(r));
-  kiem('trả về Tổng cộng mới ngay sau khi lưu (=1)', r.result.tongCong === 1, JSON.stringify(r.result));
+  kiem('Sáng = 4', r.result.tongBuoi.sang === 4, JSON.stringify(r.result.tongBuoi));
+  kiem('Chiều = 4', r.result.tongBuoi.chieu === 4, JSON.stringify(r.result.tongBuoi));
+  kiem('Tối = 6', r.result.tongBuoi.toi === 6, JSON.stringify(r.result.tongBuoi));
+  kiem('Tổng của người = 14 (4+4+6, đúng số đỏ trong sheet)', r.result.tongNguoi === 14, String(r.result.tongNguoi));
 
-  await goi('saveCVCell', [id, '2026-08', 4, 'sang', 'T2', '127']);
-  await goi('saveCVCell', [id, '2026-08', 4, 'chieu', 'T5', '203']);
-  r = await goi('saveCVCell', [id, '2026-08', 4, 'toi', 'CN', '207']);
-  kiem('4 ô trong TUẦN 4 -> Tổng cộng = 4', r.result.tongCong === 4, JSON.stringify(r.result));
+  r = await goi('getCVCongViec', [KV, TH]);
+  const m = r.result.thanhVien.find(x => x.ten === TEN);
+  kiem('đọc lại bảng cũng ra đúng 4/4/6 và 14',
+    m.tongBuoi.sang === 4 && m.tongBuoi.chieu === 4 && m.tongBuoi.toi === 6 && m.tongNguoi === 14,
+    JSON.stringify(m.tongBuoi) + ' ' + m.tongNguoi);
+  kiem('ô nằm đúng khoá "<tuần>-<ngày>"', m.o.sang['1-CN'] === '105' && m.o.chieu['4-T4'] === '127' && m.o.toi['5-T2'] === '124', JSON.stringify(m.o));
+  kiem('tuần 1 KHÔNG lẫn ô của tuần 4', m.o.sang['4-CN'] === undefined, JSON.stringify(m.o.sang));
+  kiem('người khác trong cùng khu vực vẫn = 0',
+    r.result.thanhVien.find(x => x.ten === 'N Thị Hiệu').tongNguoi === 0);
 
-  // Nhập thêm ở TUẦN 1 và TUẦN 5 của CÙNG THÁNG
-  await goi('saveCVCell', [id, '2026-08', 1, 'sang', 'T3', '102']);
-  r = await goi('saveCVCell', [id, '2026-08', 5, 'toi', 'T7', '202']);
-  kiem('ô ở tuần KHÁC cũng cộng vào Tổng cộng (=6)', r.result.tongCong === 6, JSON.stringify(r.result));
-
-  // Tháng khác KHÔNG được tính vào
-  await goi('saveCVCell', [id, '2026-09', 1, 'sang', 'CN', '111']);
-  r = await goi('getCVDiemDanh', ['2026-08', 4]);
-  kiem('ô của THÁNG KHÁC không cộng vào Tổng cộng tháng 8 (vẫn = 6)',
-    r.result.thanhVien[0].tongCong === 6, JSON.stringify(r.result.thanhVien[0].tongCong));
-
-  const o = r.result.thanhVien[0].o;
-  kiem('bảng tuần 4 hiện đúng ô đã nhập', o.sang.CN === '123' && o.sang.T2 === '127' && o.chieu.T5 === '203' && o.toi.CN === '207', JSON.stringify(o));
-  kiem('tuần 4 KHÔNG lẫn ô của tuần 1/tuần 5', o.sang.T3 === undefined && o.toi.T7 === undefined, JSON.stringify(o));
-
-  r = await goi('getCVDiemDanh', ['2026-08', 1]);
-  kiem('xem tuần 1 thì hiện đúng ô của tuần 1', r.result.thanhVien[0].o.sang.T3 === '102', JSON.stringify(r.result.thanhVien[0].o));
-  kiem('Tổng cộng giữ nguyên dù đang xem tuần nào (=6)', r.result.thanhVien[0].tongCong === 6);
-
-  r = await goi('getCVDiemDanh', ['2026-09', 1]);
-  kiem('Tổng cộng (Tháng trước) của tháng 9 = số ô tháng 8 (=6)',
-    r.result.thanhVien[0].tongThangTruoc === 6, JSON.stringify(r.result.thanhVien[0]));
+  // Tháng khác không cộng lẫn vào
+  await luu(KV, TEN, '2026-09', 1, 'sang', 'CN', '999');
+  r = await goi('getCVCongViec', [KV, TH]);
+  kiem('ô của THÁNG KHÁC không cộng vào tháng 8 (vẫn 14)',
+    r.result.thanhVien.find(x => x.ten === TEN).tongNguoi === 14);
+  r = await goi('getCVCongViec', [KV, '2026-09']);
+  kiem('tháng 9 tính riêng (= 1)', r.result.thanhVien.find(x => x.ten === TEN).tongNguoi === 1);
 }
 
 // =====================================================================
-console.log('\n4) Sửa ô / gõ rỗng để xoá');
+console.log('\n4) Sửa ô / gõ rỗng để xoá / gõ chữ');
 {
   taoCSDL();
-  const id = (await goi('addCVThanhVien', [{ ten: 'Trần Thị Thanh Nguyên' }])).result.id;
-  await goi('saveCVCell', [id, '2026-08', 2, 'sang', 'CN', '127']);
-  let r = await goi('saveCVCell', [id, '2026-08', 2, 'sang', 'CN', '203']);
-  kiem('gõ đè lên ô cũ -> KHÔNG sinh dòng trùng, Tổng cộng vẫn = 1', r.result.tongCong === 1, JSON.stringify(r.result));
+  const KV = 'K Thành', TEN = 'P Thị Thành', TH = '2026-08';
+  await luu(KV, TEN, TH, 2, 'sang', 'CN', '127');
+  let r = await luu(KV, TEN, TH, 2, 'sang', 'CN', '203');
+  kiem('gõ đè lên ô cũ -> KHÔNG sinh dòng trùng, Tổng vẫn 1', r.result.tongNguoi === 1, JSON.stringify(r.result));
 
-  r = await goi('getCVDiemDanh', ['2026-08', 2]);
-  kiem('ô đã đổi thành giá trị mới', r.result.thanhVien[0].o.sang.CN === '203');
+  r = await goi('getCVCongViec', [KV, TH]);
+  kiem('ô đã đổi thành giá trị mới',
+    r.result.thanhVien.find(x => x.ten === TEN).o.sang['2-CN'] === '203');
 
-  r = await goi('saveCVCell', [id, '2026-08', 2, 'sang', 'CN', '']);
-  kiem('gõ rỗng -> Tổng cộng giảm về 0', r.result.tongCong === 0, JSON.stringify(r.result));
-  r = await goi('getCVDiemDanh', ['2026-08', 2]);
-  kiem('ô rỗng bị xoá hẳn khỏi bảng', r.result.thanhVien[0].o.sang.CN === undefined, JSON.stringify(r.result.thanhVien[0].o));
+  r = await luu(KV, TEN, TH, 2, 'sang', 'CN', '');
+  kiem('gõ rỗng -> Tổng về 0', r.result.tongNguoi === 0, JSON.stringify(r.result));
+  r = await goi('getCVCongViec', [KV, TH]);
+  kiem('ô rỗng bị xoá hẳn khỏi bảng',
+    r.result.thanhVien.find(x => x.ten === TEN).o.sang['2-CN'] === undefined);
 
-  r = await goi('saveCVCell', [id, '2026-08', 2, 'sang', 'CN', '   ']);
-  kiem('gõ toàn dấu cách cũng coi như rỗng (Tổng cộng = 0)', r.result.tongCong === 0, JSON.stringify(r.result));
+  r = await luu(KV, TEN, TH, 2, 'sang', 'CN', '   ');
+  kiem('gõ toàn dấu cách cũng coi như rỗng', r.result.tongNguoi === 0, JSON.stringify(r.result));
 
-  r = await goi('saveCVCell', [id, '2026-08', 2, 'sang', 'CN', 'đi truyền đạo']);
-  kiem('ô nhận CHỮ tự do (không bắt buộc là số)', r.result.tongCong === 1, JSON.stringify(r.result));
+  r = await luu(KV, TEN, TH, 2, 'sang', 'CN', 'đi truyền đạo');
+  kiem('ô nhận CHỮ tự do (không bắt buộc là số)', r.result.tongNguoi === 1, JSON.stringify(r.result));
 }
 
 // =====================================================================
 console.log('\n5) Chặn dữ liệu không hợp lệ ngay tại máy chủ');
 {
   taoCSDL();
-  const id = (await goi('addCVThanhVien', [{ ten: 'A' }])).result.id;
-  let r = await goi('saveCVCell', [id, '2026-8', 1, 'sang', 'CN', 'x']);
+  const KV = 'Đ Uyên', TEN = 'N Thị Hiệu';
+  let r = await luu(KV, TEN, '2026-8', 1, 'sang', 'CN', 'x');
   kiem('tháng sai định dạng bị chặn', /Tháng không hợp lệ/.test(r.error || ''), JSON.stringify(r));
-  r = await goi('saveCVCell', [id, '2026-08', 0, 'sang', 'CN', 'x']);
+  r = await luu(KV, TEN, '2026-13', 1, 'sang', 'CN', 'x');
+  kiem('tháng 13 bị chặn', /Tháng không hợp lệ/.test(r.error || ''), JSON.stringify(r));
+  r = await luu(KV, TEN, '2026-08', 0, 'sang', 'CN', 'x');
   kiem('tuần 0 bị chặn', /Tuần không hợp lệ/.test(r.error || ''), JSON.stringify(r));
-  r = await goi('saveCVCell', [id, '2026-08', 7, 'sang', 'CN', 'x']);
-  kiem('tuần 7 bị chặn (chỉ có Tuần 1..6)', /Tuần không hợp lệ/.test(r.error || ''), JSON.stringify(r));
-  r = await goi('saveCVCell', [id, '2026-08', 1, 'trua', 'CN', 'x']);
+  r = await luu(KV, TEN, '2026-08', 7, 'sang', 'CN', 'x');
+  kiem('tuần 7 bị chặn (sheet chỉ có Tuần 1..6)', /Tuần không hợp lệ/.test(r.error || ''), JSON.stringify(r));
+  r = await luu(KV, TEN, '2026-08', 1, 'trua', 'CN', 'x');
   kiem('buổi lạ ("trua") bị chặn', /Buổi không hợp lệ/.test(r.error || ''), JSON.stringify(r));
-  r = await goi('saveCVCell', [id, '2026-08', 1, 'sang', 'T8', 'x']);
+  r = await luu(KV, TEN, '2026-08', 1, 'sang', 'T8', 'x');
   kiem('ngày lạ ("T8") bị chặn', /Ngày không hợp lệ/.test(r.error || ''), JSON.stringify(r));
-  r = await goi('saveCVCell', [999999, '2026-08', 1, 'sang', 'CN', 'x']);
-  kiem('lưu cho người không tồn tại bị chặn', /Không tìm thấy thành viên/.test(r.error || ''), JSON.stringify(r));
-  r = await goi('getCVDiemDanh', ['2026-13', 1]);
+  r = await luu('', TEN, '2026-08', 1, 'sang', 'CN', 'x');
+  kiem('thiếu Khu vực bị chặn', /Khu vực/i.test(r.error || ''), JSON.stringify(r));
+  r = await luu(KV, '', '2026-08', 1, 'sang', 'CN', 'x');
+  kiem('thiếu Tên bị chặn', /Tên thành viên/i.test(r.error || ''), JSON.stringify(r));
+  r = await goi('getCVCongViec', [KV, '2026-13']);
   kiem('xem tháng 13 bị chặn', /Tháng không hợp lệ/.test(r.error || ''), JSON.stringify(r));
 }
 
 // =====================================================================
-console.log('\n6) Hai người TRÙNG TÊN vẫn hoàn toàn độc lập');
+console.log('\n6) Hai khu vực hoàn toàn độc lập (kể cả trùng tên người)');
 {
   taoCSDL();
-  const a = (await goi('addCVThanhVien', [{ ten: 'Nguyễn Văn A', khuVuc: '1' }])).result.id;
-  const b = (await goi('addCVThanhVien', [{ ten: 'Nguyễn Văn A', khuVuc: '3' }])).result.id;
-  kiem('thêm được 2 người trùng tên (id khác nhau)', a !== b && a > 0 && b > 0);
+  sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, thu_tu) VALUES (?,?,?)')
+    .run('K Thành', 'N Thị Ngân', 3);   // trùng tên với người bên Đ Uyên
+  await luu('Đ Uyên', 'N Thị Ngân', '2026-08', 1, 'sang', 'CN', 'AAA');
+  const r2 = await luu('K Thành', 'N Thị Ngân', '2026-08', 1, 'sang', 'CN', 'BBB');
+  kiem('người trùng tên ở khu vực khác lưu riêng (Tổng = 1)', r2.result.tongNguoi === 1);
 
-  await goi('saveCVCell', [a, '2026-08', 1, 'sang', 'CN', '111']);
-  const r2 = await goi('saveCVCell', [b, '2026-08', 1, 'sang', 'CN', '222']);
-  kiem('người B lưu ô riêng, Tổng cộng của B = 1', r2.result.tongCong === 1);
-
-  const r = await goi('getCVDiemDanh', ['2026-08', 1]);
-  const [ta, tb] = r.result.thanhVien;
-  kiem('ô của A không bị B ghi đè', ta.o.sang.CN === '111', JSON.stringify(ta.o));
-  kiem('ô của B đúng giá trị riêng', tb.o.sang.CN === '222', JSON.stringify(tb.o));
-  kiem('Tổng cộng tính riêng từng người', ta.tongCong === 1 && tb.tongCong === 1);
+  let r = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('Đ Uyên giữ đúng giá trị của mình',
+    r.result.thanhVien.find(x => x.ten === 'N Thị Ngân').o.sang['1-CN'] === 'AAA');
+  r = await goi('getCVCongViec', ['K Thành', '2026-08']);
+  kiem('K Thành giữ đúng giá trị của mình',
+    r.result.thanhVien.find(x => x.ten === 'N Thị Ngân').o.sang['1-CN'] === 'BBB');
 }
 
 // =====================================================================
-console.log('\n7) Sửa thông tin thành viên');
+console.log('\n7) Xoá người khỏi bảng Điểm danh -> dòng cũ chỉ ẩn, KHÔNG mất');
 {
   taoCSDL();
-  const id = (await goi('addCVThanhVien', [{ ten: 'Cũ', gioiTinh: 'Nữ', khuVuc: '1' }])).result.id;
-  let r = await goi('updateCVThanhVien', [id, { ten: 'Mới', chucTrach: 'Vợ người quản nhiệm' }]);
-  kiem('sửa được tên + chức trách', r.result?.success === true, JSON.stringify(r));
+  await luu('Đ Uyên', 'N Thị Hiệu', '2026-08', 3, 'toi', 'T7', '111');
+  sqlite.prepare('DELETE FROM diem_danh_roster WHERE khu_vuc=? AND ten=?').run('Đ Uyên', 'N Thị Hiệu');
 
-  r = await goi('getCVDiemDanh', ['2026-08', 1]);
-  const tv = r.result.thanhVien[0];
-  kiem('tên đã đổi', tv.ten === 'Mới', tv.ten);
-  kiem('chức trách đã đổi', tv.chucTrach === 'Vợ người quản nhiệm');
-  kiem('trường KHÔNG gửi lên thì GIỮ NGUYÊN (giới tính vẫn Nữ)', tv.gioiTinh === 'Nữ', tv.gioiTinh);
-  kiem('trường KHÔNG gửi lên thì GIỮ NGUYÊN (khu vực vẫn 1)', tv.khuVuc === '1', tv.khuVuc);
+  let r = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('người bị xoá khỏi Điểm danh thì không hiện trong bảng nữa',
+    !r.result.thanhVien.some(x => x.ten === 'N Thị Hiệu'), JSON.stringify(r.result.thanhVien.map(x => x.ten)));
+  kiem('nhưng dữ liệu cũ VẪN CÒN trong CSDL (không mất)',
+    Number(sqlite.prepare('SELECT COUNT(*) c FROM cv_cong_viec WHERE ten=?').get('N Thị Hiệu').c) === 1);
 
-  r = await goi('updateCVThanhVien', [id, { ten: '' }]);
-  kiem('không cho xoá trắng Tên', /không được để trống/i.test(r.error || ''), JSON.stringify(r));
-  r = await goi('updateCVThanhVien', [id, { khuVuc: '' }]);
-  kiem('CHO PHÉP xoá trắng các cột khác (khu vực)', r.result?.success === true, JSON.stringify(r));
-  r = await goi('updateCVThanhVien', [999999, { ten: 'X' }]);
-  kiem('sửa người không tồn tại bị chặn', /Không tìm thấy thành viên/.test(r.error || ''), JSON.stringify(r));
+  sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, thu_tu) VALUES (?,?,?)').run('Đ Uyên', 'N Thị Hiệu', 9);
+  r = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('thêm lại vào Điểm danh thì số cũ hiện lại đầy đủ',
+    r.result.thanhVien.find(x => x.ten === 'N Thị Hiệu')?.o.toi['3-T7'] === '111');
 }
 
 // =====================================================================
-console.log('\n8) Xoá thành viên — xoá luôn ô đã nhập, không đụng người khác');
+console.log('\n8) Chuyển khu vực thì số liệu công việc ĐI THEO người');
 {
   taoCSDL();
-  const a = (await goi('addCVThanhVien', [{ ten: 'Người A' }])).result.id;
-  const b = (await goi('addCVThanhVien', [{ ten: 'Người B' }])).result.id;
-  await goi('saveCVCell', [a, '2026-08', 1, 'sang', 'CN', 'a1']);
-  await goi('saveCVCell', [a, '2026-09', 2, 'toi', 'T7', 'a2']);
-  await goi('saveCVCell', [b, '2026-08', 1, 'sang', 'CN', 'b1']);
+  await luu('Đ Uyên', 'N Thị Ngân', '2026-08', 4, 'chieu', 'T3', '127');
+  await luu('Đ Uyên', 'N Thị Ngân', '2026-08', 5, 'toi', 'CN', '203');
 
-  let r = await goi('deleteCVThanhVien', [a]);
-  kiem('xoá được người A', r.result?.success === true && r.result.ten === 'Người A', JSON.stringify(r));
+  const r = await goi('chuyenThanhVienKhuVuc', ['Đ Uyên', ['N Thị Ngân'], 'TT Châu'], CHU);
+  kiem('chuyển sang TT Châu thành công', r.result?.success === true, JSON.stringify(r));
 
-  const conLai = sqlite.prepare('SELECT COUNT(*) AS n FROM cv_diem_danh WHERE thanh_vien_id = ?').get(a).n;
-  kiem('mọi ô đã nhập của A bị xoá theo (mọi tháng)', Number(conLai) === 0, String(conLai));
+  const chiTiet = r.result?.ketQua?.[0]?.chiTiet?.find((x) => x.bang === 'cv_cong_viec');
+  kiem('cv_cong_viec nằm trong danh sách bảng được chuyển', !!chiTiet, JSON.stringify(r.result?.ketQua?.[0]?.chiTiet?.map(x => x.bang)));
+  kiem('đã chuyển đúng 2 dòng', chiTiet?.daChuyen === 2, JSON.stringify(chiTiet));
 
-  r = await goi('getCVDiemDanh', ['2026-08', 1]);
-  kiem('danh sách chỉ còn 1 người', r.result.thanhVien.length === 1);
-  kiem('dữ liệu của B còn nguyên', r.result.thanhVien[0].o.sang.CN === 'b1', JSON.stringify(r.result.thanhVien[0].o));
+  let g = await goi('getCVCongViec', ['TT Châu', '2026-08']);
+  const m = g.result.thanhVien.find(x => x.ten === 'N Thị Ngân');
+  kiem('sang khu vực mới vẫn thấy đủ số liệu cũ',
+    m && m.o.chieu['4-T3'] === '127' && m.o.toi['5-CN'] === '203', JSON.stringify(m && m.o));
+  kiem('Tổng người vẫn đúng = 2', m?.tongNguoi === 2, String(m?.tongNguoi));
 
-  r = await goi('deleteCVThanhVien', [a]);
-  kiem('xoá lại lần nữa -> báo không tìm thấy', /Không tìm thấy thành viên/.test(r.error || ''), JSON.stringify(r));
-}
-
-// =====================================================================
-console.log('\n9) Đổi thứ tự lên/xuống');
-{
-  taoCSDL();
-  const a = (await goi('addCVThanhVien', [{ ten: 'A' }])).result.id;
-  const b = (await goi('addCVThanhVien', [{ ten: 'B' }])).result.id;
-  const c = (await goi('addCVThanhVien', [{ ten: 'C' }])).result.id;
-  const ten = async () => (await goi('getCVDiemDanh', ['2026-08', 1])).result.thanhVien.map(x => x.ten).join(',');
-  kiem('thứ tự ban đầu A,B,C', (await ten()) === 'A,B,C', await ten());
-
-  await goi('moveCVThanhVien', [c, 'len']);
-  kiem('C lên 1 bậc -> A,C,B', (await ten()) === 'A,C,B', await ten());
-
-  await goi('moveCVThanhVien', [a, 'xuong']);
-  kiem('A xuống 1 bậc -> C,A,B', (await ten()) === 'C,A,B', await ten());
-
-  let r = await goi('moveCVThanhVien', [c, 'len']);
-  kiem('người đầu bảng bấm "lên" -> không đổi gì, không báo lỗi', r.result?.khongDoi === true, JSON.stringify(r));
-  kiem('thứ tự giữ nguyên C,A,B', (await ten()) === 'C,A,B', await ten());
-
-  r = await goi('moveCVThanhVien', [b, 'xuong']);
-  kiem('người cuối bảng bấm "xuống" -> không đổi gì', r.result?.khongDoi === true, JSON.stringify(r));
-
-  r = await goi('moveCVThanhVien', [b, 'ngang']);
-  kiem('hướng lạ bị chặn', /Hướng không hợp lệ/.test(r.error || ''), JSON.stringify(r));
-
-  await goi('saveCVCell', [a, '2026-08', 1, 'sang', 'CN', 'x']);
-  await goi('moveCVThanhVien', [a, 'len']);
-  r = await goi('getCVDiemDanh', ['2026-08', 1]);
-  kiem('đổi thứ tự KHÔNG làm mất ô đã nhập',
-    r.result.thanhVien.find(x => x.ten === 'A').o.sang.CN === 'x', JSON.stringify(r.result.thanhVien));
+  g = await goi('getCVCongViec', ['Đ Uyên', '2026-08']);
+  kiem('khu vực cũ không còn người đó', !g.result.thanhVien.some(x => x.ten === 'N Thị Ngân'));
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
