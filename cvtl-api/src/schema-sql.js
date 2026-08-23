@@ -32,5 +32,9 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE TABLE IF NOT EXISTS so_moc ( id INTEGER PRIMARY KEY AUTOINCREMENT, moc TEXT NOT NULL, ngay TEXT NOT NULL, thang TEXT NOT NULL, ten TEXT NOT NULL, khu_vuc TEXT NOT NULL, ndd1 TEXT, ndd2 TEXT, ndd3 TEXT, ghi_chu TEXT, nguoi_ghi TEXT, tao_luc INTEGER NOT NULL, UNIQUE (moc, ten, khu_vuc) )",
   "CREATE INDEX IF NOT EXISTS ix_so_moc_ngay ON so_moc (ngay, moc)",
   "CREATE INDEX IF NOT EXISTS ix_so_moc_thang ON so_moc (thang, moc)",
-  "CREATE TABLE IF NOT EXISTS chot_ky ( ky TEXT PRIMARY KEY, tu_ngay TEXT NOT NULL, den_ngay TEXT NOT NULL, khu_vuc TEXT, bang_json TEXT NOT NULL, tom_tat_json TEXT, nguoi_chot TEXT, chot_luc INTEGER NOT NULL )"
+  "CREATE TABLE IF NOT EXISTS chot_ky ( ky TEXT PRIMARY KEY, tu_ngay TEXT NOT NULL, den_ngay TEXT NOT NULL, khu_vuc TEXT, bang_json TEXT NOT NULL, tom_tat_json TEXT, nguoi_chot TEXT, chot_luc INTEGER NOT NULL )",
+  "CREATE TABLE IF NOT EXISTS cv_thanh_vien ( id INTEGER PRIMARY KEY AUTOINCREMENT, ten TEXT NOT NULL, gioi_tinh TEXT, ban_nganh TEXT, dia_vuc TEXT, khu_vuc TEXT, chuc_trach TEXT, chuc_phan TEXT, thu_tu INTEGER NOT NULL DEFAULT 0 )",
+  "CREATE INDEX IF NOT EXISTS ix_cvtv_thutu ON cv_thanh_vien (thu_tu, id)",
+  "CREATE TABLE IF NOT EXISTS cv_diem_danh ( thanh_vien_id INTEGER NOT NULL, thang TEXT NOT NULL, tuan INTEGER NOT NULL, buoi TEXT NOT NULL, ngay TEXT NOT NULL, gia_tri TEXT NOT NULL, PRIMARY KEY (thanh_vien_id, thang, tuan, buoi, ngay) )",
+  "CREATE INDEX IF NOT EXISTS ix_cvdd_thang ON cv_diem_danh (thang, tuan)"
 ];
