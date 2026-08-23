@@ -140,6 +140,40 @@
   .dd-table .dd-week-odd{background:#eff6ff;}
   .dd-table .dd-week-even{background:#f8fafc;}
   .dd-table td.dd-week-odd input, .dd-table td.dd-week-even input{background:transparent;}
+  /* ===== BẢNG ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026) =====================
+     Chép bố cục sổ ghi chép của WISBranch. Ba cột đầu (No / Phân loại /
+     Họ tên) DÍNH CỐ ĐỊNH bên trái khi kéo ngang — cùng lý do với bảng Điểm
+     danh: kéo sang Thứ 6, Thứ 7 vẫn phải thấy tên người, không nhập nhầm.
+     ⚠️ Dùng border-collapse:separate (KHÔNG phải collapse) vì viền của ô
+     dính hay bị "nuốt" mất khi cuộn nếu để collapse.
+     ⚠️ Bề rộng 3 cột dính phải KHỚP với các giá trị left bên dưới
+     (0 / 40 / 104) — sửa bề rộng thì phải sửa cả left, nếu không các cột sẽ
+     chồng lên nhau lúc cuộn. Trang có *{box-sizing:border-box} nên width đã
+     bao gồm cả viền, cộng thẳng là đúng. */
+  .cv-table{border-collapse:separate;border-spacing:0;font-size:13px;background:#fff;}
+  .cv-table th, .cv-table td{border-right:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;padding:2px 3px;text-align:center;vertical-align:middle;}
+  .cv-table thead th{background:#f1f5f9;color:#475569;font-size:11px;font-weight:700;white-space:nowrap;padding:6px 4px;border-top:1px solid #e2e8f0;}
+  .cv-table th:first-child, .cv-table td:first-child{border-left:1px solid #e2e8f0;}
+  .cv-table input, .cv-table select{width:100%;padding:4px 3px;font-size:12px;border:1px solid transparent;background:transparent;text-align:center;border-radius:4px;transition:background .3s;}
+  .cv-table input:focus, .cv-table select:focus{border-color:#2563eb;background:#fff;outline:none;}
+  .cv-table input.saved{background:#dcfce7;}
+  .cv-table td.cv-buoi{font-weight:700;color:#1e3a8a;font-size:11px;background:#eff6ff;}
+  .cv-table td.cv-ngay{background:#f7fee7;min-width:64px;}
+  .cv-table td.cv-tong{font-weight:800;color:var(--primary);font-size:14px;background:#f8fafc;}
+  .cv-table td.cv-tong-truoc{color:#64748b;background:#f8fafc;}
+  .cv-table tr.cv-het td{border-bottom:2px solid #cbd5e1;}
+  .cv-table .cv-act{display:flex;gap:2px;justify-content:center;}
+  .cv-table .cv-act button{font-size:10px;padding:2px 5px;background:#e2e8f0;color:#334155;border:none;border-radius:5px;cursor:pointer;}
+  .cv-table .cv-act button.cv-xoa{background:#fee2e2;color:#b91c1c;}
+  .cv-fix1, .cv-fix2, .cv-fix3{position:sticky;z-index:2;background:#fff;}
+  .cv-fix1{left:0;width:40px;min-width:40px;}
+  .cv-fix2{left:40px;width:64px;min-width:64px;}
+  .cv-fix3{left:104px;width:170px;min-width:170px;}
+  .cv-table thead th.cv-fix1, .cv-table thead th.cv-fix2, .cv-table thead th.cv-fix3{z-index:3;background:#f1f5f9;}
+  .cv-table td.cv-fix2{background:#eff6ff;}
+  .cv-table td.cv-fix3 input{text-align:left;font-weight:600;color:#475569;}
+  .cv-tuan-pill{padding:5px 12px;border-radius:999px;border:1px solid #cbd5e1;background:#fff;color:#334155;font-size:13px;cursor:pointer;}
+  .cv-tuan-pill.active{background:var(--primary);color:#fff;border-color:var(--primary);}
   .dd-goiy{font-size:11px;color:#94a3b8;display:block;margin-top:2px;}
   .dd-goiy button{font-size:10px;padding:1px 6px;margin-left:4px;background:#e2e8f0;color:#334155;border-radius:6px;}
   .tp-trend.up{color:#16a34a;}
@@ -301,6 +335,7 @@
     <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
     <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
     <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
+    <button type="button" class="nav-btn" data-panel="congviec" onclick="showPanel('congviec'); moCongViec_();"><span class="nav-icon">🧾</span> Điểm danh công việc</button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
@@ -1011,6 +1046,48 @@
       </div>
     </div>
 
+    <!-- ============ ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026, theo yêu cầu anh Rise) ============
+         Chép lại bố cục "Sổ ghi chép hoạt động Hội Thánh" của WISBranch, BỎ cột
+         "Số sự sống"; danh sách thành viên RIÊNG (có ô tự thêm mới); mỗi người
+         đúng 3 dòng Sáng/Chiều/Tối; cột "Tổng cộng" tự đếm số ô đã nhập trong
+         tháng. Xem giải thích đầy đủ ở cvtl-api/src/handlers/cong-viec.js. -->
+    <div id="panel-congviec" class="panel">
+      <h1>Điểm danh công việc</h1>
+      <p style="font-size:13px;color:#64748b;margin-top:-8px;">
+        Mỗi người có 3 dòng <b>Sáng / Chiều / Tối</b>. Gõ bất kỳ số hoặc chữ nào vào ô ngày rồi
+        rời ô là tự lưu — xoá trắng ô là bỏ. Cột <b>Tổng cộng</b> tự đếm số ô đã nhập trong
+        THÁNG đang xem (mọi tuần), không cần gõ tay.
+        Danh sách thành viên ở đây <b>riêng biệt</b>, không dính gì tới bảng Điểm danh ở mục
+        "Hiện trạng khu vực".
+      </p>
+
+      <div class="card">
+        <div class="toolbar" style="align-items:flex-end;">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin:0 0 2px;">Tháng</label>
+              <input type="month" id="cvMonth" onchange="loadCongViec_()">
+            </div>
+            <div>
+              <label style="font-size:12px;color:#64748b;display:block;margin:0 0 2px;">Tuần</label>
+              <div id="cvTuanPills" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <input id="cv_newTen" placeholder="Tên thành viên mới..." style="width:auto;min-width:200px;"
+                   onkeydown="if(event.key==='Enter'){event.preventDefault();addCVThanhVienUI_();}">
+            <button type="button" onclick="addCVThanhVienUI_()">+ Thêm</button>
+          </div>
+        </div>
+        <p id="cvEmpty" style="color:#94a3b8;font-size:13px;display:none;">
+          Chưa có thành viên nào. Gõ tên vào ô "Tên thành viên mới..." ở trên rồi bấm "+ Thêm".
+        </p>
+        <div style="overflow-x:auto;">
+          <table class="cv-table" id="cvTable"></table>
+        </div>
+      </div>
+    </div>
+
   </div>
 
 <script>
@@ -1096,7 +1173,9 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   'getDaoTaoTienDoAll', 'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner', 'getLeHoiXepHang', 'checkAccess',
   'getDiemDanhRoster', 'getDiemDanhTPGoiY',
   // Nhóm Trụ đỡ (thêm 13/08/2026)
-  'getSoMoc', 'getMocDaGhi', 'getBapTemBanner', 'getXepHang', 'getChotKy', 'getDsChotKy']);
+  'getSoMoc', 'getMocDaGhi', 'getBapTemBanner', 'getXepHang', 'getChotKy', 'getDsChotKy',
+  // Điểm danh công việc (thêm 23/08/2026)
+  'getCVDiemDanh']);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
 // giá trị sống trong CACHE_TTL_MS. Mục đích: khi chuyển qua lại Khu vực/tab đã xem
@@ -4443,6 +4522,211 @@ document.getElementById('lichForm').addEventListener('submit', function(e){
   if (isEdit) runner.updateLichEvent(savedEditRow, data);
   else runner.addLichEvent(data);
 });
+
+/** ---------- ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026) ----------------------
+ * Bố cục chép từ sổ ghi chép của WISBranch, BỎ cột "Số sự sống".
+ * Mỗi thành viên = ĐÚNG 3 dòng Sáng / Chiều / Tối (chính là 3 dòng "Phân
+ * loại" 1/2/3 của sổ gốc — anh Rise xác nhận 23/08/2026).
+ * Các cột thông tin người (Họ tên, Giới tính, ...) dùng rowspan=3 cho gọn:
+ * sửa 1 lần ăn cho cả 3 dòng, khỏi phải gõ lại 3 lần và khỏi lo 3 dòng ghi
+ * khác nhau thì dòng nào mới đúng.
+ * Cột "Tổng cộng" do MÁY CHỦ tính (đếm số ô đã nhập trong tháng) — giao
+ * diện chỉ hiển thị, không tự cộng, để không bao giờ lệch với dữ liệu thật.
+ */
+const CV_BUOI_ = [{ ma: 'sang', nhan: 'Sáng' }, { ma: 'chieu', nhan: 'Chiều' }, { ma: 'toi', nhan: 'Tối' }];
+const CV_NGAY_ = [
+  { ma: 'CN', nhan: 'Chủ nhật' }, { ma: 'T2', nhan: 'Thứ 2' }, { ma: 'T3', nhan: 'Thứ 3' },
+  { ma: 'T4', nhan: 'Thứ 4' }, { ma: 'T5', nhan: 'Thứ 5' }, { ma: 'T6', nhan: 'Thứ 6' },
+  { ma: 'T7', nhan: 'Thứ 7' }
+];
+const CV_SO_TUAN_ = 6;
+const CV_GIOI_TINH_ = ['', 'Nữ', 'Nam'];
+let cvTuanDangXem_ = 0;   // 0 = chưa đặt, sẽ tự chọn theo hôm nay
+
+// Tuần thứ mấy của tháng cho ngày hôm nay (1..6) — chỉ để CHỌN SẴN cho tiện,
+// anh Rise vẫn bấm đổi tuần thoải mái.
+function cvTuanHomNay_(){
+  const d = new Date();
+  return Math.min(CV_SO_TUAN_, Math.max(1, Math.ceil(d.getDate() / 7)));
+}
+
+function moCongViec_(){
+  const m = document.getElementById('cvMonth');
+  if (!m.value) m.value = currentMonthKey();
+  if (!cvTuanDangXem_) cvTuanDangXem_ = cvTuanHomNay_();
+  renderCVTuanPills_();
+  loadCongViec_();
+}
+
+function renderCVTuanPills_(){
+  const box = document.getElementById('cvTuanPills');
+  let h = '';
+  for (let t = 1; t <= CV_SO_TUAN_; t++) {
+    h += '<button type="button" class="cv-tuan-pill' + (t === cvTuanDangXem_ ? ' active' : '') +
+         '" onclick="cvChonTuan_(' + t + ')">Tuần ' + t + '</button>';
+  }
+  box.innerHTML = h;
+}
+
+function cvChonTuan_(t){
+  if (t === cvTuanDangXem_) return;
+  cvTuanDangXem_ = t;
+  renderCVTuanPills_();
+  loadCongViec_();
+}
+
+function loadCongViec_(){
+  const thang = document.getElementById('cvMonth').value || currentMonthKey();
+  const tuan = cvTuanDangXem_ || cvTuanHomNay_();
+  google.script.run.withSuccessHandler(function(d){
+    window._cvData = d;
+    renderCVTable_(d);
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải Điểm danh công việc: ' + err.message, false);
+  }).getCVDiemDanh(thang, tuan);
+}
+
+function cvSelectGioiTinh_(tv){
+  return '<select onchange="saveCVInfoUI_(this)" data-id="' + tv.id + '" data-truong="gioiTinh">' +
+    CV_GIOI_TINH_.map(function(g){
+      return '<option value="' + esc(g) + '"' + (tv.gioiTinh === g ? ' selected' : '') + '>' + esc(g || '—') + '</option>';
+    }).join('') + '</select>';
+}
+
+function cvOTextInfo_(tv, truong){
+  return '<input type="text" value="' + esc(tv[truong] || '') + '" data-id="' + tv.id +
+    '" data-truong="' + truong + '" onchange="saveCVInfoUI_(this)">';
+}
+
+function renderCVTable_(d){
+  const table = document.getElementById('cvTable');
+  const empty = document.getElementById('cvEmpty');
+  const ds = (d && d.thanhVien) || [];
+  empty.style.display = ds.length ? 'none' : '';
+
+  let thead = '<thead><tr>' +
+    '<th class="cv-fix1">No</th>' +
+    '<th class="cv-fix2">Phân loại</th>' +
+    '<th class="cv-fix3">Họ tên</th>' +
+    '<th style="min-width:70px;">Giới tính</th>' +
+    '<th style="min-width:95px;">Ban ngành</th>' +
+    '<th style="min-width:60px;">Địa vực</th>' +
+    '<th style="min-width:60px;">Khu vực</th>' +
+    '<th style="min-width:110px;">Chức trách</th>' +
+    '<th style="min-width:95px;">Chức phận</th>' +
+    '<th style="min-width:84px;">Xóa</th>';
+  CV_NGAY_.forEach(function(n){
+    thead += '<th class="cv-ngay-hdr">' + n.nhan + '<br>tuần ' + d.tuan + '</th>';
+  });
+  thead += '<th style="min-width:72px;">Tổng cộng</th>' +
+           '<th style="min-width:82px;">Tổng cộng<br>(Tháng trước)</th></tr></thead>';
+
+  let body = '';
+  ds.forEach(function(tv, i){
+    CV_BUOI_.forEach(function(b, k){
+      const dauNguoi = k === 0;
+      const cuoiNguoi = k === CV_BUOI_.length - 1;
+      body += '<tr' + (cuoiNguoi ? ' class="cv-het"' : '') + '>';
+      if (dauNguoi) body += '<td class="cv-fix1" rowspan="3">' + (i + 1) + '</td>';
+      body += '<td class="cv-fix2 cv-buoi">' + b.nhan + '</td>';
+      if (dauNguoi) {
+        body += '<td class="cv-fix3" rowspan="3">' + cvOTextInfo_(tv, 'ten') + '</td>' +
+          '<td rowspan="3">' + cvSelectGioiTinh_(tv) + '</td>' +
+          '<td rowspan="3">' + cvOTextInfo_(tv, 'banNganh') + '</td>' +
+          '<td rowspan="3">' + cvOTextInfo_(tv, 'diaVuc') + '</td>' +
+          '<td rowspan="3">' + cvOTextInfo_(tv, 'khuVuc') + '</td>' +
+          '<td rowspan="3">' + cvOTextInfo_(tv, 'chucTrach') + '</td>' +
+          '<td rowspan="3">' + cvOTextInfo_(tv, 'chucPhan') + '</td>' +
+          '<td rowspan="3"><div class="cv-act">' +
+            '<button type="button" title="Lên 1 bậc" onclick="moveCVUI_(' + tv.id + ',\'len\')">▲</button>' +
+            '<button type="button" title="Xuống 1 bậc" onclick="moveCVUI_(' + tv.id + ',\'xuong\')">▼</button>' +
+            '<button type="button" class="cv-xoa" title="Xoá người này" onclick="xoaCVUI_(' + tv.id + ')">✕</button>' +
+          '</div></td>';
+      }
+      CV_NGAY_.forEach(function(n){
+        const val = (tv.o && tv.o[b.ma] && tv.o[b.ma][n.ma]) || '';
+        body += '<td class="cv-ngay"><input type="text" value="' + esc(val) + '" data-id="' + tv.id +
+          '" data-buoi="' + b.ma + '" data-ngay="' + n.ma + '" onchange="saveCVCellUI_(this)"></td>';
+      });
+      if (dauNguoi) {
+        body += '<td class="cv-tong" rowspan="3" data-tong-id="' + tv.id + '">' + tv.tongCong + '</td>' +
+                '<td class="cv-tong-truoc" rowspan="3">' + (tv.tongThangTruoc || 0) + '</td>';
+      }
+      body += '</tr>';
+    });
+  });
+
+  table.innerHTML = thead + '<tbody>' + (body ||
+    '<tr><td colspan="19" style="color:#94a3b8;padding:14px;">Chưa có thành viên nào.</td></tr>') + '</tbody>';
+}
+
+// Lưu 1 ô ngày. Máy chủ trả về Tổng cộng MỚI của chính người đó -> cập nhật
+// ngay ô "Tổng cộng" mà không phải tải lại cả bảng.
+function saveCVCellUI_(inp){
+  const thang = document.getElementById('cvMonth').value || currentMonthKey();
+  const tuan = cvTuanDangXem_ || cvTuanHomNay_();
+  const id = Number(inp.dataset.id);
+  const giaTri = inp.value;
+  inp.classList.add('saved');
+  setTimeout(function(){ inp.classList.remove('saved'); }, 700);
+  google.script.run.withSuccessHandler(function(r){
+    const o = document.querySelector('[data-tong-id="' + id + '"]');
+    if (o && r && typeof r.tongCong === 'number') o.textContent = r.tongCong;
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi lưu: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadCongViec_();
+  }).saveCVCell(id, thang, tuan, inp.dataset.buoi, inp.dataset.ngay, giaTri);
+}
+
+// Lưu 1 ô thông tin người (Họ tên / Giới tính / Ban ngành / ...). Chỉ gửi
+// đúng trường vừa sửa, các trường khác máy chủ giữ nguyên.
+function saveCVInfoUI_(el){
+  const id = Number(el.dataset.id);
+  const truong = el.dataset.truong;
+  const goi = {};
+  goi[truong] = el.value;
+  el.classList.add('saved');
+  setTimeout(function(){ el.classList.remove('saved'); }, 700);
+  google.script.run.withSuccessHandler(function(){
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi lưu: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadCongViec_();
+  }).updateCVThanhVien(id, goi);
+}
+
+function addCVThanhVienUI_(){
+  const inp = document.getElementById('cv_newTen');
+  const ten = (inp.value || '').trim();
+  if (!ten) { showMsg('Chưa nhập tên thành viên', false); return; }
+  inp.value = '';
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã thêm ' + ten, true);
+    loadCongViec_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi thêm: ' + err.message, false);
+    inp.value = ten;
+  }).addCVThanhVien({ ten: ten });
+}
+
+function xoaCVUI_(id){
+  const tv = ((window._cvData && window._cvData.thanhVien) || []).find(function(x){ return x.id === id; });
+  const ten = tv ? tv.ten : '';
+  if (!confirm('Xoá "' + ten + '" khỏi Điểm danh công việc?\n\nTOÀN BỘ số liệu đã nhập của người này (mọi tháng) sẽ bị xoá theo và KHÔNG khôi phục được.')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã xoá ' + ten, true);
+    loadCongViec_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi xoá: ' + err.message, false);
+  }).deleteCVThanhVien(id);
+}
+
+function moveCVUI_(id, huong){
+  google.script.run.withSuccessHandler(function(){
+    loadCongViec_();
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi đổi thứ tự: ' + err.message, false);
+  }).moveCVThanhVien(id, huong);
+}
 
 /** ---------- Khởi động ---------- */
 function loadAll(){
