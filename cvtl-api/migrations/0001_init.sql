@@ -338,3 +338,27 @@ CREATE TABLE IF NOT EXISTS cv_cong_viec (
   PRIMARY KEY (khu_vuc, ten, thang, tuan, buoi, ngay)
 );
 CREATE INDEX IF NOT EXISTS ix_cvcv_kv_thang ON cv_cong_viec (khu_vuc, thang);
+
+-- ---------------------------------------------------------------------
+-- 21b. cv_nguoi — CHỈNH DANH SÁCH NGƯỜI CỦA RIÊNG BẢNG ĐIỂM DANH CÔNG VIỆC
+-- (thêm 23/08/2026 lần 2, anh Rise: "thêm phần xóa hoặc nhập thêm người mới")
+--
+-- Bảng công việc lấy NỀN từ `diem_danh_roster`, rồi cộng/trừ bằng bảng này:
+--        hiển thị = (diem_danh_roster)  −  (kieu='an')  +  (kieu='them')
+--
+-- ⚠️ Anh Rise đã chốt (AskUserQuestion): sửa ở bảng công việc **KHÔNG** đụng
+-- tới bảng Điểm danh, và ngược lại. Vì vậy tuyệt đối KHÔNG được đổi hai hàm
+-- này thành ghi thẳng vào `diem_danh_roster`.
+--
+-- ⚠️ Ẩn/xoá người ở đây KHÔNG xoá dữ liệu trong `cv_cong_viec` — hiện lại
+-- đúng tên là số cũ về đủ. Cố ý, để lỡ tay không mất số liệu.
+--   kieu: 'an'  = có trong Điểm danh nhưng KHÔNG hiện ở bảng công việc
+--         'them'= chỉ có ở bảng công việc, KHÔNG có trong Điểm danh
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS cv_nguoi (
+  khu_vuc  TEXT NOT NULL,
+  ten      TEXT NOT NULL,
+  kieu     TEXT NOT NULL,
+  thu_tu   INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (khu_vuc, ten)
+);
