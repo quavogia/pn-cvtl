@@ -12,3 +12,22 @@ database_id = "74e2ab5b-b246-497b-b706-be58d3015493"
 # "0 23 * * *" = 23:00 UTC = 06:00 giờ Việt Nam (UTC+7) mỗi ngày.
 [triggers]
 crons = ["0 23 * * *"]
+
+# ⚠️⚠️ BẮT BUỘC PHẢI KHAI BÁO Ở ĐÂY (thêm 24/08/2026) — ĐỪNG XOÁ.
+# Bật nhật ký lỗi bằng tay trên Dashboard là KHÔNG ĐỦ: y hệt "Cạm bẫy #1"
+# của biến môi trường loại Text, thứ gì không có trong file này sẽ bị coi là
+# không tồn tại và bị XOÁ ở lần đẩy code kế tiếp. Chính Cloudflare cũng cảnh
+# báo "Update your Wrangler config to ensure settings are consistent across
+# deployments" ngay lúc bật.
+#
+# Có nhật ký thì lần sau ai báo lỗi là tra được ĐÚNG câu lệnh nào chết, lúc
+# mấy giờ, của ai — thay vì phải suy đoán như sự cố sáng 24/08/2026.
+# Gói miễn phí cho 200.000 sự kiện/ngày; hệ thống này dùng khoảng 500/ngày.
+[observability]
+enabled = true
+
+[observability.logs]
+enabled = true
+invocation_logs = true
+persist = true
+head_sampling_rate = 1
