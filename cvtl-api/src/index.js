@@ -11,7 +11,7 @@
 // =====================================================================
 
 import { json, preflight, parseRequest } from './protocol.js';
-import { bocD1 } from './db.js';
+import { bocD1, moTaLoiTiengViet } from './db.js';
 import { nhanDienNguoiGoi } from './auth.js';
 import { DANH_MUC } from './registry.js';
 import { CAU_LENH_TAO_BANG } from './schema-sql.js';
@@ -195,7 +195,7 @@ export default {
         try {
           nguoiGoi = await nhanDienNguoiGoi(db, token, env.GOOGLE_CLIENT_ID);
         } catch (e) {
-          return json({ error: e.message, authError: true });
+          return json({ error: moTaLoiTiengViet(e), authError: true });
         }
         if (muc.chuThoi && !nguoiGoi.laChu) {
           return json({ error: 'Chỉ tài khoản chủ mới được thực hiện thao tác này.' });
@@ -211,7 +211,10 @@ export default {
       return json({ result: ketQua === undefined ? null : ketQua });
     } catch (e) {
       // Lưới an toàn cuối cùng — vẫn là JSON.
-      return json({ error: (e && e.message) || 'Lỗi không xác định phía máy chủ.' });
+      // moTaLoiTiengViet: đổi dòng đỏ khó hiểu "D1_ERROR: internal error;
+      // reference = ..." thành câu tiếng Việt, giữ lại mã tra cứu. Lỗi loại
+      // khác giữ NGUYÊN văn để không che mất thông tin gỡ rối.
+      return json({ error: moTaLoiTiengViet(e) });
     }
   },
 
