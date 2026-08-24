@@ -233,5 +233,108 @@ console.log('\n=== KIỂM THỬ màn hình "Duyệt truy cập" trong web (17/08
     JSON.stringify(j.result));
 }
 
+// =====================================================================
+// ⭐ TỰ THỬ LẠI KHI D1 TRỤC TRẶC NHẤT THỜI (thêm 24/08/2026, sau sự cố
+// "D1_ERROR: internal error" khiến một thành viên không đăng nhập được).
+//
+// TRỌNG TÂM: lệnh ĐỌC phải tự thử lại, lệnh GHI TUYỆT ĐỐI KHÔNG —
+// thử lại một lệnh INSERT có id tự tăng sẽ sinh dòng TRÙNG.
+// =====================================================================
+console.log('\n--- Tự thử lại khi D1 trục trặc nhất thời ---');
+{
+  const { bocD1, laLoiD1NhatThoi, moTaLoiTiengViet } = await import(join(goc, 'src/db.js'));
+
+  // D1 giả: hỏng đúng `soLanHong` lượt đầu rồi mới chạy được.
+  function d1Hong(soLanHong, thongBao = 'D1_ERROR: internal error; reference = abc123xyz') {
+    const dem = { all: 0, first: 0, run: 0 };
+    const tao = (loai, ketQua) => async () => {
+      dem[loai]++;
+      if (dem[loai] <= soLanHong) throw new Error(thongBao);
+      return ketQua;
+    };
+    return {
+      dem,
+      d1: {
+        prepare() {
+          const api = {
+            bind() { return api; },
+            all: tao('all', { results: [{ x: 1 }] }),
+            first: tao('first', { x: 1 }),
+            run: tao('run', { success: true }),
+          };
+          return api;
+        },
+        async batch(ds) { return ds; },
+      },
+    };
+  }
+
+  const ktra = (ten, ok, ct = '') => { if (ok) { dat++; console.log('  ✓', ten); } else { hong++; console.log('  ✗', ten, ct); } };
+
+  // --- Nhận diện đúng loại lỗi ---
+  ktra('nhận ra D1_ERROR là lỗi nhất thời', laLoiD1NhatThoi(new Error('D1_ERROR: internal error; reference = x')));
+  ktra('nhận ra "Network connection lost" là lỗi nhất thời', laLoiD1NhatThoi(new Error('Network connection lost')));
+  ktra('KHÔNG coi lỗi câu lệnh sai là nhất thời (phải hỏng ngay để còn biết)',
+    !laLoiD1NhatThoi(new Error('no such table: abc')));
+  ktra('KHÔNG coi lỗi nghiệp vụ là nhất thời', !laLoiD1NhatThoi(new Error('Thiếu Khu vực.')));
+
+  // --- ĐỌC: tự thử lại ---
+  {
+    const { d1, dem } = d1Hong(2);
+    const db = bocD1(d1);
+    const r = await db.all('SELECT 1');
+    ktra('all(): hỏng 2 lượt đầu vẫn ra kết quả đúng', JSON.stringify(r) === '[{"x":1}]', JSON.stringify(r));
+    ktra('all(): đã thử đúng 3 lượt', dem.all === 3, 'thực tế: ' + dem.all);
+  }
+  {
+    const { d1, dem } = d1Hong(2);
+    const db = bocD1(d1);
+    const r = await db.first('SELECT 1');
+    ktra('first(): hỏng 2 lượt đầu vẫn ra kết quả đúng', JSON.stringify(r) === '{"x":1}', JSON.stringify(r));
+    ktra('first(): đã thử đúng 3 lượt', dem.first === 3, 'thực tế: ' + dem.first);
+  }
+  {
+    // Hỏng cả 3 lượt -> phải chịu thua, KHÔNG thử vô hạn.
+    const { d1, dem } = d1Hong(99);
+    const db = bocD1(d1);
+    let loi = null;
+    try { await db.all('SELECT 1'); } catch (e) { loi = e; }
+    ktra('all(): hỏng mãi thì chịu thua chứ không lặp vô hạn', dem.all === 3, 'thực tế: ' + dem.all);
+    ktra('all(): vẫn ném đúng lỗi gốc ra ngoài', /D1_ERROR/.test(loi?.message || ''), String(loi?.message));
+  }
+  {
+    // Lỗi KHÔNG nhất thời -> hỏng ngay lượt đầu, không thử lại.
+    const { d1, dem } = d1Hong(99, 'no such table: khong_co');
+    const db = bocD1(d1);
+    let loi = null;
+    try { await db.first('SELECT 1'); } catch (e) { loi = e; }
+    ktra('⭐ lỗi câu lệnh sai thì hỏng NGAY lượt đầu, không thử lại',
+      dem.first === 1, 'thực tế: ' + dem.first);
+    ktra('và giữ nguyên văn lỗi để còn gỡ rối', /no such table/.test(loi?.message || ''));
+  }
+
+  // --- GHI: TUYỆT ĐỐI KHÔNG thử lại ---
+  {
+    const { d1, dem } = d1Hong(1);
+    const db = bocD1(d1);
+    let loi = null;
+    try { await db.run('INSERT INTO x VALUES (1)'); } catch (e) { loi = e; }
+    ktra('⭐⭐ run(): CHỈ chạy ĐÚNG 1 lượt — không bao giờ thử lại lệnh GHI',
+      dem.run === 1, 'thực tế: ' + dem.run);
+    ktra('run(): báo lỗi ra ngoài để người dùng tự bấm lại', !!loi, String(loi));
+  }
+
+  // --- Câu báo lỗi tiếng Việt ---
+  {
+    const t = moTaLoiTiengViet(new Error('D1_ERROR: internal error; reference = rhe134pisfbr25lspci1gh2t'));
+    ktra('đổi lỗi D1 sang tiếng Việt dễ hiểu', /Máy chủ dữ liệu đang bận nhất thời/.test(t), t);
+    ktra('nói rõ dữ liệu KHÔNG bị mất', /KHÔNG bị mất/.test(t), t);
+    ktra('giữ lại mã tra cứu của Cloudflare', /rhe134pisfbr25lspci1gh2t/.test(t), t);
+    ktra('KHÔNG còn chữ "D1_ERROR" khó hiểu trên màn hình', !/D1_ERROR/.test(t), t);
+    const t2 = moTaLoiTiengViet(new Error('Thiếu Khu vực.'));
+    ktra('lỗi nghiệp vụ giữ NGUYÊN văn, không bị đổi lung tung', t2 === 'Thiếu Khu vực.', t2);
+  }
+}
+
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
 process.exit(hong ? 1 : 0);
