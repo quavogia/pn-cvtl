@@ -13,12 +13,24 @@
 // đăng nhập KHÔNG hề bị sửa trong lần đẩy trước đó. => Trục trặc nhất thời
 // phía D1. Đây là loại lỗi chỉ cần thử lại sau vài trăm mili-giây là qua.
 //
-// ⚠️⚠️ CHỈ THỬ LẠI LỆNH **ĐỌC** (all/first), TUYỆT ĐỐI KHÔNG THỬ LẠI LỆNH
-// **GHI** (run/batch). Lý do: khi một lệnh ghi báo lỗi, không có cách nào
-// biết chắc nó đã kịp ghi hay chưa. Thử lại một lệnh INSERT có cột id tự
-// tăng (nhat_ky_don_thuan, lich_lam_viec, dao_tao_viec_giao) sẽ sinh dòng
-// TRÙNG — hỏng dữ liệu thật, tệ hơn hẳn việc báo lỗi cho người dùng bấm lại.
-// Đọc thì thử lại bao nhiêu lần cũng vô hại.
+// ⚠️⚠️ NGUYÊN TẮC AN TOÀN — đọc kỹ trước khi sửa gì ở đây:
+//   · Lệnh **ĐỌC** (all/first): thử lại bao nhiêu lần cũng vô hại -> LUÔN thử lại.
+//   · Lệnh **GHI** (run/batch): chỉ thử lại khi **chạy 2 lần cho kết quả Y HỆT
+//     chạy 1 lần**. Khi một lệnh ghi báo lỗi, KHÔNG có cách nào biết chắc nó đã
+//     kịp ghi hay chưa — nên thử lại một lệnh không "ghi đè" là tự sinh dữ liệu
+//     trùng, hỏng dữ liệu thật, tệ hơn hẳn việc báo lỗi cho người dùng bấm lại.
+//
+// Bổ sung 24/08/2026 (lần 2), anh Rise: *"không cần [báo Telegram], có lỗi tự
+// fix là được"*. Bản đầu chỉ tự thử lại lệnh ĐỌC nên lúc anh Rise gõ số rồi lưu
+// mà D1 trục trặc thì vẫn hiện lỗi. Nay mở rộng sang lệnh GHI, nhưng CHỈ những
+// lệnh đã CHỨNG MINH được là "ghi đè" (xem `laGhiAnToanThuLai`).
+//
+// ⚠️ Đã soát TOÀN BỘ lệnh ghi của dự án 24/08/2026. 6 chỗ KHÔNG được thử lại
+// (bảng có cột id tự tăng hoặc thêm dòng mới): `phien_dang_nhap`, `config_list`,
+// `lich_lam_viec`, `dao_tao_viec_giao`, `hoc_vien`, `nhat_ky_don_thuan`.
+// Và 3 chỗ dùng biểu thức `CASE`/`replace()` trên chính cột đó (bai_da_hoc,
+// da_phat_bieu) — thực tế chúng vẫn ăn-ý-lặp-lại, nhưng CỐ Ý không thử lại vì
+// quá tinh vi để tin. **Không chắc thì KHÔNG thử lại.**
 // =====================================================================
 
 /** Thử lại tối đa 2 lần (tổng cộng 3 lượt), chờ 150ms rồi 400ms. */
@@ -48,6 +60,30 @@ export function moTaLoiTiengViet(loi) {
     + (m ? ' (mã tra cứu: ' + m[1] + ')' : '');
 }
 
+/**
+ * Lệnh GHI này có "ghi đè" không — tức chạy 2 lần cho kết quả y hệt 1 lần?
+ * CỐ Ý viết theo kiểu DANH SÁCH TRẮNG rất chặt: chỉ khớp đúng mấy dạng đã soát
+ * tay và chứng minh được. Mọi thứ khác -> trả về false -> KHÔNG thử lại.
+ * Thà bỏ sót một cơ hội tự sửa còn hơn ghi trùng một dòng dữ liệu.
+ */
+const GHI_AN_TOAN = [
+  // Xoá: xoá rồi xoá nữa vẫn thế.
+  /^DELETE\s+FROM\s+\w+/i,
+  // INSERT OR IGNORE / OR REPLACE: bản chất là ghi đè.
+  /^INSERT\s+OR\s+(IGNORE|REPLACE)\s+INTO\s+\w+/i,
+  // UPDATE mà bên phải dấu = chỉ có tham số / số / chuỗi / NULL (không có hàm,
+  // không nhắc lại tên cột) -> đặt giá trị cố định, ghi đè được.
+  /^UPDATE\s+\S+\s+SET\s+(?:\w+\s*=\s*(?:\?|-?\d+(?:\.\d+)?|'[^']*'|NULL)\s*,\s*)*\w+\s*=\s*(?:\?|-?\d+(?:\.\d+)?|'[^']*'|NULL)\s+WHERE\s/i,
+  // Upsert kiểu "ghi đè bằng giá trị vừa gửi lên" — dạng dùng nhiều nhất khi
+  // nhập liệu (Điểm danh, Thờ phượng, Điểm danh công việc...).
+  /ON\s+CONFLICT\s*\([^)]*\)\s*DO\s+UPDATE\s+SET\s+(?:\w+\s*=\s*(?:excluded\.\w+|\?|-?\d+(?:\.\d+)?|'[^']*'|NULL)\s*,\s*)*\w+\s*=\s*(?:excluded\.\w+|\?|-?\d+(?:\.\d+)?|'[^']*'|NULL)\s*$/i,
+];
+
+export function laGhiAnToanThuLai(sql) {
+  const s = String(sql || '').replace(/\s+/g, ' ').trim();
+  return GHI_AN_TOAN.some((r) => r.test(s));
+}
+
 async function thuLaiNeuNhatThoi_(viec) {
   let loiCuoi;
   for (let lan = 0; lan <= CHO_MS.length; lan++) {
@@ -73,12 +109,18 @@ export function bocD1(d1) {
     async first(sql, params = []) {
       return await thuLaiNeuNhatThoi_(() => d1.prepare(sql).bind(...params).first());
     },
-    // ---- GHI: KHÔNG tự thử lại (xem lời cảnh báo ở đầu file) ----
+    // ---- GHI: chỉ tự thử lại khi lệnh đó "ghi đè" ----
     async run(sql, params = []) {
-      return await d1.prepare(sql).bind(...params).run();
+      const chay = () => d1.prepare(sql).bind(...params).run();
+      return laGhiAnToanThuLai(sql) ? await thuLaiNeuNhatThoi_(chay) : await chay();
     },
     async batch(danhSach) {
-      return await d1.batch(danhSach.map(({ sql, params = [] }) => d1.prepare(sql).bind(...params)));
+      const chay = () =>
+        d1.batch(danhSach.map(({ sql, params = [] }) => d1.prepare(sql).bind(...params)));
+      // Cả gói chỉ được thử lại khi MỌI lệnh trong gói đều "ghi đè" — một lệnh
+      // không an toàn là bỏ thử lại cả gói.
+      const caGoiAnToan = danhSach.length > 0 && danhSach.every((x) => laGhiAnToanThuLai(x.sql));
+      return caGoiAnToan ? await thuLaiNeuNhatThoi_(chay) : await chay();
     },
   };
 }
