@@ -242,7 +242,8 @@ console.log('\n=== KIỂM THỬ màn hình "Duyệt truy cập" trong web (17/08
 // =====================================================================
 console.log('\n--- Tự thử lại khi D1 trục trặc nhất thời ---');
 {
-  const { bocD1, laLoiD1NhatThoi, moTaLoiTiengViet } = await import(join(goc, 'src/db.js'));
+  const { bocD1, laLoiD1NhatThoi, moTaLoiTiengViet, laGhiAnToanThuLai } =
+    await import(join(goc, 'src/db.js'));
 
   // D1 giả: hỏng đúng `soLanHong` lượt đầu rồi mới chạy được.
   function d1Hong(soLanHong, thongBao = 'D1_ERROR: internal error; reference = abc123xyz') {
@@ -313,15 +314,119 @@ console.log('\n--- Tự thử lại khi D1 trục trặc nhất thời ---');
     ktra('và giữ nguyên văn lỗi để còn gỡ rối', /no such table/.test(loi?.message || ''));
   }
 
-  // --- GHI: TUYỆT ĐỐI KHÔNG thử lại ---
+  // --- GHI: phân loại "ghi đè" hay không (24/08/2026 lần 2) ---
+  // ⚠️ Đây là phần dễ gây HỎNG DỮ LIỆU THẬT nhất của cả dự án: phân loại sai
+  // một lệnh thành "an toàn" là có ngày sinh dòng trùng. Kiểm bằng ĐÚNG các câu
+  // lệnh thật đang chạy trong các handler.
   {
+    const PHAI_THU_LAI = [
+      ['xoá 1 ô công việc', 'DELETE FROM cv_cong_viec WHERE khu_vuc=? AND ten=? AND thang=?'],
+      ['INSERT OR IGNORE (sổ mốc)', "INSERT OR IGNORE INTO so_moc (moc, ten) VALUES (?,?)"],
+      ['gia hạn phiên đăng nhập', 'UPDATE phien_dang_nhap SET het_han_luc = ?, ten = ? WHERE token = ?'],
+      ['cấp quyền Admin', 'UPDATE access_control SET la_chu = 1 WHERE lower(email) = lower(?)'],
+      ['đổi thứ tự thành viên', 'UPDATE diem_danh_roster SET thu_tu = ? WHERE id = ?'],
+      ['lưu 1 ô Điểm danh (upsert ghi đè)',
+       'INSERT INTO diem_danh (thang,khu_vuc,ten,tuan,buoi,gia_tri) VALUES (?,?,?,?,?,?) ' +
+       'ON CONFLICT (thang,khu_vuc,ten,tuan,buoi) DO UPDATE SET gia_tri = excluded.gia_tri'],
+      ['ẩn người khỏi bảng công việc',
+       "INSERT INTO cv_nguoi (khu_vuc,ten,kieu,thu_tu) VALUES (?,?,'an',?) " +
+       "ON CONFLICT (khu_vuc,ten) DO UPDATE SET kieu = 'an'"],
+      ['ghi ngày cấp chứng chỉ (hàm chỉ nằm ở WHERE)',
+       'UPDATE dao_tao_tien_do SET ngay_cap_chung_chi = ? WHERE khu_vuc = ? ' +
+       "AND (length(trim(x))-length(replace(x,',',''))+1) >= ?"],
+    ];
+    // ⚠️⚠️ Sáu bảng dưới đây có cột id TỰ TĂNG hoặc luôn thêm dòng mới —
+    // thử lại là SINH DÒNG TRÙNG. Đã soát tay toàn bộ dự án 24/08/2026.
+    const KHONG_DUOC_THU_LAI = [
+      ['nhật ký Đơn thuần', 'INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan) VALUES (?,?,?)'],
+      ['lịch làm việc', 'INSERT INTO lich_lam_viec (ngay,noi_dung) VALUES (?,?)'],
+      ['học viên', 'INSERT INTO hoc_vien (ten) VALUES (?)'],
+      ['việc giao đào tạo', 'INSERT INTO dao_tao_viec_giao (khu_vuc,ten) VALUES (?,?)'],
+      ['thêm khu vực mới', 'INSERT INTO config_list (loai,gia_tri,thu_tu) VALUES (?,?,?)'],
+      ['tạo phiên đăng nhập', 'INSERT INTO phien_dang_nhap (token,email,ten,tao_luc,het_han_luc) VALUES (?,?,?,?,?)'],
+      ['upsert có biểu thức CASE trên chính cột đó (quá tinh vi -> không tin)',
+       'INSERT INTO dao_tao_tien_do (khu_vuc,ten,bai_da_hoc) VALUES (?,?,?) ' +
+       'ON CONFLICT (khu_vuc,ten) DO UPDATE SET bai_da_hoc = CASE WHEN instr(x,?)>0 THEN trim(x) ELSE trim(x||?) END'],
+      ['upsert có replace() lồng trên chính cột đó',
+       'INSERT INTO le_hoi_tien_do (ma_le_hoi,khu_vuc,ten,da_phat_bieu) VALUES (?,?,?,?) ' +
+       "ON CONFLICT (ma_le_hoi,khu_vuc,ten) DO UPDATE SET da_phat_bieu = trim(replace(x,?,','),',')"],
+    ];
+    for (const [ten, sql] of PHAI_THU_LAI)
+      ktra('ghi đè được -> PHẢI thử lại: ' + ten, laGhiAnToanThuLai(sql) === true, sql.slice(0, 80));
+    for (const [ten, sql] of KHONG_DUOC_THU_LAI)
+      ktra('⭐ KHÔNG ghi đè -> TUYỆT ĐỐI không thử lại: ' + ten,
+        laGhiAnToanThuLai(sql) === false, sql.slice(0, 80));
+    ktra('câu lệnh rỗng/không rõ -> mặc định KHÔNG thử lại',
+      !laGhiAnToanThuLai('') && !laGhiAnToanThuLai(null) && !laGhiAnToanThuLai('BLAH BLAH'));
+  }
+
+  // --- GHI: hành vi thật của run() ---
+  {
+    // Lệnh KHÔNG ghi đè -> chỉ chạy đúng 1 lượt rồi báo lỗi.
     const { d1, dem } = d1Hong(1);
     const db = bocD1(d1);
     let loi = null;
-    try { await db.run('INSERT INTO x VALUES (1)'); } catch (e) { loi = e; }
-    ktra('⭐⭐ run(): CHỈ chạy ĐÚNG 1 lượt — không bao giờ thử lại lệnh GHI',
+    try { await db.run('INSERT INTO nhat_ky_don_thuan (ngay) VALUES (?)', ['x']); } catch (e) { loi = e; }
+    ktra('⭐⭐ run() lệnh KHÔNG ghi đè: chạy ĐÚNG 1 lượt, không thử lại',
       dem.run === 1, 'thực tế: ' + dem.run);
-    ktra('run(): báo lỗi ra ngoài để người dùng tự bấm lại', !!loi, String(loi));
+    ktra('và báo lỗi ra ngoài để người dùng tự bấm lại', !!loi, String(loi));
+  }
+  {
+    // Lệnh ghi đè -> tự thử lại và thành công, người dùng không thấy lỗi gì.
+    const { d1, dem } = d1Hong(2);
+    const db = bocD1(d1);
+    let loi = null;
+    try {
+      await db.run('DELETE FROM cv_cong_viec WHERE khu_vuc=? AND ten=?', ['A', 'B']);
+    } catch (e) { loi = e; }
+    ktra('⭐⭐ run() lệnh GHI ĐÈ: hỏng 2 lượt đầu vẫn tự chữa xong', !loi, String(loi));
+    ktra('và đã thử đúng 3 lượt', dem.run === 3, 'thực tế: ' + dem.run);
+  }
+  {
+    // Lệnh ghi đè nhưng hỏng mãi -> vẫn phải chịu thua, không lặp vô hạn.
+    const { d1, dem } = d1Hong(99);
+    const db = bocD1(d1);
+    let loi = null;
+    try { await db.run('DELETE FROM cv_nguoi WHERE khu_vuc=?', ['A']); } catch (e) { loi = e; }
+    ktra('run() ghi đè mà hỏng mãi thì chịu thua sau 3 lượt', dem.run === 3, 'thực tế: ' + dem.run);
+    ktra('và vẫn báo lỗi ra ngoài', !!loi);
+  }
+  {
+    // batch: cả gói toàn lệnh ghi đè -> thử lại được.
+    let lan = 0;
+    const d1 = { prepare(){ const a={bind(){return a;}}; return a; },
+      async batch(){ lan++; if (lan <= 2) throw new Error('D1_ERROR: internal error'); return []; } };
+    const db = bocD1(d1);
+    let loi = null;
+    try {
+      await db.batch([
+        { sql: 'UPDATE diem_danh_roster SET thu_tu = ? WHERE id = ?', params: [1, 2] },
+        { sql: 'UPDATE diem_danh_roster SET thu_tu = ? WHERE id = ?', params: [2, 3] },
+      ]);
+    } catch (e) { loi = e; }
+    ktra('batch(): cả gói toàn lệnh ghi đè -> tự chữa xong', !loi && lan === 3, 'lượt: ' + lan);
+  }
+  {
+    // batch: chỉ cần MỘT lệnh không an toàn là bỏ thử lại CẢ GÓI.
+    let lan = 0;
+    const d1 = { prepare(){ const a={bind(){return a;}}; return a; },
+      async batch(){ lan++; throw new Error('D1_ERROR: internal error'); } };
+    const db = bocD1(d1);
+    try {
+      await db.batch([
+        { sql: 'UPDATE diem_danh_roster SET thu_tu = ? WHERE id = ?', params: [1, 2] },
+        { sql: 'INSERT INTO hoc_vien (ten) VALUES (?)', params: ['x'] },
+      ]);
+    } catch (e) { /* mong đợi */ }
+    ktra('⭐ batch(): 1 lệnh không ghi đè là bỏ thử lại CẢ GÓI', lan === 1, 'lượt: ' + lan);
+  }
+  {
+    // batch rỗng -> không thử lại (không có gì chứng minh được là an toàn).
+    let lan = 0;
+    const d1 = { prepare(){ const a={bind(){return a;}}; return a; },
+      async batch(){ lan++; throw new Error('D1_ERROR: internal error'); } };
+    try { await bocD1(d1).batch([]); } catch (e) { /* mong đợi */ }
+    ktra('batch rỗng -> không thử lại', lan === 1, 'lượt: ' + lan);
   }
 
   // --- Câu báo lỗi tiếng Việt ---
