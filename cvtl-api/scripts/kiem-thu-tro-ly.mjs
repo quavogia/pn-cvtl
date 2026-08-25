@@ -75,7 +75,8 @@ console.log('1) Đăng ký hàm');
 {
   kiem('có hàm getTroLy', !!DANH_MUC.getTroLy);
   kiem('getTroLy là hàm ĐỌC', DANH_MUC.getTroLy.doc === true);
-  kiem('cả phòng xem được, không giới hạn tài khoản chủ', !DANH_MUC.getTroLy.chuThoi);
+  // Anh Rise chốt 25/08/2026: CHỈ Chủ tài khoản + Admin mới xem được trang này.
+  kiem('CHỈ tài khoản chủ/Admin xem được (chuThoi=true)', DANH_MUC.getTroLy.chuThoi === true);
 }
 
 console.log('\n2) ⭐ Số của Trợ lý phải KHỚP số của trang Hiện trạng khu vực');
