@@ -385,7 +385,13 @@
          giúp báo cáo, quản lý, đề xuất phương án phát triển cho công việc tin
          lành mà vốn là các chỉ số đang hiển thị trên web"). Trang này KHÔNG
          nhập gì cả — chỉ đọc lại chính số liệu đang có rồi rút ra nhận định. -->
-    <button type="button" class="nav-btn" data-panel="troly" onclick="showPanel('troly'); loadTroLy_();"><span class="nav-icon">🤖</span> Trợ lý</button>
+    <!-- ⚠️ CHỈ Chủ tài khoản + Admin thấy mục này (anh Rise chốt 25/08/2026:
+         "trợ lý này chỉ dành cho admin thôi, các tài khoản khác ko xem được").
+         Giống navDuyet/navKhuVuc: để display:none sẵn, showUserBar_() mới bật
+         lên sau khi đăng nhập nếu isChuTaiKhoan_(). Giấu nút CHỈ là cho gọn
+         mắt — chặn thật nằm ở máy chủ (getTroLy đặt chuThoi: true trong
+         registry.js). Đừng bỏ một trong hai. -->
+    <button type="button" class="nav-btn" id="navTroLy" data-panel="troly" style="display:none;" onclick="showPanel('troly'); loadTroLy_();"><span class="nav-icon">🤖</span> Trợ lý</button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
@@ -5042,6 +5048,23 @@ function showUserBar_(email){
   // Chỉ tài khoản chủ mới thấy mục "Quản lý khu vực" (thêm 19/08/2026).
   const navKhuVuc = document.getElementById('navKhuVuc');
   if (navKhuVuc) navKhuVuc.style.display = isChuTaiKhoan_() ? 'flex' : 'none';
+  // Chỉ tài khoản chủ/Admin mới thấy mục "Trợ lý" (anh Rise chốt 25/08/2026).
+  // ⚠️ Nếu người đang mở ĐÚNG trang Trợ lý rồi mới bị gỡ quyền (hoặc đăng nhập
+  // lại bằng tài khoản thường) thì phải ĐẨY HỌ VỀ trang Tổng quan, chứ giấu
+  // mỗi cái nút thì nội dung cũ vẫn còn nằm trên màn hình.
+  const navTroLy = document.getElementById('navTroLy');
+  if (navTroLy) {
+    if (isChuTaiKhoan_()) navTroLy.style.display = 'flex';
+    else {
+      navTroLy.style.display = 'none';
+      const pTroLy = document.getElementById('panel-troly');
+      if (pTroLy) {
+        const noiDung = document.getElementById('tlNoiDung');
+        if (noiDung) noiDung.innerHTML = '';
+        if (pTroLy.classList.contains('active')) showPanel('stats');
+      }
+    }
+  }
 }
 function hideUserBar_(){
   const bar = document.getElementById('userBar');
