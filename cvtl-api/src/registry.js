@@ -15,7 +15,7 @@
 // revokeAdmin, mới 21/08/2026) — cộng thêm 2 hàm "Điểm danh công việc"
 // (getCVCongViec/saveCVCongViec, mới 23/08/2026), cộng thêm 3 hàm chỉnh danh
 // sách riêng của bảng đó (addCVNguoi/hideCVNguoi/unhideCVNguoi, 23/08/2026
-// lần 2) — tổng 88.
+// lần 2), cộng 1 hàm Trợ lý (getTroLy, 24/08/2026) — tổng 89.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -30,6 +30,7 @@ import * as thongKeTP from './handlers/thong-ke-tp.js';
 import * as truDo from './handlers/tru-do.js';
 import * as khuVuc from './handlers/khu-vuc.js';
 import * as congViec from './handlers/cong-viec.js';
+import * as troLy from './handlers/tro-ly.js';
 
 export const DANH_MUC = {
   // --- Đăng nhập / phân quyền (không yêu cầu đã duyệt) ---
@@ -157,6 +158,9 @@ export const DANH_MUC = {
   addCVNguoi:              { doc: false, fn: congViec.addCVNguoi },
   hideCVNguoi:             { doc: false, fn: congViec.hideCVNguoi },
   unhideCVNguoi:           { doc: false, fn: congViec.unhideCVNguoi },
+
+  // Trợ lý — tổng hợp/cảnh báo/đề xuất từ chính số liệu đang có (24/08/2026)
+  getTroLy:                { doc: true,  fn: troLy.getTroLy },
 };
 
 export const DANH_SACH_DOC = new Set(
