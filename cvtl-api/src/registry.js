@@ -159,8 +159,13 @@ export const DANH_MUC = {
   hideCVNguoi:             { doc: false, fn: congViec.hideCVNguoi },
   unhideCVNguoi:           { doc: false, fn: congViec.unhideCVNguoi },
 
-  // Trợ lý — tổng hợp/cảnh báo/đề xuất từ chính số liệu đang có (24/08/2026)
-  getTroLy:                { doc: true,  fn: troLy.getTroLy },
+  // Trợ lý — tổng hợp/cảnh báo/đề xuất từ chính số liệu đang có (24/08/2026).
+  // ⚠️ chuThoi: true (anh Rise chốt 25/08/2026: "trợ lý này chỉ dành cho admin
+  // thôi, các tài khoản khác ko xem được"). Trang này gom số liệu của TẤT CẢ
+  // khu vực và nêu nhận định về khu vực nào đang chậm — chỉ Chủ tài khoản và
+  // Admin mới được xem. Giao diện cũng giấu nút menu (xem navTroLy trong
+  // index.html), nhưng chặn thật nằm ở đây: giấu nút chỉ là cho gọn mắt.
+  getTroLy:                { doc: true,  chuThoi: true, fn: troLy.getTroLy },
 };
 
 export const DANH_SACH_DOC = new Set(
