@@ -140,6 +140,45 @@
   .dd-table .dd-week-odd{background:#eff6ff;}
   .dd-table .dd-week-even{background:#f8fafc;}
   .dd-table td.dd-week-odd input, .dd-table td.dd-week-even input{background:transparent;}
+  /* ===== TRANG TRỢ LÝ (thêm 24/08/2026) =====================================
+     Trang này để ĐỌC và ra quyết định, không phải để nhập, nên ưu tiên chữ to
+     rõ và phân tầng mức độ bằng màu: đỏ = cần xử lý ngay, cam = nên để ý,
+     xanh lá = điểm sáng. */
+  .tl-hang{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+  .tl-o{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+  .tl-o .nhan{font-size:12px;color:#64748b;margin-bottom:6px;}
+  .tl-o .so{font-size:26px;font-weight:800;color:var(--text);line-height:1.1;}
+  .tl-o .phu{font-size:12px;margin-top:5px;}
+  .tl-len{color:#15803d;font-weight:700;}
+  .tl-xuong{color:#b91c1c;font-weight:700;}
+  .tl-deu{color:#94a3b8;}
+  .tl-the{border-left:4px solid #cbd5e1;background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:10px;
+          border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);}
+  .tl-the.cao{border-left-color:#dc2626;background:#fef2f2;}
+  .tl-the.vua{border-left-color:#f59e0b;background:#fffbeb;}
+  .tl-the.thap{border-left-color:#94a3b8;}
+  .tl-the.sang{border-left-color:#16a34a;background:#f0fdf4;}
+  .tl-the .tieude{font-weight:700;font-size:14px;margin-bottom:3px;}
+  .tl-the .chitiet{font-size:13px;color:#475569;line-height:1.5;}
+  .tl-viec{display:flex;gap:10px;align-items:flex-start;padding:11px 14px;border:1px solid var(--border);
+           border-radius:10px;margin-bottom:9px;background:#fff;}
+  .tl-so-tt{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:var(--primary);color:#fff;
+            font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+  .tl-viec .viec{font-weight:600;font-size:14px;color:var(--text);}
+  .tl-viec .visao{font-size:12px;color:#64748b;margin-top:3px;}
+  .tl-bang{width:100%;border-collapse:collapse;font-size:13px;background:#fff;}
+  .tl-bang th,.tl-bang td{border:1px solid var(--border);padding:7px 9px;text-align:center;}
+  .tl-bang th{background:#f1f5f9;color:#475569;font-size:12px;font-weight:700;}
+  .tl-bang td.ten{text-align:left;font-weight:600;}
+  .tl-bang td.thieu{color:#94a3b8;}
+  .tl-ghi{font-size:12px;color:#64748b;background:#f8fafc;border:1px dashed var(--border);
+          border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.55;}
+  @media print{
+    #sidebar,.nav-btn,#msg,.tl-khong-in{display:none !important;}
+    #main{padding:0;}
+    .tl-the,.tl-viec,.tl-o{break-inside:avoid;}
+  }
+
   /* ===== BẢNG ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026, sửa lại cùng ngày) ===
      Chép đúng sheet "CVTL PN" của anh Rise: mỗi người 3 dòng Sáng/Chiều/Tối,
      hiện CẢ 6 TUẦN × 7 ngày cùng lúc (kéo ngang). Bảng nằm trong tab con
@@ -342,6 +381,11 @@
     <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
     <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
     <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
+    <!-- Trợ lý (thêm 24/08/2026, theo yêu cầu anh Rise: "tạo ra 1 trợ lý để
+         giúp báo cáo, quản lý, đề xuất phương án phát triển cho công việc tin
+         lành mà vốn là các chỉ số đang hiển thị trên web"). Trang này KHÔNG
+         nhập gì cả — chỉ đọc lại chính số liệu đang có rồi rút ra nhận định. -->
+    <button type="button" class="nav-btn" data-panel="troly" onclick="showPanel('troly'); loadTroLy_();"><span class="nav-icon">🤖</span> Trợ lý</button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
@@ -907,6 +951,22 @@
     </div>
 
     <!-- ============ LỊCH LÀM VIỆC ============ -->
+    <!-- ============ TRỢ LÝ (24/08/2026) ============
+         Toàn bộ con số ở đây do MÁY CHỦ tính (getTroLy), giao diện chỉ hiển
+         thị. Cố ý như vậy để trang này không bao giờ nói khác trang Hiện
+         trạng khu vực — xem lời giải thích ở đầu handlers/tro-ly.js. -->
+    <div id="panel-troly" class="panel">
+      <h1>🤖 Trợ lý</h1>
+      <div class="card tl-khong-in" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <label style="margin:0;">Xem tháng</label>
+        <input type="month" id="tlThang" style="width:170px;" onchange="loadTroLy_()">
+        <button class="btn" type="button" onclick="loadTroLy_()">Xem lại</button>
+        <button class="btn" type="button" onclick="window.print()">🖨️ In báo cáo</button>
+        <span style="font-size:12px;color:#94a3b8;">Trang này chỉ đọc số liệu đang có, không sửa gì cả.</span>
+      </div>
+      <div id="tlNoiDung"><p style="color:#94a3b8;">Đang tải...</p></div>
+    </div>
+
     <div id="panel-lich" class="panel">
       <h1>Lịch làm việc</h1>
 
@@ -4739,6 +4799,144 @@ function saveCVCellUI_(inp){
     showMsg('Lỗi lưu: ' + err.message + ' — đang tải lại để đồng bộ.', false);
     loadCVCongViec_();
   }).saveCVCongViec(selectedKV, ten, kvMonthKey(), Number(inp.dataset.tuan), inp.dataset.buoi, inp.dataset.ngay, inp.value);
+}
+
+/** ---------- TRỢ LÝ (thêm 24/08/2026) --------------------------------------
+ * Anh Rise: "tạo ra 1 trợ lý để giúp báo cáo, quản lý, đề xuất phương án phát
+ * triển cho công việc tin lành mà vốn là các chỉ số đang hiển thị trên web".
+ *
+ * ⚠️ Giao diện này KHÔNG tự tính bất kỳ con số nào — mọi thứ do getTroLy trên
+ * máy chủ tính sẵn. Nếu sau này thấy thiếu chỉ số gì thì SỬA Ở MÁY CHỦ, đừng
+ * cộng trừ ở đây; hai nơi cùng tính là có ngày lệch nhau, lúc đó anh Rise
+ * không biết tin bên nào.
+ */
+function loadTroLy_(){
+  const o = document.getElementById('tlThang');
+  // Dùng currentMonthKey() — hàm chuẩn của dự án (giờ Việt Nam), không tự chế.
+  if (o && !o.value) o.value = currentMonthKey();
+  const thang = o ? o.value : '';
+  if (!thang) return;
+  document.getElementById('tlNoiDung').innerHTML = '<p style="color:#94a3b8;">Đang tải...</p>';
+  google.script.run.withSuccessHandler(function(d){
+    window._troLy = d;
+    veTroLy_(d);
+  }).withFailureHandler(function(err){
+    document.getElementById('tlNoiDung').innerHTML =
+      '<div class="tl-the cao"><div class="tieude">Không tải được</div><div class="chitiet">' +
+      esc(err.message) + '</div></div>';
+  }).getTroLy(thang);
+}
+
+// Mũi tên tăng/giảm so tháng trước. Không có gì để so thì im lặng, KHÔNG vẽ
+// mũi tên đi ngang gây hiểu nhầm là "đứng yên".
+function tlChenh_(s){
+  if (!s || (s.truoc === 0 && s.nay === 0)) return '<span class="tl-deu">—</span>';
+  if (s.chenh === 0) return '<span class="tl-deu">= tháng trước</span>';
+  const len = s.chenh > 0;
+  return '<span class="' + (len ? 'tl-len' : 'tl-xuong') + '">' + (len ? '▲ +' : '▼ ') + s.chenh +
+    (s.phanTramDoi !== null ? ' (' + (len ? '+' : '') + s.phanTramDoi + '%)' : '') + '</span>';
+}
+// null = CHƯA CÓ, khác hẳn 0. Phải hiện "—" chứ không được hiện "0%".
+const tlPT_ = (v) => (v === null || v === undefined) ? '—' : v + '%';
+
+function veTroLy_(d){
+  const el = document.getElementById('tlNoiDung');
+  const q = d.tongQuan;
+  let h = '';
+
+  // ---------- 1. Bức tranh tháng này ----------
+  h += '<h3>1. Bức tranh tháng ' + esc(d.thang) + '</h3>';
+  if (!d.coDuLieu) {
+    h += '<div class="tl-the cao"><div class="tieude">Chưa có số liệu nào cho tháng này</div>' +
+         '<div class="chitiet">Trợ lý không đoán khi chưa có dữ liệu. Hãy kiểm tra các khu vực ' +
+         'đã nhập chưa, rồi xem lại.</div></div>';
+  }
+  const o = (nhan, s, muc) =>
+    '<div class="tl-o"><div class="nhan">' + nhan + '</div><div class="so">' + s.nay + '</div>' +
+    '<div class="phu">' + tlChenh_(s) +
+    (muc ? ' &nbsp;·&nbsp; mục tiêu ' + muc.muc + ' (' + tlPT_(muc.phanTram) + ')' : '') +
+    '</div></div>';
+  h += '<div class="tl-hang">' +
+    o('Đơn thuần', q.donThuan, q.mucTieu.donThuan) +
+    o('Hữu hiệu', q.huuHieu, q.mucTieu.huuHieu) +
+    o('Báp-têm', q.bt, q.mucTieu.bt) +
+    o('Thờ phượng ≥4 lần', q.thoPhuong.bonLan) +
+    '<div class="tl-o"><div class="nhan">Đang nghe</div><div class="so">' + q.dangNghe + '</div>' +
+    '<div class="phu">' + q.ganDich + ' người sắp tới đích</div></div>' +
+    '<div class="tl-o"><div class="nhan">Tháng đã đi qua</div><div class="so">' +
+    q.phanTramThangDaQua + '%</div><div class="phu tl-deu">tính tới ' + esc(d.ngayTinh) + '</div></div>' +
+    '</div>';
+
+  // ---------- 2. Việc cần làm ----------
+  h += '<h3>2. Việc nên làm tới</h3>';
+  if (!d.deXuat.length) {
+    h += '<div class="tl-the sang"><div class="tieude">Không có việc nào gấp</div>' +
+         '<div class="chitiet">Không tìm thấy khu vực nào đang chậm hay đang tụt so tháng trước.</div></div>';
+  } else {
+    d.deXuat.forEach(function(x, i){
+      h += '<div class="tl-viec"><div class="tl-so-tt">' + (i + 1) + '</div><div>' +
+           '<div class="viec">' + esc(x.viec) + '</div>' +
+           '<div class="visao">Vì: ' + esc(x.viSao) + '</div></div></div>';
+    });
+  }
+
+  // ---------- 3. Cảnh báo ----------
+  h += '<h3>3. Cần để ý</h3>';
+  if (!d.canhBao.length) {
+    h += '<div class="tl-the sang"><div class="tieude">Không có cảnh báo nào</div>' +
+         '<div class="chitiet">Các khu vực đều không có dấu hiệu bất thường trong tháng này.</div></div>';
+  } else {
+    d.canhBao.forEach(function(c){
+      h += '<div class="tl-the ' + esc(c.mucDo) + '"><div class="tieude">' + esc(c.tieuDe) + '</div>' +
+           '<div class="chitiet">' + esc(c.chiTiet) + '</div></div>';
+    });
+  }
+
+  // ---------- 4. Điểm sáng ----------
+  if (d.diemSang.length) {
+    h += '<h3>4. Điểm sáng — đáng hỏi cách làm</h3>';
+    d.diemSang.slice(0, 6).forEach(function(x){
+      h += '<div class="tl-the sang"><div class="tieude">' + esc(x.khuVuc) + ' — ' + esc(x.tenChiSo) +
+           ' đạt ' + x.phanTram + '% mục tiêu</div>' +
+           '<div class="chitiet">Thực tế ' + x.dat + ' / mục tiêu ' + x.muc + '.</div></div>';
+    });
+  }
+
+  // ---------- 5. So sánh khu vực ----------
+  h += '<h3>' + (d.diemSang.length ? '5' : '4') + '. So sánh giữa các khu vực</h3>';
+  h += '<div style="overflow-x:auto;"><table class="tl-bang"><thead><tr>' +
+    '<th rowspan="2" style="text-align:left;">Khu vực</th>' +
+    '<th colspan="2">Đơn thuần</th><th colspan="2">Hữu hiệu</th><th colspan="2">Báp-têm</th>' +
+    '<th rowspan="2">Đang<br>nghe</th><th rowspan="2">Sắp tới<br>đích</th>' +
+    '<th rowspan="2">Đi tiếp /<br>Đơn thuần</th><th rowspan="2">Báp-têm /<br>đi tiếp</th>' +
+    '<th rowspan="2">TP ≥4 lần</th></tr><tr>' +
+    '<th>Số</th><th>% MT</th><th>Số</th><th>% MT</th><th>Số</th><th>% MT</th></tr></thead><tbody>';
+  d.khuVuc.forEach(function(k){
+    const c = (m) => '<td>' + k.thucTe[m] + '</td><td class="' + (k.phanTramDat[m] === null ? 'thieu' : '') +
+      '">' + tlPT_(k.phanTramDat[m]) + '</td>';
+    h += '<tr><td class="ten">' + esc(k.khuVuc) + '</td>' + c('donThuan') + c('huuHieu') + c('bt') +
+      '<td>' + k.dangNghe + '</td><td>' + k.ganDich + '</td>' +
+      '<td class="' + (k.tyLeTrongThang.diTiepTrenDonThuan === null ? 'thieu' : '') + '">' +
+        tlPT_(k.tyLeTrongThang.diTiepTrenDonThuan) + '</td>' +
+      '<td class="' + (k.tyLeTrongThang.btTrenDiTiep === null ? 'thieu' : '') + '">' +
+        tlPT_(k.tyLeTrongThang.btTrenDiTiep) + '</td>' +
+      '<td>' + k.thoPhuong.bonLan.nay + ' ' + tlChenh_(k.thoPhuong.bonLan) + '</td></tr>';
+  });
+  h += '</tbody></table></div>';
+
+  // ⚠️ Bắt buộc phải có mấy dòng này — nếu không, hai cột tỉ lệ RẤT DỄ bị đọc
+  // sai thành "cứ 10 người nghe thì N người báp-têm".
+  h += '<div class="tl-ghi">' +
+    '<b>Đọc hai cột tỉ lệ cho đúng:</b> trong hệ thống này <b>Hữu hiệu và Báp-têm là hai nhóm riêng</b> ' +
+    '(người đã Báp-têm không được đếm vào Hữu hiệu), nên "đi tiếp" = Hữu hiệu + Báp-têm. ' +
+    'Hai tỉ lệ này tính <b>trong cùng một tháng</b>, không phải theo dõi đúng nhóm người đó đi qua từng khâu — ' +
+    'người nghe tháng này có thể báp-têm vài tháng sau. Vì vậy chỉ nên dùng để <b>so các khu vực với nhau</b> ' +
+    'trong cùng tháng.<br>' +
+    '<b>% MT</b> = phần trăm so với mục tiêu, mà mục tiêu khu vực được <b>cộng từ Mục tiêu cá nhân</b> ' +
+    'của các thành viên. Khu vực chưa ai đặt mục tiêu thì hiện "—" (chưa có), không phải 0%.' +
+    '</div>';
+
+  el.innerHTML = h;
 }
 
 /** ---------- Khởi động ---------- */
