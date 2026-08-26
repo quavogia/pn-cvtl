@@ -464,6 +464,11 @@
           <div class="stat-card"><div class="label">Hữu hiệu tháng này</div><div class="value" id="ov_huuhieu">—</div></div>
           <div class="stat-card"><div class="label">BT tháng này</div><div class="value" id="ov_bt">—</div></div>
         </div>
+        <!-- ⚠️ Dòng nhắc BẮT BUỘC: ô "Đang nghe" ở đây đếm CẢ học viên chưa có
+             Khu vực (họ vẫn đang nghe thật), còn bảng "Đang nghe theo Khu vực"
+             thì buộc phải bỏ họ ra. Hai con số vì thế LỆCH NHAU MỘT CÁCH HỢP LÝ
+             — nhưng không nói ra thì người xem tưởng có lỗi. -->
+        <p id="ovChuaCoKhuVuc" style="display:none;font-size:13px;margin-top:10px;padding:8px 12px;background:#fffbeb;color:#92400e;border-radius:8px;"></p>
         <p style="font-size:12px;color:#64748b;margin-top:10px;">
           "Tổng học viên" tính cả người Tạm nghỉ. "Đang nghe" = học viên có Tiến độ từ B1 đến B16 (không tính Tạm nghỉ và không tính người đã BT — đã BT nghĩa là đã hoàn tất, không còn "đang nghe" nữa), lấy từ bảng học viên khi các Khu vực nhập vào tab "Nhập học viên". "Đơn thuần/Hữu hiệu/BT tháng này" là % hoàn thành mục tiêu của tháng hiện tại.
         </p>
@@ -1692,9 +1697,21 @@ function isTamNghi(tienDo){
 // "Đang nghe" = có Tiến độ, không phải Tạm nghỉ, và CHƯA Báp-têm (BT).
 // (sửa 13/08/2026: trước đây học viên đã BT vẫn bị tính là "đang nghe" — anh
 // Rise chỉ ra là vô lý, vì BT nghĩa là đã hoàn tất, không còn "đang nghe" nữa.)
+/**
+ * "Đang nghe" = CÓ tiến độ · khác "Tạm nghỉ" · chưa Báp-têm.
+ *
+ * ⚠️ SỬA 26/08/2026 — trước đây thiếu vế `!!s`, nên học viên CHƯA CHỌN TIẾN ĐỘ
+ * (ô trống) vẫn bị đếm là "đang nghe": chuỗi rỗng thoả cả `!== 'Tạm nghỉ'` lẫn
+ * `!== 'BT'`. Máy chủ thì có `laDangNghe()` đòi phải có tiến độ — hai bên hiểu
+ * khác nhau về cùng một chữ.
+ *
+ * ⚠️⚠️ PHẢI GIỐNG HỆT `laDangNghe()` trong cvtl-api/src/handlers/hoc-vien.js.
+ * Sửa một bên mà quên bên kia là con số ở Tổng quan lệch với bảng theo khu vực
+ * và bảng xếp hạng — mà không có gì trên màn hình báo cho biết.
+ */
 function isDangNghe(tienDo){
   var s = String(tienDo || '').trim();
-  return s !== 'Tạm nghỉ' && s !== 'BT';
+  return !!s && s !== 'Tạm nghỉ' && s !== 'BT';
 }
 
 // Vẽ lại toàn bộ giao diện học viên (thẻ Tổng/Đang nghe, bảng, bộ lọc) từ
@@ -1704,6 +1721,7 @@ function isDangNghe(tienDo){
 function refreshStudentsUI_(){
   document.getElementById('ov_total').textContent = allStudents.length;
   document.getElementById('ov_dangnghe').textContent = allStudents.filter(function(s){ return isDangNghe(s.tienDo); }).length;
+  veNhacChuaCoKhuVuc_();
   renderDangNgheTable();
   applyFilter();
 }
@@ -1907,6 +1925,30 @@ function removeStudent(row){
     if (backup) { allStudents.splice(idx, 0, backup); refreshStudentsUI_(); }
     showMsg('Lỗi: ' + err.message, false);
   }).deleteStudent(row);
+}
+
+/**
+ * Nhắc khi có học viên CHƯA ĐƯỢC GÁN KHU VỰC.
+ *
+ * ⚠️ Vì sao cần: ô "Đang nghe" ở Tổng quan đếm CẢ những người này (họ vẫn
+ * đang nghe thật), còn bảng "Đang nghe theo Khu vực" thì buộc phải bỏ họ ra —
+ * không có khu vực thì biết xếp vào dòng nào. Hai con số lệch nhau là ĐÚNG,
+ * nhưng im lặng thì người xem tưởng web tính sai.
+ * ➡️ Nói thẳng ra, kèm số người, để ai đọc cũng hiểu ngay vì sao lệch.
+ */
+function veNhacChuaCoKhuVuc_(){
+  const el = document.getElementById('ovChuaCoKhuVuc');
+  if (!el) return;
+  const thieu = allStudents.filter(function(s){
+    return isDangNghe(s.tienDo) && !String(s.to || s.khuVuc || '').trim();
+  });
+  if (!thieu.length) { el.style.display = 'none'; el.textContent = ''; return; }
+  el.style.display = '';
+  el.innerHTML = '⚠️ Có <b>' + thieu.length + '</b> học viên đang nghe <b>chưa được chọn Khu vực</b>'
+    + ' (' + esc(thieu.slice(0, 5).map(function(s){ return s.ten; }).join(', '))
+    + (thieu.length > 5 ? '…' : '') + ').'
+    + ' Ô "Đang nghe" ở trên CÓ tính họ, nhưng bảng "Đang nghe theo Khu vực" thì KHÔNG'
+    + ' — nên hai con số lệch nhau. Vào tab <b>📋 Học viên</b> chọn Khu vực cho họ là hết lệch.';
 }
 
 /** ---------- TỔNG QUAN ---------- */
