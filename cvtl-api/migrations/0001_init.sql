@@ -362,3 +362,35 @@ CREATE TABLE IF NOT EXISTS cv_nguoi (
   thu_tu   INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (khu_vuc, ten)
 );
+
+-- ---------------------------------------------------------------------
+-- 22. NHẬT KÝ THAY ĐỔI SỐ LIỆU  (thêm 25/08/2026)
+--
+-- Ghi lại ai gọi hàm GHI nào, cho khu vực nào, lúc nào, được hay lỗi.
+-- Xem src/nhat-ky.js để biết bốn nguyên tắc.
+--
+-- Vì sao có bảng này: sự cố D1 ngày 24/08/2026 không tra được nguyên nhân
+-- vì nhật ký đang tắt. Nhật ký KHÔNG HỒI TỐ.
+--
+--   loai: 'ghi'      = một lệnh ghi thật đã chạy
+--         'bong_toi' = lời gọi mà luật phân quyền mới LẼ RA sẽ chặn, nhưng
+--                      đang chạy thử nên vẫn cho qua
+--   ket_qua: 'ok' | 'loi'
+--
+-- ⚠️ KHÔNG lưu token, KHÔNG lưu "số sự sống" (CCCD). tham_so đã cắt ngắn.
+-- ⚠️ Bảng có id tự tăng nên db.js CỐ Ý không thử lại khi lỗi — thử lại
+--    INSERT kiểu này sẽ sinh dòng trùng (bài học #30).
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS nhat_ky_thay_doi (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  thoi_gian_ms  INTEGER NOT NULL,
+  loai          TEXT NOT NULL DEFAULT 'ghi',
+  email         TEXT,
+  ham           TEXT NOT NULL,
+  khu_vuc       TEXT,
+  tham_so       TEXT,
+  ket_qua       TEXT NOT NULL DEFAULT 'ok',
+  ghi_chu       TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_nktd_thoi_gian ON nhat_ky_thay_doi (thoi_gian_ms);
+CREATE INDEX IF NOT EXISTS ix_nktd_kv ON nhat_ky_thay_doi (khu_vuc, thoi_gian_ms);
