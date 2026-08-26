@@ -2,6 +2,18 @@ name = "cvtl-api"
 main = "src/index.js"
 compatibility_date = "2026-08-01"
 
+# ⚠️⚠️ CÔNG TẮC PHÂN QUYỀN THEO KHU VỰC (thêm 26/08/2026 — bước 4)
+#   "0" = CHẾ ĐỘ BÓNG TỐI. Luật chạy đầy đủ nhưng KHÔNG chặn ai; mỗi lời gọi
+#         lẽ ra bị chặn chỉ ghi một dòng nhật ký loai='bong_toi'.
+#   "1" = CHẶN THẬT.
+# Cách bật: sửa "0" -> "1" ở đây rồi commit (Cloudflare tự dựng lại), HOẶC
+# đổi biến trên Dashboard — nhưng ĐỔI TRÊN DASHBOARD MÀ KHÔNG SỬA FILE NÀY
+# thì lần đẩy code kế tiếp sẽ XOÁ MẤT (Cạm bẫy #1). An toàn nhất: sửa ở đây.
+# ⚠️ ĐỪNG bật "1" khi chưa đọc nhật ký bóng tối ít nhất 1 tuần — chặn nhầm
+# nghĩa là khu vực trưởng không nhập được số của CHÍNH MÌNH.
+[vars]
+PHAN_QUYEN_THAT = "0"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "cvtl-db"
