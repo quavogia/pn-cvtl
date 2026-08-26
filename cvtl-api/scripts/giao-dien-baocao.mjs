@@ -194,6 +194,75 @@ kiem('KHÔNG lặp tên lễ hội hai lần',
   !dau.some((x) => x.includes('Lễ hội Lời (Lễ hội Lời)')), JSON.stringify(dau));
 
 // ---------------------------------------------------------------------
+// ⭐ 26/08/2026 — anh Rise: "trong tab báo cáo này làm sao để biết đã nhập hay
+// chưa để ấn báo cáo?". Bảng kiểm CHẨN ĐOÁN đúng nhưng không DẪN ĐƯỜNG: thấy
+// ⚠️ xong vẫn phải tự nhớ hạng mục đó nhập ở tab con nào. Nay ô còn việc bấm
+// được. Các ca dưới đây giữ cho đường đi luôn đúng — sai bản đồ thì tệ hơn
+// không có bản đồ.
+console.log('\n4b) ⭐ Ô còn việc BẤM ĐƯỢC và nhảy đúng tab con');
+
+const oNhay = async () => page.evaluate(() =>
+  [...document.querySelectorAll('#bc_noiDung tbody tr')].map((tr) =>
+    [...tr.children].map((td) => {
+      const sp = td.querySelector('span.bc-nhay');
+      return td.textContent.trim() + (sp ? '#NHAY' : '');
+    })));
+let lu = await oNhay();
+kiem('ô ⚠️ bấm được', lu[0][2] === '⚠️#NHAY', lu[0][2]);
+kiem('ô ⏳ bấm được', lu[4][1] === '⏳#NHAY', lu[4][1]);
+kiem('ô ❓ bấm được (máy không dám chấm, nhưng người vẫn nên vào xem)',
+  lu[0][5] === '❓#NHAY', lu[0][5]);
+// ⚠️ Đây mới là phần quan trọng: ô ĐÃ XONG mà cũng gạch chân bấm được thì
+// nhìn lướt không còn phân biệt được đâu là chỗ cần đụng tới.
+kiem('⚠️ ô ✅ KHÔNG bấm được', lu[0][1] === '✅', lu[0][1]);
+kiem('⚠️ ô — KHÔNG bấm được', lu[5][1] === '—', lu[5][1]);
+
+const nhacO = (r, c) => page.evaluate(([a, b]) =>
+  document.querySelectorAll('#bc_noiDung tbody tr')[a].children[b]
+    .querySelector('span.bc-nhay').getAttribute('title'), [r, c]);
+kiem('lời nhắc nói rõ mở tab nào', /bấm để mở tab TP nhập/.test(await nhacO(4, 1)), await nhacO(4, 1));
+kiem('lời nhắc vẫn giữ nghĩa ký hiệu', /quá hạn chưa nhập/.test(await nhacO(0, 2)), await nhacO(0, 2));
+
+// Bấm thử TỪNG hạng mục -> phải rơi đúng tab con của hạng mục đó.
+const bamO = async (r, c) => {
+  await page.evaluate(() => selectKVSubTab('baocao'));
+  await page.waitForTimeout(600);
+  await page.evaluate(([a, b]) =>
+    document.querySelectorAll('#bc_noiDung tbody tr')[a].children[b]
+      .querySelector('span.bc-nhay').click(), [r, c]);
+  await page.waitForTimeout(700);
+  return page.evaluate(() => kvActiveSubTab);
+};
+for (const [ten, r, c, tab] of [
+  ['Thờ phượng', 4, 1, 'tp'],
+  ['Trudo — truyền đạo', 0, 2, 'trudo'],
+  ['Trudo — điểm danh công việc', 0, 3, 'trudo'],
+  ['Giáo dục', 3, 4, 'edu'],
+  ['Đào tạo 70 bài', 0, 5, 'daotao'],
+  ['Lễ hội Lời', 5, 6, 'lehoi'],
+]) {
+  const den = await bamO(r, c);
+  kiem('bấm ô "' + ten + '" -> mở tab con ' + tab, den === tab, 'tới ' + den);
+}
+
+// ⚠️ Nhảy tab mà tự đổi khu vực / tháng thì người ta đang xem tháng 8 của khu
+// vực mình sẽ rơi vào tháng khác và nhập nhầm chỗ.
+kiem('⚠️ nhảy tab KHÔNG đổi khu vực đang xem',
+  (await page.evaluate(() => selectedKV)) === 'K Thành',
+  await page.evaluate(() => selectedKV));
+kiem('⚠️ nhảy tab KHÔNG đổi tháng đang xem',
+  (await page.evaluate(() => document.getElementById('kvMonth').value)) === '2026-08',
+  await page.evaluate(() => document.getElementById('kvMonth').value));
+
+kiem('phần "Cách đọc" có nói ô gạch chân bấm được',
+  /bấm được/.test(await page.evaluate(() =>
+    document.getElementById('kvsub-baocao').textContent)));
+
+// Trả về tab Báo cáo cho các phần sau chạy tiếp.
+await page.evaluate(() => selectKVSubTab('baocao'));
+await page.waitForTimeout(900);
+
+// ---------------------------------------------------------------------
 console.log('\n5) Bấm Báo cáo + Gỡ');
 await page.locator('#bc_noiDung button:has-text("Báo cáo")').first().click();
 await page.waitForTimeout(900);
