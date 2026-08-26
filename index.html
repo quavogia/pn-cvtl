@@ -2847,10 +2847,15 @@ function veNhacBaoCao_(){
   if (!box) return;
   box.style.display = '';
   if (!coPhamVi_()) {
+    // ⚠️ SỬA 26/08/2026 sau khi anh Rise thử bằng TÀI KHOẢN THƯỜNG: câu cũ ghi
+    // "nay nằm ở tab con 📋 Báo cáo" — nhưng chính người này KHÔNG NHÌN THẤY
+    // tab đó (tab bị giấu vì họ chưa được gán khu vực). Chỉ đường tới một chỗ
+    // vô hình là bắt người ta đi tìm mỏi mắt. Nói thẳng: bạn không cần làm gì.
     box.style.background = '#f1f5f9';
     box.style.color = '#475569';
-    box.innerHTML = '📋 Việc <b>Báo cáo tuần</b> nay nằm ở tab con <b>📋 Báo cáo</b>. '
-      + 'Chỉ <b>khu vực trưởng của khu vực đó, địa vực trưởng hoặc Admin</b> mới bấm được.';
+    box.innerHTML = '📋 Hai nút <b>"Báo cáo T3 / T7"</b> cũ đã bỏ. Việc <b>báo cáo tuần</b> nay do '
+      + '<b>khu vực trưởng của khu vực đó, địa vực trưởng hoặc Admin</b> bấm — '
+      + 'bạn <b>không cần làm gì</b> ở màn hình này, cứ nhập số như bình thường.';
     return;
   }
   box.style.background = '#f1f5f9';
