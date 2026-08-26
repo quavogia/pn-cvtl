@@ -17,6 +17,7 @@ import { DANH_MUC } from './registry.js';
 import { CAU_LENH_TAO_BANG } from './schema-sql.js';
 import { guiTelegram, thoatHtml } from './telegram.js';
 import { kiemTraSucKhoeDuLieu, soanTinBatThuong } from './handlers/kiem-tra-suc-khoe.js';
+import { ghiNhatKyNen, khuVucCuaLoiGoi, tomTatThamSo, laHamGhi } from './nhat-ky.js';
 
 export default {
   async fetch(request, env, ctx) {
@@ -207,7 +208,41 @@ export default {
       // ctx.waitUntil — không có nó thì Cloudflare có thể cắt ngang việc
       // đang chạy ngay sau khi trả lời xong. Xem lich-lam-viec.js.
       const boiCanh = { db, env, ctx, nguoiGoi, token };
-      const ketQua = await muc.fn(boiCanh, ...args);
+
+      // --- NHẬT KÝ THAY ĐỔI SỐ LIỆU (25/08/2026, xem src/nhat-ky.js) -----
+      // Chỉ ghi hàm GHI (doc: false). Hàm ĐỌC không ghi, nếu không mỗi lần
+      // mở trang là hàng chục dòng. Ghi cả khi lỗi — để biết ai vừa thử làm
+      // gì mà không được.
+      // ⚠️ Ghi ngầm, không chờ, và nuốt mọi lỗi: một dòng nhật ký hỏng
+      // TUYỆT ĐỐI không được làm hỏng việc nhập liệu của cả phòng.
+      const nenGhi = laHamGhi(muc);
+      let ketQua;
+      try {
+        ketQua = await muc.fn(boiCanh, ...args);
+      } catch (e) {
+        if (nenGhi) {
+          ghiNhatKyNen(boiCanh, {
+            loai: 'ghi',
+            email: nguoiGoi && nguoiGoi.email,
+            ham: fn,
+            khuVuc: khuVucCuaLoiGoi(fn, args),
+            thamSo: tomTatThamSo(args),
+            ketQua: 'loi',
+            ghiChu: String((e && e.message) || e || '').slice(0, 300),
+          });
+        }
+        throw e;
+      }
+      if (nenGhi) {
+        ghiNhatKyNen(boiCanh, {
+          loai: 'ghi',
+          email: nguoiGoi && nguoiGoi.email,
+          ham: fn,
+          khuVuc: khuVucCuaLoiGoi(fn, args),
+          thamSo: tomTatThamSo(args),
+          ketQua: 'ok',
+        });
+      }
       return json({ result: ketQua === undefined ? null : ketQua });
     } catch (e) {
       // Lưới an toàn cuối cùng — vẫn là JSON.
