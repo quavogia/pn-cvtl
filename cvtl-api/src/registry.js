@@ -51,6 +51,12 @@ export const DANH_MUC = {
   grantAdmin:             { doc: false, chuThoi: true, fn: truyCap.grantAdmin },
   revokeAdmin:            { doc: false, chuThoi: true, fn: truyCap.revokeAdmin },
 
+  // Gán khu vực PHỤ TRÁCH cho một tài khoản (mới 26/08/2026, bước 2 của
+  // CVTL-KE-HOACH-PHAN-QUYEN.md). Anh Rise tự gán trên web ở màn hình
+  // 🔑 Duyệt truy cập -> Đã cấp quyền, khỏi phải báo email cho Claude.
+  // ⚠️ Ở đợt này việc gán CHƯA chặn ai — luật chặn/lọc là bước 4.
+  setPhamVi:              { doc: false, chuThoi: true, fn: truyCap.setPhamVi },
+
   // --- Cấu hình dùng chung ---
   getDropdownOptions:     { doc: true,  fn: cauHinh.getDropdownOptions },
 
