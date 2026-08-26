@@ -23,6 +23,7 @@ import {
   kiemTraThang, thangTruoc, phanTram, laHuuHieu, laBT, soBuoi, BT_STATUS_VALUE,
   chuanNgay, ngayVN, tuanTrongThang, chuoi, soNguyen, batBuoc,
 } from '../tien-ich.js';
+import { cacTuanCuaThang } from '../lich-tuan.js';
 import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 
 /** Nối "NDD1, NDD2, NDD3" bỏ ô trống, dùng cho tin Telegram thêm/sửa học viên. */
@@ -162,21 +163,37 @@ async function tongDonThuanTheoKV(db, thang) {
   return map;
 }
 
-/** "Đơn thuần" chia theo 5 tuần trong tháng: { "K My": [0,3,0,2,0], ... } */
+/**
+ * "Đơn thuần" chia theo tuần trong tháng: { "K My": [0,3,0,2,0], ... }
+ * ⚠️ Độ dài mảng = SỐ TUẦN THẬT của tháng (5 hoặc 6), KHÔNG cứng 5 —
+ * xem lời giải thích ở tuanTrongThang() trong src/tien-ich.js (sửa 26/08/2026).
+ */
 async function donThuanTheoTuanVaKV(db, thang) {
   const rows = await db.all(
     'SELECT ngay, khu_vuc, don_thuan FROM nhat_ky_don_thuan WHERE substr(ngay, 1, 7) = ?',
     [thang]
   );
+  const soTuan = soTuanCuaThang(thang);
   const map = {};
   for (const r of rows) {
     const kv = chuoi(r.khu_vuc);
     const tuan = tuanTrongThang(r.ngay);
-    if (!kv || !tuan) continue;
-    if (!map[kv]) map[kv] = [0, 0, 0, 0, 0];
+    if (!kv || !tuan || tuan > soTuan) continue;
+    if (!map[kv]) map[kv] = mangTuan(soTuan);
     map[kv][tuan - 1] += soNguyen(r.don_thuan);
   }
   return map;
+}
+
+/** Số tuần thật của một tháng (5 hoặc 6). Hỏng thì trả 5 cho an toàn. */
+function soTuanCuaThang(thang) {
+  const ds = cacTuanCuaThang(thang);
+  return ds.length || 5;
+}
+
+/** Mảng 0 dài đúng bằng số tuần. */
+function mangTuan(n) {
+  return new Array(n).fill(0);
 }
 
 /**
@@ -702,25 +719,29 @@ export async function getAllKhuVucWeekly({ db }, monthKey) {
     docHocVien(db),
   ]);
 
+  // ⚠️ Số tuần lấy theo LỊCH THẬT của tháng (5 hoặc 6), không cứng 5.
+  const soTuan = soTuanCuaThang(thang);
   const hhTuan = {};
   const btTuan = {};
   for (const hv of dsHV) {
     if (!hv.khuVuc || hv.thangMoc !== thang || !hv.tuanMoc) continue;
+    if (hv.tuanMoc > soTuan) continue;
     if (laHuuHieu(hv.tienDo)) {
-      if (!hhTuan[hv.khuVuc]) hhTuan[hv.khuVuc] = [0, 0, 0, 0, 0];
+      if (!hhTuan[hv.khuVuc]) hhTuan[hv.khuVuc] = mangTuan(soTuan);
       hhTuan[hv.khuVuc][hv.tuanMoc - 1]++;
     }
     if (laBT(hv.tienDo)) {
-      if (!btTuan[hv.khuVuc]) btTuan[hv.khuVuc] = [0, 0, 0, 0, 0];
+      if (!btTuan[hv.khuVuc]) btTuan[hv.khuVuc] = mangTuan(soTuan);
       btTuan[hv.khuVuc][hv.tuanMoc - 1]++;
     }
   }
 
   return dsKV.map((kv) => ({
     khuVuc: kv,
-    donThuan: dtTuan[kv] || [0, 0, 0, 0, 0],
-    huuHieu: hhTuan[kv] || [0, 0, 0, 0, 0],
-    bt: btTuan[kv] || [0, 0, 0, 0, 0],
+    soTuan,
+    donThuan: dtTuan[kv] || mangTuan(soTuan),
+    huuHieu: hhTuan[kv] || mangTuan(soTuan),
+    bt: btTuan[kv] || mangTuan(soTuan),
   }));
 }
 
