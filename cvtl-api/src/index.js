@@ -14,7 +14,7 @@ import { json, preflight, parseRequest } from './protocol.js';
 import { bocD1, moTaLoiTiengViet } from './db.js';
 import { nhanDienNguoiGoi } from './auth.js';
 import { DANH_MUC } from './registry.js';
-import { CAU_LENH_TAO_BANG } from './schema-sql.js';
+import { CAU_LENH_TAO_BANG, CAU_LENH_NANG_CAP } from './schema-sql.js';
 import { guiTelegram, thoatHtml } from './telegram.js';
 import { kiemTraSucKhoeDuLieu, soanTinBatThuong } from './handlers/kiem-tra-suc-khoe.js';
 import { ghiNhatKyNen, khuVucCuaLoiGoi, tomTatThamSo, laHamGhi } from './nhat-ky.js';
@@ -43,6 +43,23 @@ export default {
             loi.push({ sql: sql.slice(0, 70), loi: e.message });
           }
         }
+        // Nâng cấp bảng CŨ (thêm cột mới) — xem CAU_LENH_NANG_CAP trong
+        // schema-sql.js. SQLite không có "ADD COLUMN IF NOT EXISTS" nên lỗi
+        // "duplicate column name" ở đây nghĩa là ĐÃ nâng cấp từ trước, KHÔNG
+        // phải hỏng — coi là bình thường để /cai-dat vẫn chạy lại được nhiều
+        // lần mà không báo đỏ.
+        const daNangCap = [];
+        const daCoSan = [];
+        for (const sql of CAU_LENH_NANG_CAP || []) {
+          try {
+            await env.DB.prepare(sql).run();
+            daNangCap.push(sql);
+          } catch (e) {
+            if (/duplicate column name/i.test(String(e && e.message))) daCoSan.push(sql);
+            else loi.push({ sql: sql.slice(0, 70), loi: e.message });
+          }
+        }
+
         const bang = await env.DB.prepare(
           "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
         ).all();
@@ -50,6 +67,8 @@ export default {
           ok: loi.length === 0,
           soBang: bang.results.length,
           danhSachBang: bang.results.map((r) => r.name),
+          daNangCap,
+          daCoSan,
           loi,
         });
       }
