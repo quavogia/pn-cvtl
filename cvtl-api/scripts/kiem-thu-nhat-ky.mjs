@@ -253,9 +253,14 @@ console.log('\n12) ⚠️ Router phải nối dây ĐÚNG (đọc thẳng src/in
   const src = readFileSync(join(goc, 'src/index.js'), 'utf8');
   kiem('index.js có nạp module nhật ký', /import\s*\{[^}]*ghiNhatKyNen[^}]*\}\s*from\s*'\.\/nhat-ky\.js'/.test(src));
   kiem('dùng laHamGhi chứ không tự chế điều kiện', src.includes('laHamGhi(muc)'));
-  kiem('gọi ghiNhatKyNen ĐÚNG 2 lần (thành công + lỗi)',
-    (src.match(/ghiNhatKyNen\(/g) || []).length === 2,
+  // 3 chỗ ghi: (1) lời gọi ghi THÀNH CÔNG, (2) lời gọi ghi LỖI,
+  // (3) vi phạm phạm vi khu vực -> loai='bong_toi' (thêm 26/08/2026, bước 4).
+  kiem('gọi ghiNhatKyNen ĐÚNG 3 lần (ghi-ok + ghi-lỗi + bóng tối)',
+    (src.match(/ghiNhatKyNen\(/g) || []).length === 3,
     'đếm được ' + (src.match(/ghiNhatKyNen\(/g) || []).length);
+  kiem('trong đó có ĐÚNG 1 chỗ ghi loai bóng tối',
+    (src.match(/loai: 'bong_toi'/g) || []).length === 1);
+  kiem('và 2 chỗ ghi loai thường', (src.match(/loai: 'ghi'/g) || []).length === 2);
   kiem('có ghi ket_qua "loi" ở nhánh lỗi', /ketQua:\s*'loi'/.test(src));
   kiem('có ghi ket_qua "ok" ở nhánh thành công', /ketQua:\s*'ok'/.test(src));
   kiem('nhánh lỗi NÉM LẠI để người dùng vẫn thấy lỗi', /catch \(e\) \{[\s\S]{0,600}?throw e;/.test(src));
