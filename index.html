@@ -231,6 +231,14 @@
      cơ chế khoá ô nào cả — báo cáo rồi vẫn sửa số bình thường.
      Gỡ khoá ô cũng xoá luôn cả một LOẠI lỗi: B7 (bảng Điểm danh kẹt xám sau
      khi Hủy báo cáo) và việc treo #13 của Đ Uyên đều là do cơ chế này. */
+  /* Chip Khu vực NGOÀI phạm vi của người đang đăng nhập — làm mờ để họ khỏi
+     bấm nhầm. ⚠️ CỐ Ý VẪN BẤM ĐƯỢC: hôm nay người chưa gán khu vực vẫn đang
+     nhập liệu hộ nhau bình thường, chặn cứng ở đây là cắt việc của họ trước
+     khi anh Rise kịp quyết (bước 5). Mờ = "chỗ này không phải của bạn",
+     không phải "cấm". */
+  .kv-pill.kv-ngoai{opacity:.45;}
+  .kv-pill.kv-ngoai:hover{opacity:.75;}
+  .kv-pill.kv-ngoai.active{opacity:1;}
   .bc-nhac{margin:0 0 10px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.6;}
   .bc-nhac a{cursor:pointer;text-decoration:underline;font-weight:600;}
 
@@ -2282,12 +2290,48 @@ function prevMonthKeyOf_(monthKey){
   return y + '-' + String(m).padStart(2, '0');
 }
 
+/**
+ * Khu vực người đang đăng nhập PHỤ TRÁCH (mảng). Rỗng = chưa được gán,
+ * hoặc là Admin (Admin xem toàn Si-ôn nên không có "khu vực của mình").
+ */
+function phamViCuaToi_(){
+  if (isChuTaiKhoan_()) return [];
+  return Array.isArray(window._phamVi) ? window._phamVi : [];
+}
+
+/**
+ * ⭐ Khu vực mở SẴN khi vào trang.
+ *
+ * ⚠️ TRƯỚC 26/08/2026 luôn mở `khuVucList[0]` — tức là khu vực ĐẦU DANH SÁCH,
+ * hiện là "Đ Uyên". Nghĩa là MỌI khu vực trưởng vào web đều bị ném thẳng vào
+ * khu vực của người khác. Nhật ký bóng tối bắt được đúng hậu quả đó: khu vực
+ * trưởng K Long mở tab Báo cáo 3 lần, cả 3 lần đều đang đứng ở "Đ Uyên" và
+ * nhận thông báo "bạn không phụ trách khu vực này" — anh ấy có bấm chọn
+ * Đ Uyên đâu, là web tự mở sẵn.
+ * → Nay mở đúng khu vực của chính họ.
+ */
+function khuVucMacDinh_(){
+  const cua = phamViCuaToi_();
+  for (let i = 0; i < khuVucList.length; i++) {
+    if (cua.indexOf(khuVucList[i]) >= 0) return khuVucList[i];
+  }
+  return khuVucList.length ? khuVucList[0] : '';
+}
+
 function renderKVPills(){
-  if (!selectedKV && khuVucList.length) selectedKV = khuVucList[0];
+  if (!selectedKV && khuVucList.length) selectedKV = khuVucMacDinh_();
+  const cua = phamViCuaToi_();
   const pills = document.getElementById('kvPills');
   let html = '<button type="button" class="kv-pill' + (kvTongMode ? ' active' : '') + '" onclick="selectKVTong()">📊 Tổng</button>';
   html += khuVucList.map(function(kv){
-    return '<button type="button" class="kv-pill' + (!kvTongMode && kv === selectedKV ? ' active' : '') + '" onclick="selectKV(\'' + kv + '\')">' + esc(kv) + '</button>';
+    // Chỉ làm mờ khi người này THẬT SỰ có phạm vi. Ai chưa được gán khu vực
+    // nào thì KHÔNG mờ gì cả — mờ hết thành một bức tường xám, trông như bị
+    // cấm sạch, mà hôm nay họ vẫn nhập liệu bình thường.
+    const ngoai = cua.length && cua.indexOf(kv) < 0;
+    const nhac = ngoai ? ' title="Bạn không phụ trách khu vực này (bạn phụ trách: ' + esc(cua.join(', ')) + ')"' : '';
+    return '<button type="button" class="kv-pill' + (ngoai ? ' kv-ngoai' : '')
+      + (!kvTongMode && kv === selectedKV ? ' active' : '') + '"' + nhac
+      + ' onclick="selectKV(\'' + kv + '\')">' + esc(kv) + '</button>';
   }).join('');
   pills.innerHTML = html;
 }
