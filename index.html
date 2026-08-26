@@ -1056,11 +1056,19 @@
         quyền từ đầu. Tài khoản chủ gốc không ai gỡ được (kể cả Admin khác), để không bao giờ
         khoá mất quyền của chính chủ.
       </p>
+      <p style="font-size:13px;color:#64748b;margin-top:-4px;">
+        <b>Phụ trách khu vực</b> (mới 26/08/2026): tick khu vực mà người này quản lý — 1 khu vực
+        là <b>khu vực trưởng</b>, nhiều khu vực là <b>địa vực trưởng</b>. Admin và Trưởng phòng
+        luôn xem được toàn Si-ôn nên không cần tick.
+        <br><span style="color:#0369a1;">Hiện tại việc tick này mới chỉ <b>ghi nhận</b>, chưa
+        chặn ai xem gì cả — sẽ bật sau khi chạy thử một tuần.</span>
+      </p>
+      <div id="phamViCanhBao" style="display:none;"></div>
       <div class="card">
         <table>
-          <thead><tr><th>Tên</th><th>Email</th><th>Ngày duyệt</th><th>Vai trò</th><th></th></tr></thead>
+          <thead><tr><th>Tên</th><th>Email</th><th>Ngày duyệt</th><th>Vai trò</th><th>Phụ trách khu vực</th><th></th></tr></thead>
           <tbody id="daCapQuyenTableBody">
-            <tr><td colspan="5" style="color:#94a3b8;">Đang tải…</td></tr>
+            <tr><td colspan="6" style="color:#94a3b8;">Đang tải…</td></tr>
           </tbody>
         </table>
       </div>
@@ -3051,15 +3059,17 @@ function loadApprovedAccess(){
     renderApprovedTable_(list || []);
   }).withFailureHandler(function(err){
     const body = document.getElementById('daCapQuyenTableBody');
-    if (body) body.innerHTML = '<tr><td colspan="5" style="color:#dc2626;">Không tải được: ' + esc(err.message) + '</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="6" style="color:#dc2626;">Không tải được: ' + esc(err.message) + '</td></tr>';
   }).getApprovedAccess();
 }
 
 function renderApprovedTable_(list){
   const body = document.getElementById('daCapQuyenTableBody');
   if (!body) return;
+  _dsDaCapQuyen = list || [];
+  veCanhBaoPhamVi_(list);
   if (!list.length) {
-    body.innerHTML = '<tr><td colspan="5" style="color:#94a3b8;">Chưa có ai được cấp quyền.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" style="color:#94a3b8;">Chưa có ai được cấp quyền.</td></tr>';
     return;
   }
   body.innerHTML = list.map(function(p){
@@ -3081,14 +3091,138 @@ function renderApprovedTable_(list){
         '<button type="button" class="edit" onclick="capAdminTruyCap(\'' + emailSafe + '\')">🛡️ Cấp Admin</button>' +
         '<button type="button" class="danger" onclick="goQuyenTruyCap(\'' + emailSafe + '\')">🚫 Gỡ quyền</button>';
     }
+    // Cột "Phụ trách khu vực" (mới 26/08/2026). Admin/Trưởng phòng xem được
+    // toàn Si-ôn nên phần tick chỉ là ghi chú thêm, hiện mờ.
+    const ds = Array.isArray(p.phamVi) ? p.phamVi : [];
+    let oPhamVi;
+    if (p.laChu) {
+      oPhamVi = '<span style="color:#0369a1;">🌐 Toàn Si-ôn</span>' +
+        (ds.length ? '<span style="color:#94a3b8;font-size:12px;"> (đã tick: ' + esc(ds.join(', ')) + ')</span>' : '');
+    } else if (ds.length) {
+      oPhamVi = esc(ds.join(', '));
+    } else {
+      oPhamVi = '<span style="color:#b91c1c;">— chưa gán —</span>';
+    }
+    if (!p.laChuVinhVien) {
+      oPhamVi += ' <button type="button" class="edit" style="padding:2px 8px;font-size:12px;"' +
+        ' onclick="moGanPhamVi(\'' + emailSafe + '\')">✏️ Gán</button>';
+    }
+
     return '<tr>' +
       '<td>' + esc(p.ten || '(không rõ)') + '</td>' +
       '<td>' + esc(p.email) + '</td>' +
       '<td>' + fmtNgayGio_(p.ngayDuyet) + '</td>' +
       '<td>' + vaiTro + '</td>' +
+      '<td>' + oPhamVi + '</td>' +
       '<td style="white-space:nowrap;">' + hanhDong + '</td>' +
     '</tr>';
   }).join('');
+}
+
+// =====================================================================
+// GÁN KHU VỰC PHỤ TRÁCH (mới 26/08/2026 — bước 2 của kế hoạch phân quyền)
+//
+// Anh Rise: "tại sao không tạo 1 nút cấp quyền cho ai có quyền ấn báo cáo
+// cho nhanh, sau này có mail mới thì đỡ phải báo lại em". Nên toàn bộ việc
+// gán làm ngay trên web, không ai phải báo email cho lập trình viên nữa.
+//
+// ⚠️ Ở đợt này việc gán CHƯA chặn ai xem gì — mới chỉ ghi nhận. Luật chặn
+// bật sau, và phải chạy thử 1 tuần trước đã (xem CVTL-KE-HOACH-PHAN-QUYEN.md).
+// =====================================================================
+let _dsDaCapQuyen = [];
+
+/** Dòng cảnh báo đỏ: khu vực nào chưa ai phụ trách. */
+function veCanhBaoPhamVi_(list){
+  const hop = document.getElementById('phamViCanhBao');
+  if (!hop) return;
+  if (!khuVucList || !khuVucList.length) { hop.style.display = 'none'; return; }
+  const daGan = {};
+  (list || []).forEach(function(p){
+    if (p.laChu) return; // Admin xem toàn Si-ôn, không tính là "phụ trách"
+    (p.phamVi || []).forEach(function(k){ daGan[k] = (daGan[k] || 0) + 1; });
+  });
+  const thieu = khuVucList.filter(function(k){ return !daGan[k]; });
+  if (!thieu.length) {
+    hop.style.display = 'block';
+    hop.innerHTML = '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;' +
+      'padding:10px 14px;margin-bottom:12px;color:#166534;font-size:13px;">' +
+      '✅ Mọi khu vực đều đã có người phụ trách.</div>';
+    return;
+  }
+  hop.style.display = 'block';
+  hop.innerHTML = '<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;' +
+    'padding:10px 14px;margin-bottom:12px;color:#b91c1c;font-size:13px;">' +
+    '⚠️ <b>Chưa ai phụ trách ' + thieu.length + ' khu vực:</b> ' + esc(thieu.join(' · ')) +
+    '<br><span style="color:#7f1d1d;">Chưa gán thì sau này người của khu vực đó sẽ không xem được ' +
+    'số liệu nào cả. Bấm "✏️ Gán" ở dòng của họ bên dưới.</span></div>';
+}
+
+/** Mở hộp tick khu vực cho một người. */
+function moGanPhamVi(email){
+  const p = _dsDaCapQuyen.filter(function(x){ return x.email === email; })[0];
+  if (!p) { showMsg('Không tìm thấy ' + email, false); return; }
+  if (!khuVucList || !khuVucList.length) { showMsg('Chưa tải được danh sách khu vực.', false); return; }
+  dongGanPhamVi_();
+
+  const dangCo = p.phamVi || [];
+  const nen = document.createElement('div');
+  nen.id = 'ganPhamViNen';
+  nen.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:9999;' +
+    'display:flex;align-items:center;justify-content:center;padding:16px;';
+  nen.onclick = function(e){ if (e.target === nen) dongGanPhamVi_(); };
+
+  const oCheck = khuVucList.map(function(k, i){
+    const tick = dangCo.indexOf(k) >= 0 ? ' checked' : '';
+    return '<label style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;' +
+      'cursor:pointer;border:1px solid #e2e8f0;margin-bottom:6px;">' +
+      '<input type="checkbox" class="ganPhamViO" value="' + esc(k) + '"' + tick + '>' +
+      '<span>' + esc(k) + '</span></label>';
+  }).join('');
+
+  nen.innerHTML =
+    '<div style="background:#fff;border-radius:12px;max-width:420px;width:100%;max-height:86vh;' +
+    'overflow:auto;padding:20px;box-shadow:0 10px 40px rgba(0,0,0,.25);">' +
+      '<h3 style="margin:0 0 4px;">Gán khu vực phụ trách</h3>' +
+      '<div style="font-size:13px;color:#64748b;margin-bottom:12px;">' +
+        esc(p.ten || '(không rõ)') + ' · ' + esc(p.email) +
+      '</div>' +
+      (p.laChu ? '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:8px 10px;' +
+        'font-size:12px;color:#1e40af;margin-bottom:10px;">Người này đang là Admin nên vẫn xem được ' +
+        'toàn Si-ôn dù tick gì. Tick ở đây chỉ có tác dụng nếu sau này gỡ quyền Admin.</div>' : '') +
+      '<div style="font-size:12px;color:#64748b;margin-bottom:8px;">' +
+        'Tick <b>1 khu vực</b> = khu vực trưởng · tick <b>nhiều khu vực</b> = địa vực trưởng · ' +
+        'không tick gì = không phụ trách khu vực nào.</div>' +
+      oCheck +
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">' +
+        '<button type="button" class="edit" onclick="dongGanPhamVi_()">Huỷ</button>' +
+        '<button type="button" class="primary" id="ganPhamViLuu">💾 Lưu</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(nen);
+  const nutLuu = document.getElementById('ganPhamViLuu');
+  if (nutLuu) nutLuu.onclick = function(){ luuGanPhamVi_(email); };
+}
+
+function dongGanPhamVi_(){
+  const cu = document.getElementById('ganPhamViNen');
+  if (cu && cu.parentNode) cu.parentNode.removeChild(cu);
+}
+
+function luuGanPhamVi_(email){
+  const o = [].slice.call(document.querySelectorAll('.ganPhamViO'));
+  const chon = o.filter(function(x){ return x.checked; }).map(function(x){ return x.value; });
+  const nut = document.getElementById('ganPhamViLuu');
+  if (nut) { nut.disabled = true; nut.textContent = 'Đang lưu…'; }
+  google.script.run.withSuccessHandler(function(){
+    dongGanPhamVi_();
+    showMsg(chon.length
+      ? 'Đã gán ' + email + ' phụ trách: ' + chon.join(', ')
+      : 'Đã bỏ phụ trách khu vực của ' + email, true);
+    loadApprovedAccess();
+  }).withFailureHandler(function(err){
+    if (nut) { nut.disabled = false; nut.textContent = '💾 Lưu'; }
+    showMsg('Không lưu được: ' + err.message, false);
+  }).setPhamVi(email, chon);
 }
 
 function capAdminTruyCap(email){
