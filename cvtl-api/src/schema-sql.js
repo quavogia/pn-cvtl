@@ -1,6 +1,6 @@
 // Tự sinh từ migrations/0001_init.sql — đừng sửa tay.
 export const CAU_LENH_TAO_BANG = [
-  "CREATE TABLE IF NOT EXISTS access_control ( email TEXT PRIMARY KEY, trang_thai TEXT NOT NULL DEFAULT 'cho_duyet', ten TEXT, ngay_yeu_cau TEXT, ngay_duyet TEXT, la_chu INTEGER NOT NULL DEFAULT 0 )",
+  "CREATE TABLE IF NOT EXISTS access_control ( email TEXT PRIMARY KEY, trang_thai TEXT NOT NULL DEFAULT 'cho_duyet', ten TEXT, ngay_yeu_cau TEXT, ngay_duyet TEXT, la_chu INTEGER NOT NULL DEFAULT 0, pham_vi TEXT )",
   "CREATE TABLE IF NOT EXISTS config_list ( id INTEGER PRIMARY KEY AUTOINCREMENT, loai TEXT NOT NULL, gia_tri TEXT NOT NULL, thu_tu INTEGER NOT NULL DEFAULT 0, UNIQUE (loai, gia_tri) )",
   "CREATE INDEX IF NOT EXISTS ix_config_loai ON config_list (loai, thu_tu)",
   "CREATE TABLE IF NOT EXISTS hoc_vien ( id INTEGER PRIMARY KEY AUTOINCREMENT, ten TEXT NOT NULL, ngay_chia_se_cuoi TEXT, ngay_dau_chia_se TEXT, dia_chi TEXT, ndd1 TEXT, ndd2 TEXT, ndd3 TEXT, khu_vuc TEXT, tien_do TEXT, danh_gia TEXT, cap_nhat_luc TEXT )",
@@ -39,4 +39,21 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE TABLE IF NOT EXISTS nhat_ky_thay_doi ( id INTEGER PRIMARY KEY AUTOINCREMENT, thoi_gian_ms INTEGER NOT NULL, loai TEXT NOT NULL DEFAULT 'ghi', email TEXT, ham TEXT NOT NULL, khu_vuc TEXT, tham_so TEXT, ket_qua TEXT NOT NULL DEFAULT 'ok', ghi_chu TEXT )",
   "CREATE INDEX IF NOT EXISTS ix_nktd_thoi_gian ON nhat_ky_thay_doi (thoi_gian_ms)",
   "CREATE INDEX IF NOT EXISTS ix_nktd_kv ON nhat_ky_thay_doi (khu_vuc, thoi_gian_ms)"
+];
+
+// =====================================================================
+// CÂU LỆNH NÂNG CẤP BẢNG CŨ (thêm 26/08/2026)
+//
+// CREATE TABLE IF NOT EXISTS ở trên KHÔNG thêm được cột vào bảng ĐÃ TỒN TẠI
+// trên CSDL thật. Cột mới phải thêm bằng ALTER TABLE.
+//
+// ⚠️ SQLite KHÔNG có "ADD COLUMN IF NOT EXISTS" — chạy lần thứ hai sẽ báo
+// "duplicate column name". Vì vậy route /cai-dat (src/index.js) chạy riêng
+// danh sách này và COI LỖI TRÙNG CỘT LÀ BÌNH THƯỜNG (nghĩa là đã nâng cấp
+// rồi). Nhờ vậy /cai-dat vẫn "chạy nhiều lần vô hại" như trước.
+//
+// Thêm cột mới về sau thì cứ nối thêm một dòng vào mảng này.
+// =====================================================================
+export const CAU_LENH_NANG_CAP = [
+  'ALTER TABLE access_control ADD COLUMN pham_vi TEXT',
 ];
