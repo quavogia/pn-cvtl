@@ -116,8 +116,78 @@ export async function nhanDienNguoiGoi(db, token, clientId) {
     ten = info.ten;
   }
 
-  const quyen = await db.first('SELECT trang_thai, la_chu FROM access_control WHERE email = ?', [email]);
+  // ⚠️ Cố ý dùng SELECT * chứ không liệt kê tên cột: cột pham_vi mới thêm
+  // 26/08/2026 và chỉ có mặt SAU khi chạy GET /cai-dat. Nếu liệt kê tên cột
+  // thì trong khoảng thời gian giữa lúc đẩy mã mới và lúc chạy /cai-dat,
+  // câu lệnh sẽ báo "no such column" và CẢ PHÒNG KHÔNG ĐĂNG NHẬP ĐƯỢC.
+  // Với SELECT * thì cột chưa có chỉ đơn giản là undefined -> phamVi = [].
+  // Bảng này chỉ hơn chục dòng nên SELECT * không tốn kém gì.
+  const quyen = await db.first('SELECT * FROM access_control WHERE email = ?', [email]);
   if (!quyen || quyen.trang_thai !== 'da_duyet') throw new Error('CHUA_DUOC_CAP_QUYEN');
 
-  return { email, ten, laChu: quyen.la_chu === 1 || email === CHU_VINH_VIEN };
+  return {
+    email,
+    ten,
+    laChu: quyen.la_chu === 1 || email === CHU_VINH_VIEN,
+    phamVi: tachPhamVi(quyen.pham_vi),
+  };
+}
+
+// =====================================================================
+// PHẠM VI KHU VỰC  (thêm 26/08/2026 — bước 2 của CVTL-KE-HOACH-PHAN-QUYEN.md)
+//
+// Anh Rise: "khu vực nào chỉ nhìn được khu vực đó thôi, không nhìn khu vực
+// khác được, địa vực trưởng thì có quyền nhìn toàn bộ địa vực mình".
+//
+// ⚠️ CỐ Ý KHÔNG tạo cột "vai_tro". Một khái niệm duy nhất — "phụ trách khu
+// vực nào" — diễn đạt được cả khu vực trưởng (1 khu vực) lẫn địa vực trưởng
+// (nhiều khu vực). Thêm địa vực mới, hay ai kiêm hai khu vực, chỉ cần tick
+// thêm trên màn hình 🔑 Duyệt truy cập, KHÔNG phải sửa mã.
+//
+// ⚠️ Ở đợt này BA hàm dưới đây MỚI CHỈ ĐƯỢC KHAI BÁO, CHƯA NỐI VÀO HÀM NÀO
+// CẢ — nên chưa ai bị chặn. Việc áp luật là bước 4, và phải chạy ở "chế độ
+// bóng tối" 1 tuần trước khi bật thật. Lý do: chặn nhầm một hàm thì khu vực
+// trưởng không nhập được số của CHÍNH MÌNH, tệ hơn nhiều so với rò rỉ.
+// =====================================================================
+
+/** 'Đ Uyên, K Thành' -> ['Đ Uyên','K Thành']. Rỗng/hỏng -> []. */
+export function tachPhamVi(chuoi) {
+  if (Array.isArray(chuoi)) {
+    return chuoi.map((x) => String(x == null ? '' : x).trim()).filter(Boolean);
+  }
+  return String(chuoi == null ? '' : chuoi)
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
+}
+
+/** ['A','B'] -> 'A,B'. Bỏ trùng, giữ nguyên thứ tự người dùng chọn. */
+export function gopPhamVi(ds) {
+  const ra = [];
+  for (const x of tachPhamVi(ds)) if (!ra.includes(x)) ra.push(x);
+  return ra.join(',');
+}
+
+/**
+ * Danh sách khu vực người gọi ĐƯỢC XEM.
+ *   - Chủ tài khoản / Admin  -> toàn bộ dsKhuVuc
+ *   - Người khác             -> phần giao giữa phạm vi của họ và dsKhuVuc,
+ *                               giữ đúng thứ tự của dsKhuVuc (để bảng hiển
+ *                               thị không bị xáo trộn so với chỗ khác)
+ * Chưa được gán phạm vi -> mảng RỖNG (không phải "thấy hết").
+ */
+export function phamViKhuVuc(nguoiGoi, dsKhuVuc) {
+  const tatCa = Array.isArray(dsKhuVuc) ? dsKhuVuc.slice() : [];
+  if (nguoiGoi && nguoiGoi.laChu) return tatCa;
+  const cua = tachPhamVi(nguoiGoi && nguoiGoi.phamVi);
+  if (!cua.length) return [];
+  return tatCa.filter((k) => cua.includes(k));
+}
+
+/** Người gọi có được xem/sửa khu vực này không. */
+export function duocXemKhuVuc(nguoiGoi, khuVuc) {
+  if (nguoiGoi && nguoiGoi.laChu) return true;
+  const k = String(khuVuc == null ? '' : khuVuc).trim();
+  if (!k) return false;
+  return tachPhamVi(nguoiGoi && nguoiGoi.phamVi).includes(k);
 }
