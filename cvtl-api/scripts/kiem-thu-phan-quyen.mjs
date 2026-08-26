@@ -290,16 +290,80 @@ console.log('\n8) ⚠️ TƯƠNG THÍCH NGƯỢC — CSDL CHƯA có cột pham_v
 }
 
 // ---------------------------------------------------------------------
-console.log('\n9) ⚠️ ĐỢT NÀY CHƯA CHẶN AI (bước 4 mới bật — sẽ sửa ca này)');
+console.log('\n9) ⚠️ CHẶN THEO KHU VỰC Ở ROUTER — khuVucBiChan');
+{
+  const NK = await import(join(goc, 'src/nhat-ky.js'));
+  const chu = { laChu: true, phamVi: [] };
+  const kvt = { laChu: false, phamVi: ['K My'] };
+  const dvt = { laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'TT Châu'] };
+  const chuaGan = { laChu: false, phamVi: [] };
+  // saveTPWeek(thang, khuVuc, ...) -> khuVuc ở vị trí 1
+  const viTri = NK.VI_TRI_KHU_VUC;
+  const goi = (fn, kv, ai) => {
+    const a = []; a[viTri[fn]] = kv; return AUTH.khuVucBiChan(fn, a, ai);
+  };
+
+  kiem('KVT gọi ĐÚNG khu vực mình -> cho qua', goi('saveTPWeek', 'K My', kvt) === '');
+  kiem('KVT gọi khu vực KHÁC -> chặn, nêu đúng tên', goi('saveTPWeek', 'K Long', kvt) === 'K Long');
+  kiem('Địa vực trưởng gọi trong địa vực -> cho qua', goi('getKhuVucOverview', 'K Thành', dvt) === '');
+  kiem('Địa vực trưởng gọi NGOÀI địa vực -> chặn', goi('getKhuVucOverview', 'K My', dvt) === 'K My');
+  kiem('Chủ/Admin gọi khu vực nào cũng qua',
+    ['K My', 'K Long', 'SĐ'].every((k) => goi('saveCVCongViec', k, chu) === ''));
+  kiem('CHƯA gán phạm vi -> chặn', goi('saveTPWeek', 'K My', chuaGan) === 'K My');
+  kiem('hàm KHÔNG có khuVuc -> không đụng tới', AUTH.khuVucBiChan('getStats', ['2026-08'], kvt) === '');
+  kiem('hàm lạ không có trong bảng -> không đụng tới', AUTH.khuVucBiChan('linhTinh', ['x'], kvt) === '');
+  kiem('người gọi null (chưa đăng nhập) -> để router xử, không chặn ở đây',
+    goi('saveTPWeek', 'K My', null) === '');
+  kiem('gọi với khu vực RỖNG -> đánh dấu "(trống)" chứ không chặn thẳng',
+    goi('saveTPWeek', '', kvt) === '(trống)');
+  kiem('tham số không phải chuỗi -> cũng là "(trống)"',
+    AUTH.khuVucBiChan('saveTPWeek', ['2026-08', 123], kvt) === '(trống)');
+  kiem('⚠️ getXepHang được MIỄN chặn (xếp hạng công khai toàn Si-ôn)',
+    goi('getXepHang', 'K Long', kvt) === '');
+  kiem('danh sách miễn chặn có đúng getXepHang',
+    AUTH.MIEN_CHAN_KHU_VUC.length === 1 && AUTH.MIEN_CHAN_KHU_VUC[0] === 'getXepHang');
+  kiem('mọi hàm trong VI_TRI_KHU_VUC đều CHẶN được KVT lạ',
+    Object.keys(viTri).filter((f) => AUTH.MIEN_CHAN_KHU_VUC.indexOf(f) < 0)
+      .every((f) => goi(f, 'K Long', kvt) === 'K Long'));
+  kiem('bảng luật phủ ít nhất 30 hàm', Object.keys(viTri).length >= 30);
+}
+
+// ---------------------------------------------------------------------
+console.log('\n9b) Câu báo lỗi phải DỄ HIỂU (người dùng đọc câu này)');
+{
+  const kvt = { laChu: false, phamVi: ['K My'] };
+  const chuaGan = { laChu: false, phamVi: [] };
+  const c1 = AUTH.loiNgoaiPhamVi('K Long', kvt);
+  kiem('nêu rõ khu vực bị chặn', c1.includes('K Long'));
+  kiem('nói luôn mình đang phụ trách gì', c1.includes('K My'));
+  kiem('không có từ kỹ thuật', !/error|undefined|null|SQL/i.test(c1));
+  const c2 = AUTH.loiNgoaiPhamVi('K My', chuaGan);
+  kiem('chưa gán -> chỉ đường đi hỏi ai', c2.includes('Trưởng phòng') && c2.includes('Duyệt truy cập'));
+  kiem('chưa gán -> KHÔNG đổ lỗi cho người dùng', !/không được phép|cấm/i.test(c2));
+}
+
+// ---------------------------------------------------------------------
+console.log('\n9c) ⚠️ ROUTER phải nối dây ĐÚNG chế độ BÓNG TỐI');
 {
   const nguon = readFileSync(join(goc, 'src/index.js'), 'utf8');
-  kiem('router CHƯA gọi duocXemKhuVuc', !/duocXemKhuVuc/.test(nguon));
-  kiem('router CHƯA gọi phamViKhuVuc', !/phamViKhuVuc/.test(nguon));
-  const handlers = ['diem-danh', 'tho-phuong', 'hoc-vien', 'muc-tieu-giao-duc', 'dao-tao-le-hoi',
-    'cong-viec', 'tru-do', 'khu-vuc', 'lich-lam-viec', 'tro-ly', 'cau-hinh', 'thong-ke-tp']
-    .map((f) => readFileSync(join(goc, 'src/handlers/' + f + '.js'), 'utf8')).join('\n');
-  kiem('chưa handler nào chặn theo phạm vi', !/duocXemKhuVuc|phamViKhuVuc/.test(handlers));
-  kiem('bảng VI_TRI_KHU_VUC (đợt 1) vẫn còn để bước 4 dùng lại', (async () => true)() && true);
+  kiem('router có gọi khuVucBiChan', /const viPham = khuVucBiChan\(fn, args, nguoiGoi\)/.test(nguon));
+  kiem('đặt SAU khi đã xác thực người gọi',
+    nguon.indexOf('nhanDienNguoiGoi(db, token') < nguon.indexOf('khuVucBiChan(fn, args'));
+  kiem('đặt TRƯỚC khi chạy hàm nghiệp vụ',
+    nguon.indexOf('khuVucBiChan(fn, args') < nguon.indexOf('await muc.fn(boiCanh'));
+  kiem('mọi vi phạm đều ghi nhật ký bóng tối', /loai: 'bong_toi'/.test(nguon));
+  kiem('⚠️ MẶC ĐỊNH là bóng tối (env thiếu -> "0")', /env\.PHAN_QUYEN_THAT \|\| '0'/.test(nguon));
+  kiem('chỉ chặn thật khi công tắc = "1"', /=== '1'/.test(nguon));
+  kiem('⚠️ khu vực RỖNG thì KHÔNG BAO GIỜ chặn thật', /viPham !== '\(trống\)'/.test(nguon));
+  kiem('câu báo lỗi lấy từ loiNgoaiPhamVi', /loiNgoaiPhamVi\(viPham, nguoiGoi\)/.test(nguon));
+  kiem('KHÔNG ghi token vào nhật ký', !/token: token|thamSo: token/.test(nguon));
+
+  const wr = readFileSync(join(goc, 'wrangler.toml'), 'utf8');
+  kiem('⚠️ PHAN_QUYEN_THAT có khai trong wrangler.toml (Cạm bẫy #1)',
+    /PHAN_QUYEN_THAT\s*=\s*"0"/.test(wr));
+  kiem('wrangler.toml đang để BÓNG TỐI, chưa bật thật', /PHAN_QUYEN_THAT\s*=\s*"0"/.test(wr));
+  kiem('vẫn giữ [observability] (đừng xoá)', /\[observability\]/.test(wr));
+  kiem('vẫn giữ cron kiểm tra sức khoẻ', /crons = \["0 23 \* \* \*"\]/.test(wr));
 }
 
 // ---------------------------------------------------------------------
