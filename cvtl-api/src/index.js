@@ -12,12 +12,18 @@
 
 import { json, preflight, parseRequest } from './protocol.js';
 import { bocD1, moTaLoiTiengViet } from './db.js';
-import { nhanDienNguoiGoi } from './auth.js';
+import { nhanDienNguoiGoi, khuVucBiChan, loiNgoaiPhamVi } from './auth.js';
 import { DANH_MUC } from './registry.js';
 import { CAU_LENH_TAO_BANG, CAU_LENH_NANG_CAP } from './schema-sql.js';
 import { guiTelegram, thoatHtml } from './telegram.js';
 import { kiemTraSucKhoeDuLieu, soanTinBatThuong } from './handlers/kiem-tra-suc-khoe.js';
 import { ghiNhatKyNen, khuVucCuaLoiGoi, tomTatThamSo, laHamGhi } from './nhat-ky.js';
+
+/** Phạm vi khu vực của người gọi, dạng chuỗi — chỉ để ghi vào nhật ký. */
+function tachDanhSachPhamVi(nguoiGoi) {
+  const p = nguoiGoi && nguoiGoi.phamVi;
+  return Array.isArray(p) ? p.join(',') : String(p || '');
+}
 
 export default {
   async fetch(request, env, ctx) {
@@ -227,6 +233,31 @@ export default {
       // ctx.waitUntil — không có nó thì Cloudflare có thể cắt ngang việc
       // đang chạy ngay sau khi trả lời xong. Xem lich-lam-viec.js.
       const boiCanh = { db, env, ctx, nguoiGoi, token };
+
+      // --- PHÂN QUYỀN THEO KHU VỰC (26/08/2026, bước 4) -----------------
+      // ⭐ Chặn ở ĐÂY chứ không sửa 29 hàm nghiệp vụ — xem khuVucBiChan()
+      // trong src/auth.js để biết vì sao.
+      //
+      // ⚠️ Mặc định PHAN_QUYEN_THAT = "0" = CHẾ ĐỘ BÓNG TỐI: luật chạy đủ
+      // nhưng KHÔNG chặn ai, chỉ ghi nhật ký loai='bong_toi'. Đọc nhật ký
+      // ít nhất 1 tuần rồi mới đổi thành "1" trong wrangler.toml.
+      // Lý do: chặn nhầm một hàm = khu vực trưởng không nhập được số của
+      // CHÍNH MÌNH, và không ai biết cho tới khi có người kêu.
+      const viPham = khuVucBiChan(fn, args, nguoiGoi);
+      if (viPham) {
+        const chanThat = String(env.PHAN_QUYEN_THAT || '0') === '1' && viPham !== '(trống)';
+        ghiNhatKyNen(boiCanh, {
+          loai: 'bong_toi',
+          email: nguoiGoi && nguoiGoi.email,
+          ham: fn,
+          khuVuc: viPham === '(trống)' ? '' : viPham,
+          thamSo: tomTatThamSo(args),
+          ketQua: chanThat ? 'chan' : 'ok',
+          ghiChu: (viPham === '(trống)' ? 'goi KHONG neu khu vuc' : 'ngoai pham vi')
+            + ' | pham vi: ' + (tachDanhSachPhamVi(nguoiGoi) || '(chua gan)'),
+        });
+        if (chanThat) return json({ error: loiNgoaiPhamVi(viPham, nguoiGoi) });
+      }
 
       // --- NHẬT KÝ THAY ĐỔI SỐ LIỆU (25/08/2026, xem src/nhat-ky.js) -----
       // Chỉ ghi hàm GHI (doc: false). Hàm ĐỌC không ghi, nếu không mỗi lần
