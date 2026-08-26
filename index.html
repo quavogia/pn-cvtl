@@ -241,6 +241,13 @@
   .kv-pill.kv-ngoai.active{opacity:1;}
   .bc-nhac{margin:0 0 10px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.6;}
   .bc-nhac a{cursor:pointer;text-decoration:underline;font-weight:600;}
+  /* Ô trong bảng kiểm mà CÒN VIỆC thì bấm được -> nhảy tới tab con để nhập.
+     Gạch chân nét đứt là dấu hiệu "bấm được", để phân biệt với ô ✅ / — .
+     Vùng bấm nới rộng bằng padding cho dễ trúng trên điện thoại. */
+  .bc-nhay{font-size:16px;cursor:pointer;display:inline-block;padding:2px 6px;border-radius:6px;
+           border-bottom:1px dashed currentColor;line-height:1.15;}
+  .bc-nhay:hover{background:#f1f5f9;}
+  .bc-nhay:focus-visible{outline:2px solid #2563eb;outline-offset:1px;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -634,6 +641,7 @@
             <span title="tuần đó không có buổi / bảng nhập tay không có tuần này">— không áp dụng</span> ·
             <span title="hệ thống chưa có nhật ký từ thời điểm đó nên KHÔNG dám chấm thiếu">❓ chưa đủ dữ liệu</span>
             <br>Hạn báo cáo là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
+            <br>👉 Ô <b>gạch chân</b> (⏳ ⚠️ ❓) <b>bấm được</b> — bấm là mở thẳng tab con để nhập, vẫn giữ nguyên khu vực và tháng đang xem.
           </div>
         </div>
       </div>
@@ -2466,9 +2474,47 @@ var BC_KYHIEU = {
   chua_du_du_lieu: { icon: '❓', mau: '#a78bfa', ten: 'chưa đủ dữ liệu' }
 };
 
-function bcO_(tt){
+// ⭐ 26/08/2026 — anh Rise hỏi: "trong tab báo cáo này làm sao để biết đã nhập
+// hay chưa để ấn báo cáo?". Bảng kiểm đang CHẨN ĐOÁN đúng nhưng KHÔNG DẪN
+// ĐƯỜNG: thấy ⚠️ rồi vẫn phải tự nhớ hạng mục đó nằm ở tab con nào. Từ nay ô
+// nào còn việc thì bấm được, bấm là nhảy thẳng sang đúng chỗ nhập.
+var BC_TAB = {
+  tho_phuong:       'tp',
+  trudo_truyen_dao: 'trudo',
+  trudo_cong_viec:  'trudo',
+  giao_duc:         'edu',
+  dao_tao:          'daotao',
+  le_hoi:           'lehoi'
+};
+var BC_TAB_TEN = {
+  tp: 'TP', trudo: 'Trudo', edu: 'Giáo dục', daotao: 'Đào tạo', lehoi: '🎉 Lễ hội'
+};
+
+// ⚠️ CHỈ ô còn việc mới bấm được. Ô ✅ (xong rồi) và ô — (không áp dụng) để
+// nguyên, không bấm — nhờ vậy nhìn lướt là biết ngay đâu là chỗ cần đụng tới.
+// Ô ❓ vẫn cho bấm: máy không dám chấm thiếu, nhưng người vẫn nên vào xem.
+var BC_CAN_LAM = { tre: 1, chua: 1, chua_du_du_lieu: 1 };
+
+function bcO_(tt, ma){
   var k = BC_KYHIEU[tt] || BC_KYHIEU.chua;
-  return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">' + k.icon + '</span>';
+  var tab = BC_TAB[ma];
+  if (!tab || !BC_CAN_LAM[tt]) {
+    return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">' + k.icon + '</span>';
+  }
+  var nhac = k.ten + ' — bấm để mở tab ' + (BC_TAB_TEN[tab] || tab) + ' nhập';
+  return '<span class="bc-nhay" role="button" tabindex="0" title="' + esc(nhac) + '"'
+    + ' onclick="bcToiTab_(\'' + tab + '\')"'
+    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();bcToiTab_(\'' + tab + '\');}"'
+    + ' style="color:' + k.mau + ';border-bottom-color:' + k.mau + ';">' + k.icon + '</span>';
+}
+
+// Nhảy tới tab con để nhập. GIỮ NGUYÊN khu vực và tháng đang xem — người ta
+// đang đứng ở tháng 8 của khu vực mình thì phải rơi đúng vào đó, không được
+// tự nhảy về tháng hiện tại (bài học #38).
+function bcToiTab_(tab){
+  selectKVSubTab(tab);
+  var el = document.getElementById('kvSubTabs');
+  if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
 }
 
 // Bảng kiểm của MỘT khu vực. Gọi khi mở tab con hoặc đổi khu vực/tháng.
@@ -2515,7 +2561,7 @@ function veBaoCaoPanel_(d){
       + (laTuanNay ? ' <span style="color:#2563eb;font-size:11px;">← tuần này</span>' : '')
       + '</td>';
     for (var j = 0; j < w.hangMuc.length; j++) {
-      h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j].trangThai) + '</td>';
+      h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j].trangThai, w.hangMuc[j].ma) + '</td>';
     }
     h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcNutBaoCao_(d, w) + '</td>';
     h += '</tr>';
