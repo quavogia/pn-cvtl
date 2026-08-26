@@ -4,6 +4,8 @@
 // =====================================================================
 
 /** Ngưỡng buổi học để tính là "Hữu hiệu" (giống HUU_HIEU_MIN_BUOI cũ). */
+import { tuanCuaNgay } from './lich-tuan.js';
+
 export const HUU_HIEU_MIN_BUOI = 2;
 
 /** Giá trị Tiến độ đại diện cho học viên đã Báp-têm. */
@@ -87,11 +89,26 @@ export function thangCuaNgay(ymd) {
   return s ? s.slice(0, 7) : '';
 }
 
-/** Tuần trong tháng (1..5) — giống weekOfMonth_ cũ: ceil(ngày / 7). */
+/**
+ * Tuần trong tháng (1..6) theo LỊCH THẬT — tuần bắt đầu CHỦ NHẬT,
+ * tuần 1 = tuần chứa ngày 1 của tháng.
+ *
+ * ⚠️⚠️ SỬA 26/08/2026 — TRƯỚC ĐÂY LÀ `Math.min(5, ceil(ngày/7))`, DI SẢN TỪ
+ * BẢN GOOGLE SHEETS (weekOfMonth_ cũ). Cách cũ chia tuần KHÁC HẲN với cột
+ * "Tuần" mà cả phòng NHẬP TAY ở tab TP / Điểm danh / Giáo dục / Công việc
+ * (những bảng đó dùng lịch thật). Hậu quả: cùng chữ "Tuần 4" nhưng biểu đồ
+ * Trudo hiểu là 22–28/8 còn bảng nhập tay hiểu là 16–22/8 — không ai biết.
+ *
+ * Ví dụ tháng 8/2026: ngày 9 (cũ: tuần 2 · đúng: tuần 3) · ngày 23 (cũ: 4 ·
+ * đúng: 5) · ngày 30–31 (cũ: bị dồn vào tuần 5 · đúng: tuần 6).
+ *
+ * ⚠️ Nay trả về TỚI 6 — chỗ nào dựng mảng theo tuần phải dùng số tuần THẬT
+ * của tháng (`cacTuanCuaThang(thang).length`), đừng cứng 5 phần tử.
+ */
 export function tuanTrongThang(ymd) {
   const s = chuanNgay(ymd);
   if (!s) return 0;
-  return Math.min(5, Math.ceil(Number(s.slice(8, 10)) / 7));
+  return tuanCuaNgay(s);
 }
 
 /** Phần trăm làm tròn 1 chữ số; mục tiêu = 0 -> null (giống pct_ cũ). */
