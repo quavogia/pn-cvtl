@@ -13,7 +13,8 @@
 //    Nếu chỉ xử lý loại thứ nhất thì **cứ F5 là bị bắt đăng nhập lại**.
 //    Bản Apps Script cũ dùng verifyAnyToken_() để nhận cả hai — phải giữ đúng vậy.
 
-import { xacThucGoogleJwt, taoPhien, CHU_VINH_VIEN } from '../auth.js';
+import { xacThucGoogleJwt, taoPhien, CHU_VINH_VIEN, tachPhamVi, gopPhamVi } from '../auth.js';
+import { KHU_VUC_LIST } from '../hang-so.js';
 import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 
 // Địa chỉ máy chủ — dùng để dựng đường link "Cấp quyền 1-chạm" gửi kèm tin
@@ -71,8 +72,11 @@ export async function checkAccess(ctx, thamSo) {
     }
   }
 
+  // SELECT * chứ không liệt kê cột — xem lời giải thích ở nhanDienNguoiGoi
+  // trong src/auth.js (cột pham_vi chỉ có mặt SAU khi chạy GET /cai-dat;
+  // liệt kê tên cột thì cả phòng không đăng nhập được trong lúc chờ).
   const quyen = await db.first(
-    'SELECT trang_thai, ten, la_chu FROM access_control WHERE lower(email) = lower(?)',
+    'SELECT * FROM access_control WHERE lower(email) = lower(?)',
     [email]
   );
 
@@ -86,7 +90,10 @@ export async function checkAccess(ctx, thamSo) {
 
   // Tên trường "name" và "pending" giữ đúng như bản cũ — giao diện đang đọc
   // res.email / res.pending / res.sessionToken.
-  const chung = { email, name: ten, ten, laChu };
+  // phamVi (mới 26/08/2026): danh sách khu vực người này phụ trách. Giao
+  // diện nhận sẵn từ lúc đăng nhập để về sau khỏi phải gọi thêm một lượt.
+  // Chủ/Admin thì phamVi vô nghĩa (thấy toàn Si-ôn) nhưng vẫn trả cho đủ.
+  const chung = { email, name: ten, ten, laChu, phamVi: tachPhamVi(quyen && quyen.pham_vi) };
 
   if (!quyen) {
     return { authorized: false, pending: false, ...chung, trangThai: 'chua_dang_ky' };
@@ -204,8 +211,9 @@ export async function denyAccessRequest({ db }, email) {
  * Admin xếp lên đầu (la_chu DESC), sau đó theo tên cho dễ tìm.
  */
 export async function getApprovedAccess({ db }) {
+  // SELECT * — cột pham_vi chỉ có sau khi chạy /cai-dat, xem src/auth.js.
   const ds = await db.all(
-    `SELECT email, ten, ngay_duyet, la_chu FROM access_control
+    `SELECT * FROM access_control
      WHERE trang_thai = 'da_duyet' ORDER BY la_chu DESC, lower(ten) ASC, lower(email) ASC`
   );
   return ds.map((r) => {
@@ -217,8 +225,62 @@ export async function getApprovedAccess({ db }) {
       ngayDuyet: r.ngay_duyet || '',
       laChu: r.la_chu === 1 || laChuVinhVien,
       laChuVinhVien, // true = tài khoản chủ gốc, không ai gỡ được (kể cả Admin khác)
+      phamVi: tachPhamVi(r.pham_vi), // khu vực người này phụ trách (26/08/2026)
     };
   });
+}
+
+/** Danh sách khu vực hợp lệ hiện có — lấy từ Cấu hình, chưa có thì dùng
+ *  danh sách mặc định. ⚠️ Phải đọc config_list chứ KHÔNG dùng cứng
+ *  KHU_VUC_LIST: khu vực "TT Châu" thêm ngày 19/08/2026 chỉ nằm trong
+ *  config_list, không có trong hằng số. */
+async function dsKhuVucHopLe(db) {
+  const rows = await db.all(
+    "SELECT gia_tri FROM config_list WHERE loai = 'khu_vuc' ORDER BY thu_tu, id"
+  );
+  const ds = (rows || []).map((r) => String(r.gia_tri || '').trim()).filter(Boolean);
+  return ds.length ? ds : KHU_VUC_LIST.slice();
+}
+
+/**
+ * Gán khu vực PHỤ TRÁCH cho một tài khoản (mới 26/08/2026).
+ *
+ * Anh Rise: "tại sao không tạo 1 nút cấp quyền cho ai có quyền ấn báo cáo
+ * cho nhanh, sau này có mail mới thì đỡ phải báo lại em" — nên việc gán này
+ * làm HẲN trên web, Claude không bao giờ gõ email vào mã.
+ *
+ *   dsKhuVuc = ['K My']                     -> khu vực trưởng
+ *   dsKhuVuc = ['Đ Uyên','K Thành','TT Châu'] -> địa vực trưởng
+ *   dsKhuVuc = []                            -> không phụ trách khu vực nào
+ *
+ * ⚠️ Ở đợt này việc gán CHƯA chặn ai cả — chỉ là ghi nhận. Luật chặn/lọc là
+ * bước 4 (xem CVTL-KE-HOACH-PHAN-QUYEN.md mục 6).
+ */
+export async function setPhamVi({ db }, email, dsKhuVuc) {
+  const e = String(email || '').toLowerCase().trim();
+  if (!e) throw new Error('Thiếu email cần gán khu vực.');
+
+  const quyen = await db.first(
+    `SELECT trang_thai FROM access_control WHERE lower(email) = lower(?)`, [e]
+  );
+  if (!quyen || quyen.trang_thai !== 'da_duyet') {
+    throw new Error('Chỉ gán được khu vực cho người ĐÃ được duyệt truy cập.');
+  }
+
+  const chon = tachPhamVi(dsKhuVuc);
+  const hopLe = await dsKhuVucHopLe(db);
+  const la = chon.filter((k) => !hopLe.includes(k));
+  if (la.length) {
+    // Báo tên khu vực sai ra hẳn — gõ nhầm dấu tiếng Việt là chuyện rất dễ
+    // xảy ra, mà lưu nhầm thì sau này người đó lặng lẽ không xem được gì.
+    throw new Error('Không có khu vực: ' + la.join(', '));
+  }
+
+  await db.run(
+    `UPDATE access_control SET pham_vi = ? WHERE lower(email) = lower(?)`,
+    [gopPhamVi(chon), e]
+  );
+  return { ok: true, email: e, phamVi: chon };
 }
 
 /**
