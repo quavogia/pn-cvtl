@@ -3627,7 +3627,15 @@ function renderTrudoChart_(){
     { donThuan: [0,0,0,0,0], huuHieu: [0,0,0,0,0], bt: [0,0,0,0,0] };
   const curActual = o.goalSummary ? o.goalSummary.actual : { donThuan: 0, huuHieu: 0, bt: 0 };
   const prevActual = o.prevGoalSummary ? o.prevGoalSummary.actual : { donThuan: 0, huuHieu: 0, bt: 0 };
-  const categories = trudoViewMode === 'week' ? ['Tuần 1', 'Tuần 2', 'Tuần 3', 'Tuần 4', 'Tuần 5'] : ['Tháng trước', 'Tháng này'];
+  // ⚠️ SỬA 26/08/2026 — TRƯỚC ĐÂY CỨNG 5 NHÃN 'Tuần 1'..'Tuần 5'.
+  // Máy chủ nay chia tuần theo LỊCH THẬT (tuần bắt đầu Chủ nhật, tuần 1 chứa
+  // ngày 1) nên tháng có thể có 6 tuần — sinh nhãn theo đúng độ dài mảng,
+  // nếu không thì cột thứ 6 sẽ không có nhãn. Xem tuanTrongThang() trong
+  // cvtl-api/src/tien-ich.js để biết vì sao phải đổi.
+  const soTuanBD = (w.donThuan && w.donThuan.length) || 5;
+  const nhanTuan = [];
+  for (var _t = 1; _t <= soTuanBD; _t++) nhanTuan.push('Tuần ' + _t);
+  const categories = trudoViewMode === 'week' ? nhanTuan : ['Tháng trước', 'Tháng này'];
   const dtValues = trudoViewMode === 'week' ? w.donThuan : [prevActual.donThuan, curActual.donThuan];
   const hhValues = trudoViewMode === 'week' ? w.huuHieu : [prevActual.huuHieu, curActual.huuHieu];
   const btValues = trudoViewMode === 'week' ? w.bt : [prevActual.bt, curActual.bt];
