@@ -403,3 +403,27 @@ CREATE TABLE IF NOT EXISTS nhat_ky_thay_doi (
 );
 CREATE INDEX IF NOT EXISTS ix_nktd_thoi_gian ON nhat_ky_thay_doi (thoi_gian_ms);
 CREATE INDEX IF NOT EXISTS ix_nktd_kv ON nhat_ky_thay_doi (khu_vuc, thoi_gian_ms);
+
+-- ---------------------------------------------------------------------
+-- 23. BÁO CÁO TUẦN  (thêm 26/08/2026 — tab Báo cáo)
+--
+-- Mỗi dòng = một khu vực đã chốt "số của tôi tuần này đã xong".
+--   snap_json : dấu vết hạng mục nào ĐÃ CÓ DỮ LIỆU lúc bấm, dạng
+--               "tho_phuong=1;trudo_truyen_dao=0;..."
+--               ⚠️ CỐ Ý chỉ chụp CÓ/KHÔNG, không chụp trạng thái ✅⏳⚠️ —
+--               trạng thái đổi theo ngày nên chụp nó là gắn cờ "đã sửa sau
+--               báo cáo" oan cho cả phòng mỗi khi qua hạn.
+--
+-- ⚠️ Anh Rise chốt KHÔNG khoá ô sau khi báo cáo. Nghĩa là số vẫn sửa được,
+--    và dấu vết này là cách duy nhất biết bản đã gửi lên trên còn khớp không.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bao_cao_tuan (
+  thang         TEXT NOT NULL,
+  khu_vuc       TEXT NOT NULL,
+  tuan          INTEGER NOT NULL,
+  snap_json     TEXT NOT NULL,
+  nguoi_bao_cao TEXT,
+  thoi_gian_ms  INTEGER NOT NULL,
+  PRIMARY KEY (thang, khu_vuc, tuan)
+);
+CREATE INDEX IF NOT EXISTS ix_bct_thang ON bao_cao_tuan (thang);
