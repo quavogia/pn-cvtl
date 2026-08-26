@@ -415,15 +415,32 @@ console.log('\n6) Thống kê tổng hợp');
   r = await goi('getKhuVucOverview', [TH, '']);
   kiem('getKhuVucOverview thiếu Khu vực → lỗi', /Thiếu Khu vực/.test(r.error || ''), JSON.stringify(r));
 
-  // --- getAllKhuVucWeekly: cộng 5 tuần PHẢI BẰNG số tháng ---
+  // --- getAllKhuVucWeekly: cộng mọi tuần PHẢI BẰNG số tháng ---
+  //
+  // ⚠️⚠️ SỬA 26/08/2026 — ba ca dưới đây TRƯỚC ĐÂY khẳng định cách chia tuần
+  // CŨ `Math.min(5, ceil(ngày/7))` (di sản Google Sheets). Cách đó chia tuần
+  // KHÁC HẲN cột "Tuần" mà cả phòng nhập tay ở tab TP/Điểm danh/Giáo dục.
+  // Nay `tuanTrongThang` dùng LỊCH THẬT (tuần bắt đầu Chủ nhật, tuần 1 chứa
+  // ngày 1) nên các con số mong đợi đổi. Đã TÍNH TAY LẠI từng ngày:
+  //
+  //   Đơn thuần K My: 03/08 (T2, tuần 2) = 4 · 22/08 (T7, tuần 4) = 6
+  //     -> [0,4,0,6,0,0]           (cũ: [4,0,0,6,0])
+  //   Hữu hiệu (B2..B16, theo ngay_dau_chia_se):
+  //     HV1 B2 03/08 -> tuần 2 · HV6 B2 20/08 -> tuần 4  (HV3 B1 không tính)
+  //     -> [0,1,0,1,0,0]           (cũ: [1,0,1,0,0])
+  //   BT: HV2 15/08 (T7, tuần 3) -> [0,0,1,0,0,0]   (cũ: [0,0,1,0,0])
+  //
+  // Tháng 8/2026 có SÁU tuần (30–31/8 là tuần 6) nên mảng dài 6, không phải 5.
+  // ⚠️ Ca "cộng mọi tuần = actual" bên dưới KHÔNG đổi và vẫn xanh — đó là bằng
+  // chứng TỔNG THÁNG không hề sai, chỉ chỗ chia vào tuần nào là đổi.
   r = await goi('getAllKhuVucWeekly', [TH]);
   const tuan = r.result || [];
   const wkmy = tuan.find((x) => x.khuVuc === 'K My');
   kiem('getAllKhuVucWeekly chia Đơn thuần đúng tuần',
-    JSON.stringify(wkmy?.donThuan) === JSON.stringify([4, 0, 0, 6, 0]), JSON.stringify(wkmy?.donThuan));
+    JSON.stringify(wkmy?.donThuan) === JSON.stringify([0, 4, 0, 6, 0, 0]), JSON.stringify(wkmy?.donThuan));
   kiem('getAllKhuVucWeekly chia Hữu hiệu/BT theo tuần của "Ngày đầu chia sẻ"',
-    JSON.stringify(wkmy?.huuHieu) === JSON.stringify([1, 0, 1, 0, 0]) &&
-    JSON.stringify(wkmy?.bt) === JSON.stringify([0, 0, 1, 0, 0]),
+    JSON.stringify(wkmy?.huuHieu) === JSON.stringify([0, 1, 0, 1, 0, 0]) &&
+    JSON.stringify(wkmy?.bt) === JSON.stringify([0, 0, 1, 0, 0, 0]),
     JSON.stringify({ hh: wkmy?.huuHieu, bt: wkmy?.bt }));
   const cong = (a) => a.reduce((s, x) => s + x, 0);
   let khopHet = true;
@@ -435,9 +452,15 @@ console.log('\n6) Thống kê tổng hợp');
     }
   }
   kiem('cộng 5 tuần của getAllKhuVucWeekly = actual của getAllKhuVucOverview', khopHet, lech);
-  kiem('getAllKhuVucWeekly trả đủ 7 Khu vực, Khu vực chưa có gì vẫn là mảng 5 số 0',
-    tuan.length === 7 && JSON.stringify(tuan.find((x) => x.khuVuc === 'SĐ')?.donThuan) === '[0,0,0,0,0]',
-    JSON.stringify(tuan.find((x) => x.khuVuc === 'SĐ')));
+  // ⚠️ Độ dài mảng = SỐ TUẦN THẬT của tháng, KHÔNG cứng 5. Tháng 8/2026 có 6
+  // tuần (30–31/8 là tuần 6). Kiểm bằng `soTuan` do máy chủ trả về chứ không
+  // gõ cứng con số — để ca này còn đúng với cả tháng chỉ có 5 tuần.
+  const sd = tuan.find((x) => x.khuVuc === 'SĐ');
+  kiem('getAllKhuVucWeekly trả đủ 7 Khu vực, Khu vực chưa có gì là mảng toàn 0 dài đúng số tuần',
+    tuan.length === 7 && sd?.soTuan >= 5 && sd?.donThuan.length === sd?.soTuan &&
+    sd?.donThuan.every((x) => x === 0),
+    JSON.stringify(sd));
+  kiem('tháng 8/2026 phải có ĐÚNG 6 tuần (30–31/8 là tuần 6)', sd?.soTuan === 6, String(sd?.soTuan));
 
   // --- getTopNguoiDanDat ---
   r = await goi('getTopNguoiDanDat', [TH]);
