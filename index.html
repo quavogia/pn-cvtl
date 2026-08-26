@@ -3136,9 +3136,13 @@ function veCanhBaoPhamVi_(list){
   const hop = document.getElementById('phamViCanhBao');
   if (!hop) return;
   if (!khuVucList || !khuVucList.length) { hop.style.display = 'none'; return; }
+  // ⚠️ TÍNH CẢ Admin (sửa 26/08/2026). Ban đầu cố ý bỏ qua Admin vì họ xem
+  // được toàn Si-ôn — nhưng khu vực "SĐ" (sinh đồ) do chính Trưởng phòng
+  // quản lý, nên dòng đỏ sẽ ĐỎ MÃI dù không có gì sai. Một cảnh báo không
+  // bao giờ tắt được thì người ta sẽ quen mắt rồi bỏ qua luôn cả cảnh báo
+  // thật. Nay Admin tick khu vực nào thì tính là người đó nhận khu vực ấy.
   const daGan = {};
   (list || []).forEach(function(p){
-    if (p.laChu) return; // Admin xem toàn Si-ôn, không tính là "phụ trách"
     (p.phamVi || []).forEach(function(k){ daGan[k] = (daGan[k] || 0) + 1; });
   });
   const thieu = khuVucList.filter(function(k){ return !daGan[k]; });
@@ -3154,7 +3158,8 @@ function veCanhBaoPhamVi_(list){
     'padding:10px 14px;margin-bottom:12px;color:#b91c1c;font-size:13px;">' +
     '⚠️ <b>Chưa ai phụ trách ' + thieu.length + ' khu vực:</b> ' + esc(thieu.join(' · ')) +
     '<br><span style="color:#7f1d1d;">Chưa gán thì sau này người của khu vực đó sẽ không xem được ' +
-    'số liệu nào cả. Bấm "✏️ Gán" ở dòng của họ bên dưới.</span></div>';
+    'số liệu nào cả. Bấm "✏️ Gán" ở dòng của họ bên dưới. ' +
+    'Khu vực do chính Trưởng phòng quản lý thì tick vào tài khoản của mình là được.</span></div>';
 }
 
 /** Mở hộp tick khu vực cho một người. */
