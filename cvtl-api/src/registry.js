@@ -32,6 +32,7 @@ import * as truDo from './handlers/tru-do.js';
 import * as khuVuc from './handlers/khu-vuc.js';
 import * as congViec from './handlers/cong-viec.js';
 import * as troLy from './handlers/tro-ly.js';
+import * as baoCao from './handlers/bao-cao.js';
 import * as nhatKy from './nhat-ky.js';
 
 export const DANH_MUC = {
@@ -179,6 +180,20 @@ export const DANH_MUC = {
   // Admin mới được xem. Giao diện cũng giấu nút menu (xem navTroLy trong
   // index.html), nhưng chặn thật nằm ở đây: giấu nút chỉ là cho gọn mắt.
   getTroLy:                { doc: true,  chuThoi: true, fn: troLy.getTroLy },
+
+  // --- Tab Báo cáo (26/08/2026) ---
+  // ⚠️ CỐ Ý KHÔNG đặt `chuThoi` cho 3 hàm đầu — khu vực trưởng phải gọi
+  // được cho khu vực của mình. Việc chặn nằm TRONG chính các hàm đó, bằng
+  // `duocXemKhuVuc` / `phamViKhuVuc`: ai chưa được gán khu vực nào thì không
+  // vào được tab (anh Rise chốt 26/08/2026 — "9 tài khoản đó chỉ là thánh
+  // đồ thôi, ko cần xem phần báo cáo này").
+  // ⚠️ `getBaoCaoLuoi` cố ý KHÔNG lọc theo phạm vi: nó chỉ có dấu tick, không
+  // có con số, và anh Rise muốn cả phòng nhìn nhau mà cố.
+  getBaoCaoTuan:           { doc: true,  fn: baoCao.getBaoCaoTuan },
+  getBaoCaoLuoi:           { doc: true,  fn: baoCao.getBaoCaoLuoi },
+  saveBaoCaoTuan:          { doc: false, fn: baoCao.saveBaoCaoTuan },
+  // Gỡ báo cáo thì chỉ Trưởng phòng / Admin — giống nút "Hủy báo cáo" cũ.
+  huyBaoCaoTuan:           { doc: false, chuThoi: true, fn: baoCao.huyBaoCaoTuan },
 };
 
 export const DANH_SACH_DOC = new Set(
