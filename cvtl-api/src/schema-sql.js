@@ -38,7 +38,9 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE TABLE IF NOT EXISTS cv_nguoi ( khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, kieu TEXT NOT NULL, thu_tu INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (khu_vuc, ten) )",
   "CREATE TABLE IF NOT EXISTS nhat_ky_thay_doi ( id INTEGER PRIMARY KEY AUTOINCREMENT, thoi_gian_ms INTEGER NOT NULL, loai TEXT NOT NULL DEFAULT 'ghi', email TEXT, ham TEXT NOT NULL, khu_vuc TEXT, tham_so TEXT, ket_qua TEXT NOT NULL DEFAULT 'ok', ghi_chu TEXT )",
   "CREATE INDEX IF NOT EXISTS ix_nktd_thoi_gian ON nhat_ky_thay_doi (thoi_gian_ms)",
-  "CREATE INDEX IF NOT EXISTS ix_nktd_kv ON nhat_ky_thay_doi (khu_vuc, thoi_gian_ms)"
+  "CREATE INDEX IF NOT EXISTS ix_nktd_kv ON nhat_ky_thay_doi (khu_vuc, thoi_gian_ms)",
+  "CREATE TABLE IF NOT EXISTS bao_cao_tuan ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, snap_json TEXT NOT NULL, nguoi_bao_cao TEXT, thoi_gian_ms INTEGER NOT NULL, PRIMARY KEY (thang, khu_vuc, tuan) )",
+  "CREATE INDEX IF NOT EXISTS ix_bct_thang ON bao_cao_tuan (thang)"
 ];
 
 // =====================================================================
