@@ -21,7 +21,16 @@ CREATE TABLE IF NOT EXISTS access_control (
   ten               TEXT,
   ngay_yeu_cau      TEXT,                                -- ISO8601
   ngay_duyet        TEXT,
-  la_chu            INTEGER NOT NULL DEFAULT 0           -- 1 = tài khoản chủ
+  la_chu            INTEGER NOT NULL DEFAULT 0,          -- 1 = tài khoản chủ
+  -- pham_vi (thêm 26/08/2026): danh sách khu vực người này PHỤ TRÁCH, ngăn
+  -- cách bằng dấu phẩy. Ví dụ 'K My' (khu vực trưởng) hoặc
+  -- 'Đ Uyên,K Thành,TT Châu' (địa vực trưởng). Rỗng = không phụ trách khu
+  -- vực nào. la_chu = 1 thì bỏ qua cột này (thấy toàn Si-ôn).
+  -- ⚠️ CSDL THẬT đã tồn tại từ trước nên CREATE TABLE IF NOT EXISTS ở đây
+  -- KHÔNG thêm được cột. Câu ALTER TABLE nằm ở CAU_LENH_NANG_CAP trong
+  -- src/schema-sql.js, chạy qua GET /cai-dat. Đừng thêm ALTER vào file này —
+  -- file này bị chạy lại nhiều lần trong kiểm thử, ALTER sẽ báo trùng cột.
+  pham_vi           TEXT
 );
 
 -- ---------------------------------------------------------------------
