@@ -600,6 +600,33 @@
           <button type="button" class="kv-pill" data-kvsub="edu" onclick="selectKVSubTab('edu')">Giáo dục</button>
           <button type="button" class="kv-pill" data-kvsub="daotao" onclick="selectKVSubTab('daotao')">Đào tạo</button>
           <button type="button" class="kv-pill" data-kvsub="lehoi" onclick="selectKVSubTab('lehoi')">🎉 Lễ hội</button>
+          <!-- ⚠️ Tab con này CHỈ hiện với người có khu vực phụ trách (khu vực
+               trưởng / địa vực trưởng) hoặc Admin — anh Rise chốt 26/08/2026:
+               "9 tài khoản đó chỉ là thánh đồ thôi, ko cần xem phần báo cáo
+               này". Giấu nút CHỈ là cho gọn mắt; chặn THẬT nằm ở máy chủ
+               (getBaoCaoTuan kiểm duocXemKhuVuc) — bài học #49. -->
+          <button type="button" class="kv-pill" data-kvsub="baocao" id="kvSubBaoCao"
+                  style="display:none;" onclick="selectKVSubTab('baocao')">📋 Báo cáo</button>
+        </div>
+      </div>
+
+      <!-- ---- Sub-tab: 📋 Báo cáo — bảng kiểm 5 hạng mục theo tuần (26/08/2026) ----
+           Mục tiêu số một: tạo THÓI QUEN nhập đủ mỗi tuần. Nút Báo cáo CỐ Ý
+           đặt ngay dưới bảng kiểm để người bấm buộc phải nhìn thấy mình còn
+           thiếu gì — đó là điểm yếu của hai nút "Báo cáo T3/T7" cũ. -->
+      <div id="kvsub-baocao" class="kv-subpanel">
+        <div class="card">
+          <h3 style="margin-top:0;">📋 Bảng kiểm tuần — <span id="bc_kvLabel"></span> · <span id="bc_monthLabel"></span></h3>
+          <div id="bc_noiDung" style="color:#94a3b8;">Đang tải…</div>
+          <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
+            <b>Cách đọc:</b>
+            <span title="đã có số liệu">✅ đã nhập</span> ·
+            <span title="chưa có số liệu nhưng chưa quá hạn">⏳ chưa tới hạn</span> ·
+            <span title="quá hạn hết tuần + 2 ngày mà vẫn chưa có số">⚠️ quá hạn chưa nhập</span> ·
+            <span title="tuần đó không có buổi / bảng nhập tay không có tuần này">— không áp dụng</span> ·
+            <span title="hệ thống chưa có nhật ký từ thời điểm đó nên KHÔNG dám chấm thiếu">❓ chưa đủ dữ liệu</span>
+            <br>Hạn báo cáo là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
+          </div>
         </div>
       </div>
 
@@ -627,6 +654,18 @@
             </div>
           </div>
         </div>
+        <!-- ⭐ Lưới kỷ luật nhập liệu — thứ DUY NHẤT thêm vào màn hình Tổng
+             (anh Rise chốt 26/08/2026, sau khi rà soát thấy trang 🤖 Trợ lý đã
+             lo phần "bức tranh + phân tích"). Ở đây CỐ Ý chỉ có dấu tick,
+             KHÔNG có con số — nhờ vậy mới cho cả phòng cùng xem được. -->
+        <div class="card" style="margin-top:16px;" id="bcLuoiCard">
+          <h3 style="margin:0 0 4px 0;">📋 Kỷ luật nhập liệu hằng tuần — <span id="bcLuoi_monthLabel"></span></h3>
+          <div style="color:#64748b;font-size:13px;margin-bottom:10px;">
+            Mỗi ô là một tuần: khu vực đó đã bấm <b>Báo cáo</b> chưa, và còn hạng mục nào quá hạn chưa nhập.
+          </div>
+          <div id="bcLuoi_noiDung" style="color:#94a3b8;">Đang tải…</div>
+        </div>
+
         <div class="card" style="margin-top:16px;">
           <h3 style="margin:0 0 4px 0;">Thành viên giảm thờ phượng so với tháng trước</h3>
           <div style="color:#64748b;font-size:13px;margin-bottom:10px;">So sánh tổng số buổi thờ phượng (Sáng/Chiều/Tối) đã điểm danh trong tháng, so với tháng trước.</div>
@@ -1244,7 +1283,11 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   // Nhóm Trụ đỡ (thêm 13/08/2026)
   'getSoMoc', 'getMocDaGhi', 'getBapTemBanner', 'getXepHang', 'getChotKy', 'getDsChotKy',
   // Điểm danh công việc (thêm 23/08/2026)
-  'getCVCongViec']);
+  'getCVCongViec',
+  // Tab Báo cáo (thêm 26/08/2026). ⚠️ Phải khai ở đây thì mới đi đường ĐỌC và
+  // dùng được cache; bấm "Báo cáo" là lệnh GHI nên tự xoá sạch cache, lần vẽ
+  // lại bảng kiểm ngay sau đó chắc chắn lấy số mới.
+  'getBaoCaoTuan', 'getBaoCaoLuoi']);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
 // giá trị sống trong CACHE_TTL_MS. Mục đích: khi chuyển qua lại Khu vực/tab đã xem
@@ -2288,6 +2331,7 @@ function loadKVTongPanel(){
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Tổng: ' + err.message, false);
   }).getKVTongSummary(monthKey);
+  loadBaoCaoLuoi();
   loadTPDecreasedPanel();
 }
 
@@ -2315,6 +2359,249 @@ function loadTPDecreasedPanel(){
   }).getMembersDecreasedTP(monthKey);
 }
 
+// =====================================================================
+// TAB BÁO CÁO — bảng kiểm 5 hạng mục theo tuần  (thêm 26/08/2026)
+//
+// ⭐ Vì sao nút Báo cáo nằm NGAY DƯỚI bảng kiểm chứ không ở tab Thờ phượng:
+// mục tiêu số một của anh Rise là tạo THÓI QUEN nhập đủ. Đặt nút ở đây thì
+// người bấm BUỘC PHẢI NHÌN THẤY mình còn thiếu gì — đúng cái mà hai nút
+// "Báo cáo T3/T7" cũ không làm được.
+//
+// ⚠️ Toàn bộ việc chấm ✅/⏳/⚠️/—/❓ do MÁY CHỦ tính (src/handlers/bao-cao.js).
+// Giao diện chỉ tô màu và vẽ. Đừng bao giờ tự tính lại ở đây — hai nơi cùng
+// tính một thứ thì sớm muộn cũng lệch (bài học #33).
+// =====================================================================
+
+var BC_KYHIEU = {
+  du:              { icon: '✅', mau: '#16a34a', ten: 'đã nhập' },
+  chua:            { icon: '⏳', mau: '#94a3b8', ten: 'chưa tới hạn' },
+  tre:             { icon: '⚠️', mau: '#dc2626', ten: 'quá hạn chưa nhập' },
+  khong_ap_dung:   { icon: '—',  mau: '#cbd5e1', ten: 'không áp dụng' },
+  chua_du_du_lieu: { icon: '❓', mau: '#a78bfa', ten: 'chưa đủ dữ liệu' }
+};
+
+function bcO_(tt){
+  var k = BC_KYHIEU[tt] || BC_KYHIEU.chua;
+  return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">' + k.icon + '</span>';
+}
+
+// Bảng kiểm của MỘT khu vực. Gọi khi mở tab con hoặc đổi khu vực/tháng.
+function loadBaoCaoPanel(){
+  var monthKey = kvMonthKey();
+  var kv = selectedKV;
+  document.getElementById('bc_kvLabel').textContent = kv || '';
+  document.getElementById('bc_monthLabel').textContent = monthKey;
+  var box = document.getElementById('bc_noiDung');
+  box.innerHTML = '<span style="color:#94a3b8;">Đang tải…</span>';
+  google.script.run.withSuccessHandler(function(d){
+    veBaoCaoPanel_(d);
+  }).withFailureHandler(function(err){
+    // ⚠️ Lỗi ở đây gần như luôn là "chưa được gán khu vực" — câu chữ máy chủ
+    // đã viết sẵn bằng tiếng Việt dễ hiểu, cứ hiện nguyên văn (bài học #32).
+    box.innerHTML = '<div style="padding:12px;background:#fef3c7;border-radius:8px;color:#92400e;">'
+      + esc(err.message) + '</div>';
+  }).getBaoCaoTuan(monthKey, kv);
+}
+
+function veBaoCaoPanel_(d){
+  var box = document.getElementById('bc_noiDung');
+  if (!d || !d.tuan || !d.tuan.length) {
+    box.innerHTML = '<div style="color:#94a3b8;">Tháng này chưa có tuần nào.</div>';
+    return;
+  }
+  var hm = d.tuan[0].hangMuc;
+  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:720px;">';
+  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
+  h += '<th style="padding:8px;white-space:nowrap;">Tuần</th>';
+  for (var i = 0; i < hm.length; i++) {
+    h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;">' + esc(hm[i].ten) + '</th>';
+  }
+  h += '<th style="padding:8px;text-align:center;white-space:nowrap;">Báo cáo</th>';
+  h += '</tr></thead><tbody>';
+
+  for (var t = 0; t < d.tuan.length; t++) {
+    var w = d.tuan[t];
+    var laTuanNay = (w.thoiDiem === 'dang_dien');
+    // Tuần đang diễn ra tô nền nhạt để mắt nhìn vào đúng dòng cần làm.
+    h += '<tr style="border-bottom:1px solid #f1f5f9;' + (laTuanNay ? 'background:#eff6ff;' : '') + '">';
+    h += '<td style="padding:8px;white-space:nowrap;font-weight:' + (laTuanNay ? '700' : '400') + ';">'
+      + 'Tuần ' + w.tuan + ' <span style="color:#94a3b8;font-weight:400;">(' + esc(w.nhan) + ')</span>'
+      + (laTuanNay ? ' <span style="color:#2563eb;font-size:11px;">← tuần này</span>' : '')
+      + '</td>';
+    for (var j = 0; j < w.hangMuc.length; j++) {
+      h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j].trangThai) + '</td>';
+    }
+    h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcNutBaoCao_(d, w) + '</td>';
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+
+  // Dòng tóm tắt: chỉ đếm những gì THẬT SỰ quá hạn, không đếm "chưa tới hạn".
+  var tongTre = 0;
+  for (var k = 0; k < d.tuan.length; k++) tongTre += d.tuan[k].soTre;
+  if (tongTre > 0) {
+    h += '<div style="margin-top:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;color:#991b1b;">'
+      + '⚠️ Còn <b>' + tongTre + '</b> ô quá hạn chưa nhập trong tháng này.</div>';
+  } else {
+    h += '<div style="margin-top:12px;padding:10px 12px;background:#f0fdf4;border-radius:8px;color:#166534;">'
+      + '✅ Không có ô nào quá hạn. Tốt!</div>';
+  }
+  box.innerHTML = h;
+}
+
+function bcNutBaoCao_(d, w){
+  if (w.baoCao && w.baoCao.daBaoCao) {
+    var s = '<span style="color:#16a34a;font-weight:600;" title="' + esc(w.baoCao.nguoi) + '">✅ '
+      + esc(w.baoCao.nhan) + '</span>';
+    if (w.baoCao.daSuaSau) {
+      s += '<br><span style="color:#b45309;font-size:11px;" title="Số liệu đã đổi sau khi bấm Báo cáo">'
+        + '🔁 đã sửa sau báo cáo</span>';
+    }
+    if (isChuTaiKhoan_()) {
+      s += '<br><button type="button" class="secondary" style="margin-top:4px;padding:4px 10px;font-size:12px;"'
+        + ' onclick="huyBaoCaoTuan_(' + w.tuan + ')">Gỡ</button>';
+    }
+    return s;
+  }
+  if (w.thoiDiem === 'chua_toi') return '<span style="color:#cbd5e1;">—</span>';
+  return '<button type="button" class="done" style="margin:0;" onclick="bamBaoCaoTuan_(' + w.tuan + ')">📋 Báo cáo</button>';
+}
+
+// ⚠️ CỐ Ý KHÔNG khoá nút khi còn thiếu — anh Rise chốt "cảnh báo mềm, không
+// khoá cứng". Khoá cứng sẽ chặn cả tình huống hợp lệ (tuần đó thật sự không
+// có ai đơn thuần) và người ta sẽ bỏ dùng, tệ hơn nhập thiếu. Chính CÁI BẤM
+// là dấu xác nhận "số của tôi tuần này đã xong, kể cả khi bằng 0".
+function bamBaoCaoTuan_(tuan){
+  var kv = selectedKV;
+  var monthKey = kvMonthKey();
+  google.script.run.withSuccessHandler(function(d){
+    var thieu = [];
+    var w = null;
+    for (var i = 0; i < d.tuan.length; i++) if (d.tuan[i].tuan === tuan) w = d.tuan[i];
+    if (w) {
+      for (var j = 0; j < w.hangMuc.length; j++) {
+        var tt = w.hangMuc[j].trangThai;
+        if (tt === 'tre' || tt === 'chua') thieu.push(w.hangMuc[j].ten);
+      }
+    }
+    var hoi = 'Báo cáo Tuần ' + tuan + ' cho khu vực ' + kv + '?';
+    if (thieu.length) {
+      hoi += '\n\nCác mục sau CHƯA thấy số nào trong tuần này:\n  • ' + thieu.join('\n  • ')
+        + '\n\nĐúng là tuần này không có, hay còn quên nhập?'
+        + '\n(Bấm OK = báo cáo luôn. Bấm Cancel = để tôi nhập đã.)';
+    }
+    if (!confirm(hoi)) return;
+    google.script.run.withSuccessHandler(function(){
+      showMsg('Đã báo cáo Tuần ' + tuan + ' — ' + kv, true);
+      loadBaoCaoPanel();
+    }).withFailureHandler(function(err){
+      showMsg('Không báo cáo được: ' + err.message, false);
+    }).saveBaoCaoTuan(monthKey, kv, tuan);
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi: ' + err.message, false);
+  }).getBaoCaoTuan(monthKey, kv);
+}
+
+function huyBaoCaoTuan_(tuan){
+  var kv = selectedKV;
+  if (!confirm('Gỡ báo cáo Tuần ' + tuan + ' của khu vực ' + kv + '?\n\n'
+    + 'Số liệu KHÔNG bị xoá — chỉ gỡ dấu "đã báo cáo".')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã gỡ báo cáo Tuần ' + tuan, true);
+    loadBaoCaoPanel();
+  }).withFailureHandler(function(err){
+    showMsg('Không gỡ được: ' + err.message, false);
+  }).huyBaoCaoTuan(kvMonthKey(), kv, tuan);
+}
+
+// ---------------------------------------------------------------------
+// LƯỚI TOÀN SI-ÔN ở màn hình 📊 Tổng
+//
+// ⚠️ Người CHƯA được gán khu vực nào sẽ bị máy chủ chặn ở đây. Màn hình
+// 📊 Tổng thì ai cũng vào được, nên phải GIẤU HẲN cái khung này thay vì hiện
+// một dòng đỏ khó hiểu — họ có làm gì sai đâu.
+// ---------------------------------------------------------------------
+function loadBaoCaoLuoi(){
+  var card = document.getElementById('bcLuoiCard');
+  var box = document.getElementById('bcLuoi_noiDung');
+  if (!card || !box) return;
+  if (!coPhamVi_()) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  var monthKey = kvMonthKey();
+  document.getElementById('bcLuoi_monthLabel').textContent = monthKey;
+  box.innerHTML = '<span style="color:#94a3b8;">Đang tải…</span>';
+  google.script.run.withSuccessHandler(function(d){
+    veBaoCaoLuoi_(d);
+  }).withFailureHandler(function(){
+    card.style.display = 'none';
+  }).getBaoCaoLuoi(monthKey);
+}
+
+function veBaoCaoLuoi_(d){
+  var box = document.getElementById('bcLuoi_noiDung');
+  if (!d || !d.dong || !d.dong.length) {
+    box.innerHTML = '<div style="color:#94a3b8;">Chưa có khu vực nào.</div>';
+    return;
+  }
+  var soTuan = d.soTuan || 0;
+  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:760px;">';
+  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
+  h += '<th style="padding:8px;white-space:nowrap;">Khu vực</th>';
+  for (var t = 1; t <= soTuan; t++) {
+    var nhan = d.dong[0].tuan[t - 1] ? d.dong[0].tuan[t - 1].nhan : '';
+    h += '<th style="padding:8px;text-align:center;white-space:nowrap;" title="' + esc(nhan) + '">T' + t + '</th>';
+  }
+  for (var i = 0; i < d.hangMuc.length; i++) {
+    h += '<th style="padding:8px;text-align:center;font-size:11px;line-height:1.3;">' + esc(d.hangMuc[i].ten) + '</th>';
+  }
+  h += '</tr></thead><tbody>';
+
+  for (var r = 0; r < d.dong.length; r++) {
+    var row = d.dong[r];
+    // ⚠️ Chỉ tô đậm "dòng của tôi" khi người xem là khu vực trưởng / địa vực
+    // trưởng. Admin xem được MỌI khu vực nên tô hết thành ra tô bằng không —
+    // mà việc tô là để họ tìm nhanh hàng của mình.
+    var cuaToi = row.laCuaToi && !isChuTaiKhoan_();
+    h += '<tr style="border-bottom:1px solid #f1f5f9;' + (cuaToi ? 'background:#eff6ff;' : '') + '">';
+    h += '<td style="padding:8px;white-space:nowrap;font-weight:' + (cuaToi ? '700' : '400') + ';">'
+      + esc(row.khuVuc) + '</td>';
+    for (var w = 0; w < row.tuan.length; w++) {
+      h += '<td style="padding:8px;text-align:center;">' + bcLuoiO_(row.tuan[w]) + '</td>';
+    }
+    for (var k = 0; k < d.hangMuc.length; k++) {
+      var g = row.theoHangMuc[d.hangMuc[k].ma] || { du: 0, apDung: 0, tre: 0 };
+      h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcTyLe_(g) + '</td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  h += '<div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.9;">'
+    + '<b>Cột T1…T' + soTuan + ':</b> ✅ đã báo cáo · ⚠️ quá hạn mà chưa báo cáo · ⏳ chưa tới hạn · '
+    + '<span style="color:#cbd5e1;">·</span> tuần chưa bắt đầu · 🔁 số đã đổi sau khi báo cáo'
+    + '<br><b>Các cột bên phải:</b> số tuần đã nhập / số tuần có áp dụng hạng mục đó.'
+    + ' Tuần không áp dụng và tuần chưa đủ dữ liệu KHÔNG bị tính vào mẫu số.</div>';
+  box.innerHTML = h;
+}
+
+function bcLuoiO_(w){
+  if (w.daBaoCao) {
+    var s = '<span title="Đã báo cáo lúc ' + esc(w.nhanBaoCao) + '" style="color:#16a34a;font-size:16px;">✅</span>';
+    if (w.daSuaSau) s += '<span title="Số liệu đã đổi sau khi báo cáo" style="color:#b45309;">🔁</span>';
+    return s;
+  }
+  if (w.thoiDiem === 'chua_toi') return '<span style="color:#cbd5e1;">·</span>';
+  if (w.soTre > 0) {
+    return '<span title="' + w.soTre + ' hạng mục quá hạn chưa nhập" style="color:#dc2626;font-size:16px;">⚠️</span>';
+  }
+  return '<span title="chưa báo cáo, nhưng chưa tới hạn" style="color:#94a3b8;font-size:16px;">⏳</span>';
+}
+
+function bcTyLe_(g){
+  if (!g.apDung) return '<span style="color:#cbd5e1;" title="tháng này chưa có tuần nào áp dụng">—</span>';
+  var mau = g.tre > 0 ? '#dc2626' : (g.du === g.apDung ? '#16a34a' : '#64748b');
+  return '<span style="color:' + mau + ';font-weight:600;">' + g.du + '/' + g.apDung + '</span>';
+}
+
 function escTP_(s){
   return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
@@ -2340,6 +2627,7 @@ function loadKVSubTab(){
   else if (kvActiveSubTab === 'edu') loadEduPanel();
   else if (kvActiveSubTab === 'daotao') loadDaoTaoPanel();
   else if (kvActiveSubTab === 'lehoi') loadLeHoiPanel();
+  else if (kvActiveSubTab === 'baocao') loadBaoCaoPanel();
 }
 
 // Banner ở Tổng quan bấm vào -> nhảy thẳng tới tab con "Lễ hội" trong "Hiện
@@ -2973,6 +3261,16 @@ function renderTPDDTable_(){
 // THỂ cấp quyền Admin đầy đủ cho nhiều người, không chỉ riêng 1 tài khoản.
 function isChuTaiKhoan_(){
   return !!window._laChu;
+}
+
+/**
+ * Người đang đăng nhập có phụ trách khu vực nào không?
+ * Chủ/Admin luôn tính là CÓ (xem toàn Si-ôn). Dùng để hiện/giấu tab con
+ * "📋 Báo cáo". ⚠️ Đây CHỈ là cho gọn mắt — chặn thật nằm ở máy chủ.
+ */
+function coPhamVi_(){
+  if (isChuTaiKhoan_()) return true;
+  return Array.isArray(window._phamVi) && window._phamVi.length > 0;
 }
 
 // =====================================================================
@@ -5122,6 +5420,10 @@ window._authEmail = '';
 // đúng 1 email cứng, để CÓ THỂ cấp quyền Admin cho nhiều người, không chỉ
 // riêng chủ tài khoản gốc. Xem isChuTaiKhoan_() bên dưới.
 window._laChu = false;
+// Danh sách khu vực người đang đăng nhập PHỤ TRÁCH (mảng tên khu vực).
+// Máy chủ trả về trong checkAccess. Chủ/Admin thì mảng này có thể rỗng nhưng
+// vẫn xem được mọi khu vực — nên LUÔN hỏi qua coPhamVi_() chứ đừng đọc thẳng.
+window._phamVi = [];
 
 // Ghi nhớ đăng nhập: lưu token vào localStorage của trình duyệt để lần sau
 // mở lại trang KHÔNG phải bấm đăng nhập lại (trừ khi token hết hạn ~1 giờ
@@ -5195,6 +5497,19 @@ function showUserBar_(email){
   // Chỉ tài khoản chủ mới thấy mục "Quản lý khu vực" (thêm 19/08/2026).
   const navKhuVuc = document.getElementById('navKhuVuc');
   if (navKhuVuc) navKhuVuc.style.display = isChuTaiKhoan_() ? 'flex' : 'none';
+  // Tab con "📋 Báo cáo" chỉ dành cho người CÓ khu vực phụ trách + Admin.
+  // ⚠️ Cũng phải ĐẨY HỌ RA khỏi tab đó nếu đang mở mà bị gỡ phạm vi — giấu
+  // mỗi cái nút thì bảng cũ vẫn nằm nguyên trên màn hình (bài học #49).
+  const pillBC = document.getElementById('kvSubBaoCao');
+  if (pillBC) {
+    if (coPhamVi_()) pillBC.style.display = '';
+    else {
+      pillBC.style.display = 'none';
+      const bcND = document.getElementById('bc_noiDung');
+      if (bcND) bcND.innerHTML = '';
+      if (kvActiveSubTab === 'baocao') selectKVSubTab('tp');
+    }
+  }
   // Chỉ tài khoản chủ/Admin mới thấy mục "Trợ lý" (anh Rise chốt 25/08/2026).
   // ⚠️ Nếu người đang mở ĐÚNG trang Trợ lý rồi mới bị gỡ quyền (hoặc đăng nhập
   // lại bằng tài khoản thường) thì phải ĐẨY HỌ VỀ trang Tổng quan, chứ giấu
@@ -5262,6 +5577,7 @@ function dangXuat(){
   window._authToken = '';
   window._authEmail = '';
   window._laChu = false;
+  window._phamVi = [];
   try {
     if (window.google && window.google.accounts && window.google.accounts.id) {
       window.google.accounts.id.disableAutoSelect();
@@ -5322,6 +5638,7 @@ function onGoogleSignIn_(response){
   google.script.run.withSuccessHandler(function(res){
     window._authEmail = res.email;
     window._laChu = !!res.laChu;
+    window._phamVi = Array.isArray(res.phamVi) ? res.phamVi : [];
     if (res.authorized) {
       if (res.sessionToken) window._authToken = res.sessionToken;
       saveAuthToken_(window._authToken);
@@ -5351,6 +5668,7 @@ function tryAutoLoginFromStorage_(){
   google.script.run.withSuccessHandler(function(res){
     window._authEmail = res.email;
     window._laChu = !!res.laChu;
+    window._phamVi = Array.isArray(res.phamVi) ? res.phamVi : [];
     if (res.authorized) {
       // Gia hạn thêm 30 ngày mỗi lần vào lại thành công (sliding window) ->
       // hễ còn ghé web tối thiểu 1 lần/30 ngày là không bao giờ bị bắt đăng
@@ -5363,6 +5681,7 @@ function tryAutoLoginFromStorage_(){
       clearSavedAuthToken_();
       window._authToken = '';
       window._laChu = false;
+      window._phamVi = [];
       initGoogleSignIn_();
     }
   }).withFailureHandler(function(err){
