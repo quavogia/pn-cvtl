@@ -15,7 +15,8 @@
 // revokeAdmin, mới 21/08/2026) — cộng thêm 2 hàm "Điểm danh công việc"
 // (getCVCongViec/saveCVCongViec, mới 23/08/2026), cộng thêm 3 hàm chỉnh danh
 // sách riêng của bảng đó (addCVNguoi/hideCVNguoi/unhideCVNguoi, 23/08/2026
-// lần 2), cộng 1 hàm Trợ lý (getTroLy, 24/08/2026) — tổng 89.
+// lần 2), cộng 1 hàm Trợ lý (getTroLy, 24/08/2026), cộng 1 hàm Nhật ký
+// thay đổi số liệu (getNhatKyThayDoi, 25/08/2026) — tổng 90.
 // =====================================================================
 
 import * as truyCap from './handlers/truy-cap.js';
@@ -31,6 +32,7 @@ import * as truDo from './handlers/tru-do.js';
 import * as khuVuc from './handlers/khu-vuc.js';
 import * as congViec from './handlers/cong-viec.js';
 import * as troLy from './handlers/tro-ly.js';
+import * as nhatKy from './nhat-ky.js';
 
 export const DANH_MUC = {
   // --- Đăng nhập / phân quyền (không yêu cầu đã duyệt) ---
@@ -158,6 +160,11 @@ export const DANH_MUC = {
   addCVNguoi:              { doc: false, fn: congViec.addCVNguoi },
   hideCVNguoi:             { doc: false, fn: congViec.hideCVNguoi },
   unhideCVNguoi:           { doc: false, fn: congViec.unhideCVNguoi },
+
+  // Nhật ký thay đổi số liệu (25/08/2026) — ai sửa gì, lúc nào.
+  // chuThoi: nhật ký cho biết thao tác của MỌI người nên chỉ Chủ/Admin xem.
+  // Ghi vào bảng thì do router tự làm (src/index.js), không có hàm ghi ở đây.
+  getNhatKyThayDoi:        { doc: true,  chuThoi: true, fn: nhatKy.getNhatKyThayDoi },
 
   // Trợ lý — tổng hợp/cảnh báo/đề xuất từ chính số liệu đang có (24/08/2026).
   // ⚠️ chuThoi: true (anh Rise chốt 25/08/2026: "trợ lý này chỉ dành cho admin
