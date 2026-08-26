@@ -5264,20 +5264,24 @@ function dangXuat(){
 window.dangXuat = dangXuat;
 
 // ---------------------------------------------------------------------
-// TỰ ĐỘNG ĐĂNG XUẤT SAU 30 PHÚT KHÔNG HOẠT ĐỘNG
+// TỰ ĐỘNG ĐĂNG XUẤT SAU 60 PHÚT KHÔNG HOẠT ĐỘNG
 // Đếm lại từ đầu mỗi khi có thao tác chuột/bàn phím/cuộn trang. Hết giờ mà
 // không có thao tác nào -> tự đăng xuất, quay về màn hình đăng nhập.
 // Cho phép đổi thời gian qua ?authTimeoutMs=... (chỉ để KIỂM THỬ tự động —
-// không cần chờ thật 30 phút mỗi lần chạy kiểm thử giao diện).
-// (Nâng 10 -> 30 phút ngày 22/08/2026 theo yêu cầu anh Rise: đang nhập liệu
-// mà rời máy một lát quay lại đã bị bắt đăng nhập lại, quá phiền.)
+// không cần chờ thật 60 phút mỗi lần chạy kiểm thử giao diện).
+// (Nâng 10 -> 30 phút ngày 22/08/2026, rồi 30 -> 60 phút ngày 26/08/2026 —
+// cả hai lần đều theo yêu cầu anh Rise: đang nhập liệu mà rời máy một lát
+// quay lại đã bị bắt đăng nhập lại, quá phiền.)
+// ⚠️ Đây CHỈ là hẹn giờ ở TRÌNH DUYỆT. Mã phiên trong CSDL vẫn sống 30 NGÀY
+// (PHIEN_HAN_MS trong src/auth.js) — nâng số ở đây không làm giảm an toàn
+// của máy chủ, chỉ là đỡ phải bấm đăng nhập lại.
 // ---------------------------------------------------------------------
 const INACTIVITY_TIMEOUT_MS = (function(){
   try {
     const q = new URLSearchParams(location.search).get('authTimeoutMs');
     if (q && Number(q) > 0) return Number(q);
   } catch(e){}
-  return 30 * 60 * 1000; // 30 phút
+  return 60 * 60 * 1000; // 60 phút (1 tiếng)
 })();
 let _inactivityTimer = null;
 
