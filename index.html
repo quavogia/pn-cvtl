@@ -225,19 +225,14 @@
   .tp-trend.up{color:#16a34a;}
   .tp-trend.down{color:#dc2626;}
   .tp-trend.flat{color:#94a3b8;}
-  .tp-baocao-cell{vertical-align:top;padding-top:8px !important;}
-  .tp-baocao-group{margin-bottom:6px;}
-  .tp-baocao-group:last-child{margin-bottom:0;}
-  .tp-baocao-btn{font-size:11px;padding:4px 8px;background:#e2e8f0;color:#334155;border-radius:6px;white-space:nowrap;}
-  .tp-baocao-btn.reported{background:#dcfce7;color:#166534;}
-  .tp-baocao-btn.stale{background:#fef3c7;color:#92400e;}
-  .tp-baocao-ts{font-size:10px;color:#94a3b8;margin-top:4px;white-space:nowrap;}
-  .tp-baocao-warn{font-size:10px;color:#b45309;font-weight:700;margin-top:3px;max-width:100px;white-space:normal;line-height:1.3;}
-  .tp-baocao-huy{display:block;margin-top:3px;font-size:9px;padding:1px 6px;background:#fee2e2;color:#991b1b;border-radius:5px;border:none;cursor:pointer;white-space:nowrap;}
-  .tp-baocao-huy:hover{background:#fecaca;}
-  .tp-cell-stale{background:#fef3c7 !important;border:2px solid #f59e0b !important;}
-  .dd-cell-locked{background:#e5e7eb !important;}
-  .dd-cell-locked input{background:#e5e7eb !important;color:#6b7280 !important;cursor:not-allowed !important;}
+  /* ⚠️ ĐÃ GỠ 26/08/2026 (anh Rise: "hai nút báo cáo t3 t7 bỏ luôn đi, gỡ luôn
+     cả cơ chế khóa ô xám"): các lớp .tp-baocao-*, .tp-cell-stale và
+     .dd-cell-locked. Việc báo cáo nay nằm ở tab con 📋 Báo cáo, và KHÔNG còn
+     cơ chế khoá ô nào cả — báo cáo rồi vẫn sửa số bình thường.
+     Gỡ khoá ô cũng xoá luôn cả một LOẠI lỗi: B7 (bảng Điểm danh kẹt xám sau
+     khi Hủy báo cáo) và việc treo #13 của Đ Uyên đều là do cơ chế này. */
+  .bc-nhac{margin:0 0 10px;padding:10px 12px;border-radius:8px;font-size:13px;line-height:1.6;}
+  .bc-nhac a{cursor:pointer;text-decoration:underline;font-weight:600;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -753,6 +748,11 @@
             </div>
           </div>
           <p id="tpPastNotice" style="font-size:12px;color:#dc2626;margin:0 0 10px;display:none;">⚠️ Đang xem tháng đã qua — chỉ xem được, không thể sửa số liệu TP của tháng cũ.</p>
+          <!-- ⚠️ KHỐI NÀY BẮT BUỘC PHẢI CÓ. Hai nút "Báo cáo T3 / T7" từng nằm
+               ngay trong bảng dưới đây; gỡ đi mà không để lại gì thì người quen
+               tay sẽ tưởng web hỏng và đi tìm khắp nơi. Khối này nói rõ việc
+               báo cáo đã chuyển đi đâu và bấm được từ đây. -->
+          <div id="tpNhacBaoCao" class="bc-nhac" style="display:none;"></div>
           <div class="chart-split">
             <div>
               <div class="chart-split-title" style="color:#2563eb;">≥1 lần</div>
@@ -2745,11 +2745,9 @@ function autoFillTPFromGoiY_(monthKey, kv, row, map, past){
         data.weeks[i] = suggest;
         window._tpAutoTrack_[trackKey] = suggest;
         changed = true;
-        markTPBaoCaoStale_(i + 1);
         (function(wk){
-          google.script.run.withSuccessHandler(function(resp){
-            applyTPBaoCaoEditedState_(wk, !!(resp && resp.edited));
-          }).withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, wk, suggest);
+          google.script.run.withSuccessHandler(function(){})
+            .withFailureHandler(function(){}).saveTPWeek(monthKey, kv, metric, wk, suggest);
         })(i + 1);
       } else if (cur === suggest && hasData) {
         window._tpAutoTrack_[trackKey] = cur;
@@ -2827,212 +2825,83 @@ function tpMetricRowHtml_(metricKey, label, data, past, goiyWeeks, goiyHasData){
 function renderTPEditTable_(row, past){
   const el = document.getElementById('tpEditTable');
   const goiy = (window._ddTPGoiY && selectedKV && window._ddTPGoiY[selectedKV]) || null;
-  const baoCao = row.baoCao || [1, 2, 3, 4, 5].map(function(){ return { label: '', edited: false }; });
+  // ⚠️ ĐÃ GỠ hàng "Báo cáo" (2 nút T3/T7) ngày 26/08/2026 — việc báo cáo nay
+  // nằm ở tab con 📋 Báo cáo, nơi người bấm NHÌN THẤY luôn mình còn thiếu
+  // hạng mục nào. Đó chính là điểm yếu của hai nút cũ: bấm mà không thấy gì.
   el.innerHTML = '<thead><tr><th></th><th>T1</th><th>T2</th><th>T3</th><th>T4</th><th>T5</th><th>Tổng</th></tr></thead><tbody>' +
     tpMetricRowHtml_('1lan', '≥1 lần', row.oneLan, past, goiy ? goiy.weeks1 : null, goiy ? goiy.hasData : null) +
     tpMetricRowHtml_('4lan', '≥4 lần', row.fourLan, past, goiy ? goiy.weeks4 : null, goiy ? goiy.hasData : null) +
-    tpBaoCaoRowHtml_(baoCao) +
   '</tbody>';
+  veNhacBaoCao_();
 }
 
-// Hàng "Báo cáo": mỗi Tuần 1 nút riêng — bấm để đánh dấu đã báo cáo xong số
-// liệu TP tuần đó, hiện luôn ngày giờ vừa bấm ngay dưới nút. Bấm lại được
-// (ghi đè thời điểm mới) nếu cần báo cáo lại sau khi sửa số liệu.
-function tpBaoCaoRowHtml_(baoCao){
-  const groups = ['T3', 'T7'];
-  const isChu = isChuTaiKhoan_();
-  const cells = [1, 2, 3, 4, 5].map(function(w){
-    const item = baoCao[w - 1] || { T3: { label: '', edited: false }, T7: { label: '', edited: false } };
-    const groupsHtml = groups.map(function(gKey){
-      const sub = item[gKey] || { label: '', edited: false };
-      const ts = sub.label || '';
-      const edited = !!sub.edited;
-      const label = (ts ? 'Báo cáo lại ' : 'Báo cáo ') + gKey;
-      const btnClass = 'tp-baocao-btn' + (ts ? ' reported' : '') + (edited ? ' stale' : '');
-      const warnHtml = edited ? '<div class="tp-baocao-warn" id="tpBaoCaoWarn_' + gKey + '_' + w + '">⚠️ Đã sửa sau báo cáo</div>' : '';
-      // Chỉ tài khoản chủ nhìn thấy nút này, và chỉ khi mục đó ĐÃ báo cáo —
-      // dùng khi báo cáo nhầm/sai số liệu, để quay lại "Chưa báo cáo" và báo
-      // cáo lại từ đầu (16/08/2026, theo yêu cầu anh Rise).
-      const huyHtml = (ts && isChu)
-        ? '<button type="button" class="tp-baocao-huy" id="tpBaoCaoHuy_' + gKey + '_' + w + '" data-week="' + w + '" data-nhom="' + gKey + '" onclick="huyTPBaoCaoClick(this)" title="Chỉ tài khoản chủ nhìn thấy nút này">Hủy báo cáo</button>'
-        : '';
-      return '<div class="tp-baocao-group">' +
-        '<button type="button" class="' + btnClass + '" id="tpBaoCaoBtn_' + gKey + '_' + w + '" data-week="' + w + '" data-nhom="' + gKey + '" onclick="saveTPBaoCaoClick(this)">' + label + '</button>' +
-        '<div class="tp-baocao-ts" id="tpBaoCaoTs_' + gKey + '_' + w + '">' + esc(ts) + '</div>' +
-        warnHtml +
-        huyHtml +
-      '</div>';
-    }).join('');
-    return '<td class="tp-baocao-cell">' + groupsHtml + '</td>';
-  }).join('');
-  return '<tr><td>Báo cáo</td>' + cells + '<td></td></tr>';
-}
-
-// Đánh dấu ngay trên trình duyệt (không cần tải lại trang) rằng Tuần này đã
-// bị sửa số liệu ≥1/≥4 lần SAU khi đã bấm "Báo cáo" — hiện cảnh báo màu vàng
-// cạnh nút, để Trưởng phòng biết cần "Báo cáo lại" nếu số liệu đã đổi.
-function markTPBaoCaoStale_(week, metricToHighlight){
-  if (!window._tpCurrentData) return;
-  const arr = window._tpCurrentData.baoCao;
-  if (!arr) return;
-  const item = arr[week - 1];
-  if (!item) return;
-  ['T3', 'T7'].forEach(function(nhom){
-    const sub = item[nhom];
-    if (!sub || !sub.label) return;
-    if (nhom === 'T3' && item.T7 && item.T7.label) return;
-    sub.edited = true;
-    const btn = document.getElementById('tpBaoCaoBtn_' + nhom + '_' + week);
-    if (btn) btn.classList.add('stale');
-    const cell = btn && btn.closest('.tp-baocao-group');
-    if (cell && !document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week)) {
-      const warn = document.createElement('div');
-      warn.className = 'tp-baocao-warn';
-      warn.id = 'tpBaoCaoWarn_' + nhom + '_' + week;
-      warn.textContent = '⚠️ Đã sửa sau báo cáo';
-      cell.appendChild(warn);
-    }
-  });
-  if (metricToHighlight) {
-    const inp = document.getElementById('tpCellInput_' + metricToHighlight + '_' + week);
-    if (inp) inp.classList.add('tp-cell-stale');
+// ---------------------------------------------------------------------
+// Khối nhắc thay cho hai nút "Báo cáo T3/T7" đã gỡ.
+// Ba trạng thái, đúng như đã chốt 26/08/2026 (kế hoạch mục 12.6):
+//   chưa báo cáo -> nền vàng + còn thiếu mấy hạng mục + link sang tab
+//   đã báo cáo   -> nền xanh + giờ báo cáo
+//   không có quyền -> nền xám, ghi rõ ai bấm được
+// ---------------------------------------------------------------------
+function veNhacBaoCao_(){
+  const box = document.getElementById('tpNhacBaoCao');
+  if (!box) return;
+  box.style.display = '';
+  if (!coPhamVi_()) {
+    box.style.background = '#f1f5f9';
+    box.style.color = '#475569';
+    box.innerHTML = '📋 Việc <b>Báo cáo tuần</b> nay nằm ở tab con <b>📋 Báo cáo</b>. '
+      + 'Chỉ <b>khu vực trưởng của khu vực đó, địa vực trưởng hoặc Admin</b> mới bấm được.';
+    return;
   }
+  box.style.background = '#f1f5f9';
+  box.style.color = '#475569';
+  box.innerHTML = '📋 Đang xem tình hình báo cáo…';
+  const kv = selectedKV;
+  google.script.run.withSuccessHandler(function(d){
+    if (selectedKV !== kv) return; // người dùng đã đổi khu vực trong lúc chờ
+    veNhacBaoCaoXong_(box, d);
+  }).withFailureHandler(function(err){
+    box.style.background = '#f1f5f9';
+    box.style.color = '#475569';
+    box.innerHTML = '📋 Việc báo cáo tuần nay nằm ở tab con <b>📋 Báo cáo</b>. ' + esc(err.message);
+  }).getBaoCaoTuan(kvMonthKey(), kv);
 }
 
-// Dùng kết quả trả về từ backend (saveTPWeek trả edited=true/false) để đồng bộ
-// ngay UI mà KHÔNG cần tải lại trang: nếu số liệu đã quay về đúng như lúc
-// Báo cáo thì tự bỏ vàng + bỏ cảnh báo; nếu vẫn khác thì giữ nguyên cảnh báo.
-function applyTPBaoCaoEditedState_(week, edited) {
-  if (!window._tpCurrentData || !window._tpCurrentData.baoCao) return;
-  const item = window._tpCurrentData.baoCao[week - 1];
-  if (!item || !item.label) return;
-  item.edited = edited;
-  const btn = document.getElementById('tpBaoCaoBtn_' + week);
-  const warn = document.getElementById('tpBaoCaoWarn_' + week);
-  if (edited) {
-    if (btn) {
-      btn.classList.add('stale');
-      const cell = btn.closest('.tp-baocao-cell');
-      if (cell && !warn) {
-        const w = document.createElement('div');
-        w.className = 'tp-baocao-warn';
-        w.id = 'tpBaoCaoWarn_' + week;
-        w.textContent = '⚠️ Đã sửa sau báo cáo';
-        cell.appendChild(w);
-      }
-    }
-  } else {
-    if (btn) btn.classList.remove('stale');
-    if (warn) warn.remove();
-    ['1lan', '4lan'].forEach(function(m) {
-      const inp = document.getElementById('tpCellInput_' + m + '_' + week);
-      if (inp) inp.classList.remove('tp-cell-stale');
-    });
+function veNhacBaoCaoXong_(box, d){
+  // Tuần cần nhắc = tuần ĐANG DIỄN RA; nếu tháng đã qua thì lấy tuần cuối.
+  let w = null;
+  for (let i = 0; i < d.tuan.length; i++) if (d.tuan[i].thoiDiem === 'dang_dien') w = d.tuan[i];
+  if (!w) {
+    for (let i = 0; i < d.tuan.length; i++) if (d.tuan[i].thoiDiem === 'da_qua') w = d.tuan[i];
   }
+  if (!w) w = d.tuan[0];
+  const link = ' <a onclick="selectKVSubTab(\'baocao\')">→ Mở tab 📋 Báo cáo</a>';
+  if (w.baoCao && w.baoCao.daBaoCao) {
+    box.style.background = '#f0fdf4';
+    box.style.color = '#166534';
+    box.innerHTML = '✅ <b>Đã báo cáo Tuần ' + w.tuan + '</b> (' + esc(w.nhan) + ') · '
+      + esc(d.khuVuc) + ' · ' + esc(w.baoCao.nhan)
+      + (w.baoCao.daSuaSau ? ' <span style="color:#b45309;">🔁 số đã đổi sau khi báo cáo</span>' : '')
+      + link;
+    return;
+  }
+  const conThieu = w.soTre + w.soChua;
+  box.style.background = '#fffbeb';
+  box.style.color = '#92400e';
+  box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa báo cáo</b> · ' + esc(d.khuVuc)
+    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa nhập đủ.' : ' — đã nhập đủ mọi hạng mục.')
+    + link;
 }
 
-// Bấm nút "Báo cáo" của 1 Tuần: gọi lưu mốc thời gian xuống Sheet, xong thì
-// hiện ngay ngày giờ vừa báo cáo dưới nút + đổi nhãn nút thành "Báo cáo lại".
-function saveTPBaoCaoClick(btnEl){
-  const monthKey = kvMonthKey();
-  const week = btnEl.dataset.week;
-  const nhom = btnEl.dataset.nhom;
-  const kv = selectedKV;
-  const nhomLabel = nhom === 'T3' ? 'Thứ 3' : 'Thứ 7';
-  btnEl.disabled = true;
-  google.script.run.withSuccessHandler(function(res){
-    btnEl.disabled = false;
-    btnEl.textContent = 'Báo cáo lại ' + nhom;
-    btnEl.classList.add('reported');
-    btnEl.classList.remove('stale');
-    const tsEl = document.getElementById('tpBaoCaoTs_' + nhom + '_' + week);
-    if (tsEl) tsEl.textContent = res.thoiGian;
-    const warnEl = document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week);
-    if (warnEl) warnEl.remove();
-    // Vừa báo cáo xong -> nếu là tài khoản chủ, hiện luôn nút "Hủy báo cáo"
-    // (không cần đợi tải lại trang mới thấy).
-    if (isChuTaiKhoan_() && !document.getElementById('tpBaoCaoHuy_' + nhom + '_' + week)) {
-      const grp = btnEl.closest('.tp-baocao-group');
-      if (grp) {
-        const huyBtn = document.createElement('button');
-        huyBtn.type = 'button';
-        huyBtn.className = 'tp-baocao-huy';
-        huyBtn.id = 'tpBaoCaoHuy_' + nhom + '_' + week;
-        huyBtn.dataset.week = week;
-        huyBtn.dataset.nhom = nhom;
-        huyBtn.title = 'Chỉ tài khoản chủ nhìn thấy nút này';
-        huyBtn.textContent = 'Hủy báo cáo';
-        huyBtn.onclick = function(){ huyTPBaoCaoClick(huyBtn); };
-        grp.appendChild(huyBtn);
-      }
-    }
-    ['1lan', '4lan'].forEach(function(mk){
-      const inp = document.getElementById('tpCellInput_' + mk + '_' + week);
-      if (inp) inp.classList.remove('tp-cell-stale');
-    });
-    const buoiList = nhom === 'T3' ? ['T3toi'] : ['CNsang', 'CNchieu', 'CNtoi'];
-    buoiList.forEach(function(b){
-      document.querySelectorAll('#tpddTable input[data-tuan="' + week + '"][data-buoi="' + b + '"]').forEach(function(inp){
-        inp.classList.remove('tp-cell-stale');
-      });
-    });
-    if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv) {
-      window._tpCurrentData.baoCao = window._tpCurrentData.baoCao || [1, 2, 3, 4, 5].map(function(){ return { T3: { label: '', edited: false }, T7: { label: '', edited: false } }; });
-      window._tpCurrentData.baoCao[week - 1] = window._tpCurrentData.baoCao[week - 1] || { T3: { label: '', edited: false }, T7: { label: '', edited: false } };
-      window._tpCurrentData.baoCao[week - 1][nhom] = { label: res.thoiGian, edited: false };
-      renderTPDDTable_();
-      if (nhom === 'T7') {
-        const t3Btn = document.getElementById('tpBaoCaoBtn_T3_' + week);
-        if (t3Btn) t3Btn.classList.remove('stale');
-        const t3Warn = document.getElementById('tpBaoCaoWarn_T3_' + week);
-        if (t3Warn) t3Warn.remove();
-        if (window._tpCurrentData.baoCao[week - 1].T3) window._tpCurrentData.baoCao[week - 1].T3.edited = false;
-        document.querySelectorAll('#tpddTable input[data-tuan="' + week + '"][data-buoi="T3toi"]').forEach(function(inp){
-          inp.classList.remove('tp-cell-stale');
-        });
-      }
-    }
-    showMsg('Đã báo cáo ' + nhomLabel + ' Tuần ' + week + ' — ' + res.thoiGian, true);
-  }).withFailureHandler(function(err){
-    btnEl.disabled = false;
-    showMsg('Lỗi báo cáo: ' + err.message, false);
-  }).saveTPBaoCao(monthKey, kv, week, nhom);
-}
-
-// Chỉ tài khoản chủ nhìn thấy nút này: hủy hẳn trạng thái "đã báo cáo" của
-// một nhóm buổi, quay về "Chưa báo cáo" để báo cáo lại từ đầu — dùng khi bấm
-// nhầm hoặc số liệu báo cáo bị sai (16/08/2026, theo yêu cầu anh Rise). Số
-// liệu ≥1/≥4 lần đã nhập trong bảng KHÔNG bị đụng tới, chỉ có mốc báo cáo bị
-// xóa.
-function huyTPBaoCaoClick(btnEl){
-  const monthKey = kvMonthKey();
-  const week = btnEl.dataset.week;
-  const nhom = btnEl.dataset.nhom;
-  const kv = selectedKV;
-  const nhomLabel = nhom === 'T3' ? 'Thứ 3' : 'Thứ 7';
-  if (!confirm('Hủy báo cáo ' + nhomLabel + ' Tuần ' + week + '?\nSau khi hủy, mục này quay lại "Chưa báo cáo" và có thể báo cáo lại từ đầu.')) return;
-  btnEl.disabled = true;
-  google.script.run.withSuccessHandler(function(){
-    const mainBtn = document.getElementById('tpBaoCaoBtn_' + nhom + '_' + week);
-    if (mainBtn) {
-      mainBtn.textContent = 'Báo cáo ' + nhom;
-      mainBtn.classList.remove('reported', 'stale');
-    }
-    const tsEl = document.getElementById('tpBaoCaoTs_' + nhom + '_' + week);
-    if (tsEl) tsEl.textContent = '';
-    const warnEl = document.getElementById('tpBaoCaoWarn_' + nhom + '_' + week);
-    if (warnEl) warnEl.remove();
-    btnEl.remove();
-    if (window._tpCurrentData && window._tpCurrentData.khuVuc === kv && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[week - 1]) {
-      window._tpCurrentData.baoCao[week - 1][nhom] = { label: '', edited: false };
-    }
-    renderTPDDTable_(); // mở khoá lại các ô Điểm danh của nhóm này cho nhân viên khác
-    showMsg('Đã hủy báo cáo ' + nhomLabel + ' Tuần ' + week + '.', true);
-  }).withFailureHandler(function(err){
-    btnEl.disabled = false;
-    showMsg('Lỗi hủy báo cáo: ' + err.message, false);
-  }).huyTPBaoCao(monthKey, kv, week, nhom);
-}
+// ⚠️ ĐÃ GỠ 26/08/2026 — bốn hàm chỉ phục vụ hai nút "Báo cáo T3/T7" cũ:
+//     tpBaoCaoRowHtml_ · markTPBaoCaoStale_ · applyTPBaoCaoEditedState_ ·
+//     saveTPBaoCaoClick · huyTPBaoCaoClick
+// Việc báo cáo nay ở tab con 📋 Báo cáo (xem loadBaoCaoPanel bên trên), và
+// KHÔNG còn cơ chế "bôi vàng ô đã sửa sau báo cáo" ở đây nữa — dấu 🔁 tương
+// đương nằm trong chính bảng kiểm của tab đó.
+// 📌 Hai hàm máy chủ `saveTPBaoCao` / `huyTPBaoCao` và bảng `tp_bao_cao` VẪN
+// CÒN (giữ 4 dòng lịch sử thật), nhưng từ nay KHÔNG còn màn hình nào gọi tới.
+// Muốn dọn hẳn thì phải sửa cả kiem-thu.mjs — để dành một đợt riêng.
 
 // Số TP là số LŨY KẾ trong tháng — Tuần nào chưa ai gõ tay thì phải HIỆN
 // đúng mức cao nhất đã ghi nhận từ Tuần trước đó, không được tụt xuống 0.
@@ -3083,15 +2952,15 @@ function saveTPCell(inputEl){
       for (let i = 0; i < 5; i++) {
         const cellInput = document.getElementById('tpCellInput_' + metric + '_' + (i + 1));
         if (cellInput) cellInput.value = hienThiMoi[i];
-        if (hienThiMoi[i] !== hienThiCu[i]) markTPBaoCaoStale_(i + 1, metric);
       }
     }
   }
   recomputeTPMetricTotal_(metric);
   renderTPChart_(window._tpCurrentData);
 
-  google.script.run.withSuccessHandler(function(resp){
-    applyTPBaoCaoEditedState_(week, !!(resp && resp.edited));
+  google.script.run.withSuccessHandler(function(){
+    // Sửa số xong thì cập nhật luôn khối nhắc ở đầu tab (có thể vừa đủ hạng mục).
+    veNhacBaoCao_();
   }).withFailureHandler(function(err){
     showMsg('Lỗi lưu TP: ' + err.message + ' — đang tải lại để đồng bộ.', false);
     loadTPPanel();
@@ -3689,19 +3558,17 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
     const parity = tuan % 2 === 0 ? ' dd-week-even' : ' dd-week-odd';
     buoiList.forEach(function(b, i){
       const val = (m.diemDanh[tuan] && m.diemDanh[tuan][b]) || '';
-      const nhomBuoiLock_ = (b === 'T3toi') ? 'T3' : 'T7';
-      // Chỉ tin dữ liệu báo cáo (_tpCurrentData) khi nó thật sự thuộc ĐÚNG Khu
-      // vực đang vẽ (nhom) — _tpCurrentData là biến DÙNG CHUNG cho cả trang,
-      // có thể vẫn còn giữ dữ liệu của Khu vực XEM TRƯỚC ĐÓ trong lúc đang
-      // chờ getTPSummary của Khu vực mới về. Không kiểm tra khớp Khu vực thì
-      // có thể khoá nhầm ô Điểm danh của Khu vực này theo trạng thái báo cáo
-      // của Khu vực khác.
-      const tpDataKhopKV_ = window._tpCurrentData && window._tpCurrentData.khuVuc === nhom;
-      const bcWeek_ = tpDataKhopKV_ && window._tpCurrentData.baoCao && window._tpCurrentData.baoCao[tuan - 1];
-      const isLocked_ = !!(bcWeek_ && bcWeek_[nhomBuoiLock_] && bcWeek_[nhomBuoiLock_].label) && !isChuTaiKhoan_();
-      cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + (isLocked_ ? ' dd-cell-locked' : '') + '"><input type="text" value="' + esc(val) +
+      // ⚠️⚠️ ĐÃ GỠ HẲN CƠ CHẾ KHOÁ Ô XÁM — 26/08/2026, anh Rise: "gỡ luôn cả
+      // cơ chế khóa ô xám". Trước đây tuần nào đã bấm "Báo cáo T3/T7" thì mọi
+      // ô Điểm danh của nhóm buổi đó bị `disabled` với người không phải Admin.
+      // Cơ chế này CHÍNH LÀ nguyên nhân của lỗi B7 (bảng kẹt xám sau khi Hủy
+      // báo cáo) và việc treo #13 ("bị tối ô nhập Tuần 3" của Đ Uyên) — gỡ nó
+      // là xoá luôn cả một LOẠI lỗi, không phải sửa từng lần.
+      // 📌 Từ nay: báo cáo rồi VẪN SỬA ĐƯỢC. Nếu số đổi sau khi báo cáo, tab
+      // 📋 Báo cáo gắn dấu 🔁 để Trưởng phòng biết — nhắc chứ không chặn.
+      cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
-        '"' + (isLocked_ ? ' disabled title="Đã báo cáo — chỉ tài khoản chủ mới được sửa."' : '') + ' onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
+        '" onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
     });
   });
   const tenSafe = esc(m.ten).replace(/'/g, "\\'");
@@ -3784,21 +3651,8 @@ function saveTPDDCell(inputEl){
     }
   }
 
-  // Nếu Tuần này đã "Báo cáo" rồi thì bôi vàng ngay chính ô Điểm danh vừa sửa
-  // (không phải ô ≥1/≥4 lần phía trên, vì đó chỉ là số tự tính ra) — để Trưởng
-  // phòng thấy đúng ô nào vừa gõ lại sau khi đã báo cáo.
-  if (nhom === selectedKV && window._tpCurrentData && window._tpCurrentData.baoCao) {
-    const bcItem = window._tpCurrentData.baoCao[Number(tuan) - 1];
-    const buoiNhom = (buoi === 'T3toi') ? 'T3' : 'T7';
-    const bcSub = bcItem && bcItem[buoiNhom];
-    const supersededT3 = buoiNhom === 'T3' && bcItem && bcItem.T7 && bcItem.T7.label;
-    if (bcSub && bcSub.label && !supersededT3) {
-      if (giaTri.trim()) inputEl.classList.add('tp-cell-stale');
-      else inputEl.classList.remove('tp-cell-stale');
-    } else {
-      inputEl.classList.remove('tp-cell-stale');
-    }
-  }
+  // ⚠️ ĐÃ GỠ 26/08/2026: khối "bôi vàng ô Điểm danh đã sửa sau khi báo cáo".
+  // Dấu hiệu tương đương nay là 🔁 trong tab 📋 Báo cáo — một chỗ, dễ hiểu hơn.
 
   google.script.run.withSuccessHandler(function(){
     refreshTPAutoFillAfterDD_(monthKey, nhom);
