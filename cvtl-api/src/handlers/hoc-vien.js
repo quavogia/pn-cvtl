@@ -485,11 +485,18 @@ export async function deleteStudent({ db }, row) {
  */
 export async function getStats({ db }) {
   const dsKV = await layDanhSachKhuVuc(db);
+  // ⚠️ SỬA 26/08/2026 — thêm điều kiện `tien_do <> ''`.
+  // Trước đây học viên CHƯA CHỌN TIẾN ĐỘ vẫn bị đếm là "đang nghe" ở đây,
+  // trong khi laDangNghe() (dùng cho xếp hạng người dẫn dắt) thì KHÔNG đếm.
+  // Cùng một chữ "đang nghe" mà hai nơi hiểu khác nhau — đúng loại lỗi đã làm
+  // hỏng chữ "Tuần" hồi sáng cùng ngày. Nay cả 3 nơi dùng CHUNG một luật:
+  //     có tiến độ  ·  khác "Tạm nghỉ"  ·  chưa Báp-têm
   const rows = await db.all(
     `SELECT khu_vuc, COUNT(*) AS so_luong
        FROM hoc_vien
       WHERE TRIM(COALESCE(ten, '')) <> ''
         AND TRIM(COALESCE(khu_vuc, '')) <> ''
+        AND TRIM(COALESCE(tien_do, '')) <> ''
         AND TRIM(COALESCE(tien_do, '')) <> ?
         AND TRIM(COALESCE(tien_do, '')) <> ?
       GROUP BY khu_vuc`,
