@@ -11,6 +11,8 @@
 // (bản cũ dùng chữ ký tự sinh, không thu hồi được trước hạn).
 // =====================================================================
 
+import { VI_TRI_KHU_VUC } from './nhat-ky.js';
+
 const GOOGLE_JWKS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
 const PHIEN_HAN_MS = 30 * 24 * 60 * 60 * 1000; // 30 ngày
 
@@ -190,4 +192,58 @@ export function duocXemKhuVuc(nguoiGoi, khuVuc) {
   const k = String(khuVuc == null ? '' : khuVuc).trim();
   if (!k) return false;
   return tachPhamVi(nguoiGoi && nguoiGoi.phamVi).includes(k);
+}
+
+// =====================================================================
+// CHẶN THEO KHU VỰC Ở TẦNG ROUTER  (bước 4 — thêm 26/08/2026)
+//
+// ⭐ Vì sao làm ở ROUTER chứ không sửa 29 hàm: bảng `VI_TRI_KHU_VUC` (làm ở
+// đợt 1, trong src/nhat-ky.js) đã khai sẵn "khuVuc là tham số thứ mấy" của
+// từng hàm. Router biết tên hàm + danh sách tham số, nên rút ra được khu vực
+// mà KHÔNG phải đụng vào một dòng nào của các hàm nghiệp vụ.
+// → Sửa 1 chỗ thay vì 29 chỗ, và không có chuyện "sót một hàm".
+//
+// ⚠️ Hệ quả: bảng VI_TRI_KHU_VUC nay KHÔNG CÒN chỉ dùng cho nhật ký nữa —
+// nó là LUẬT PHÂN QUYỀN. Khai sai một vị trí = chặn nhầm người. Bộ kiểm thử
+// kiem-thu-nhat-ky.mjs phần 6 đối chiếu bảng này với chữ ký hàm thật.
+// =====================================================================
+
+/**
+ * Hàm có tham số khuVuc nhưng CỐ Ý KHÔNG chặn.
+ * `getXepHang` nằm trong nhóm CÔNG KHAI — anh Rise chốt 25/08/2026:
+ * "xếp hạng vẫn công khai toàn Si-ôn" (xếp hạng là để khích lệ nhau).
+ */
+export const MIEN_CHAN_KHU_VUC = ['getXepHang'];
+
+/**
+ * Lời gọi này có vi phạm phạm vi khu vực không?
+ * Trả về:
+ *   ''            -> không vi phạm, cho qua
+ *   '<tên khu vực>' -> gọi vào khu vực NGOÀI phạm vi
+ *   '(trống)'     -> hàm có tham số khuVuc nhưng gọi với giá trị rỗng, tức
+ *                    đang hỏi TẤT CẢ khu vực. Đây là lỗ hổng còn lại, phải
+ *                    xử bằng cách LỌC kết quả (bước 4b) chứ chặn thẳng thì
+ *                    hỏng việc. Ghi vào nhật ký bóng tối để biết nó có thật
+ *                    sự xảy ra không, và xảy ra ở hàm nào.
+ */
+export function khuVucBiChan(fn, args, nguoiGoi) {
+  if (!nguoiGoi || nguoiGoi.laChu) return '';
+  if (MIEN_CHAN_KHU_VUC.indexOf(fn) >= 0) return '';
+  const i = VI_TRI_KHU_VUC[fn];
+  if (i === undefined) return '';
+  const v = (args || [])[i];
+  const k = typeof v === 'string' ? v.trim() : '';
+  if (!k) return '(trống)';
+  return duocXemKhuVuc(nguoiGoi, k) ? '' : k;
+}
+
+/** Câu báo lỗi cho người dùng — phải dễ hiểu, KHÔNG dùng từ kỹ thuật. */
+export function loiNgoaiPhamVi(khuVuc, nguoiGoi) {
+  const cua = tachPhamVi(nguoiGoi && nguoiGoi.phamVi);
+  if (!cua.length) {
+    return 'Tài khoản của bạn chưa được gán khu vực phụ trách. '
+      + 'Xin báo Trưởng phòng vào mục "Duyệt truy cập" để gán giúp.';
+  }
+  return 'Bạn không phụ trách khu vực "' + khuVuc + '". '
+    + 'Bạn đang phụ trách: ' + cua.join(', ') + '.';
 }
