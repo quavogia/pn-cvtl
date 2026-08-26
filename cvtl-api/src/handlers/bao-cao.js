@@ -274,6 +274,16 @@ async function leHoiCuaThang(db, thang) {
   };
 }
 
+/**
+ * Tên hiển thị của một hạng mục.
+ * Riêng Lễ hội thì ghi kèm tên lễ hội đang diễn ra — nhưng CHỈ khi tên đó
+ * khác nhãn sẵn có, nếu không sẽ thành "Lễ hội Lời (Lễ hội Lời)".
+ */
+function tenHangMuc(h, leHoi) {
+  if (h.ma !== 'le_hoi' || !leHoi || !leHoi.ten) return h.ten;
+  return leHoi.ten === h.ten ? h.ten : h.ten + ' (' + leHoi.ten + ')';
+}
+
 // ---------------------------------------------------------------------
 // CHẤM MỘT Ô — trái tim của bảng kiểm
 // ---------------------------------------------------------------------
@@ -336,7 +346,7 @@ function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao) {
       const coDuLieu = goi.co[h.ma].has(khuVuc + '|' + t.tuan);
       return {
         ma: h.ma,
-        ten: h.ma === 'le_hoi' && leHoi ? h.ten + ' (' + leHoi.ten + ')' : h.ten,
+        ten: tenHangMuc(h, leHoi),
         nhom: h.nhom,
         coDuLieu,
         trangThai: chamMotO(h.ma, t, {
@@ -508,7 +518,7 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
     leHoi,
     hangMuc: HANG_MUC.map((h) => ({
       ma: h.ma,
-      ten: h.ma === 'le_hoi' && leHoi ? h.ten + ' (' + leHoi.ten + ')' : h.ten,
+      ten: tenHangMuc(h, leHoi),
     })),
     soTuan: cacTuanCuaThang(th).length,
     dong,
