@@ -249,6 +249,80 @@ console.log('\n3) getStats — bảng "Đang nghe"');
 }
 
 // =====================================================================
+// 3b) ⭐⭐ "ĐANG NGHE" CHỈ ĐƯỢC CÓ MỘT ĐỊNH NGHĨA (sửa 26/08/2026)
+//
+// Chữ "đang nghe" từng được hiểu theo BA kiểu khác nhau trong web:
+//   getStats (bảng theo khu vực) · laDangNghe (xếp hạng người dẫn dắt) ·
+//   isDangNghe (đếm ở trình duyệt, trong index.html)
+// Khác nhau đúng ở chỗ: học viên CHƯA CHỌN TIẾN ĐỘ (ô trống) — hai nơi đếm,
+// một nơi không. Hôm nay cả ba đều ra 0 vì bảng hoc_vien chỉ có 3 dòng, nên
+// KHÔNG AI THẤY. Đây y hệt vụ chữ "Tuần" sáng cùng ngày: mỗi bên tự nhất quán
+// với chính nó nên không bộ kiểm thử nào đỏ.
+//
+// Luật CHUNG từ nay: có tiến độ · khác "Tạm nghỉ" · chưa Báp-têm.
+// =====================================================================
+console.log('\n3b) ⭐ "Đang nghe" — một định nghĩa duy nhất');
+{
+  taoCSDL();
+  const them = (ten, to, tienDo) => goi('addStudent', [{ ten, ngay: '2026-08-10', to, tienDo }]);
+  await them('Có tiến độ', 'K My', 'B2');
+  // ⚠️ addStudent BẮT BUỘC chọn tiến độ, nên dòng "trống tiến độ" chỉ có thể là
+  // dữ liệu cũ kế thừa từ Google Sheets -> ghi thẳng vào bảng.
+  sqlite.prepare("INSERT INTO hoc_vien (ten, khu_vuc, tien_do) VALUES ('Trống tiến độ','K My','')").run();
+  sqlite.prepare("INSERT INTO hoc_vien (ten, khu_vuc, tien_do) VALUES ('Tiến độ NULL','K My',NULL)").run();
+
+  const ds = (await goi('getStats', [])).result || [];
+  const kmy = ds.find((x) => x.to === 'K My');
+  kiem('⚠️ học viên CHƯA CHỌN TIẾN ĐỘ KHÔNG được tính là "đang nghe"',
+    kmy?.dangNghe === 1, JSON.stringify(kmy));
+
+  // Cùng bộ dữ liệu đó, bảng xếp hạng người dẫn dắt phải hiểu Y HỆT.
+  const src = readFileSync(join(goc, 'src/handlers/hoc-vien.js'), 'utf8');
+  kiem('máy chủ có đúng MỘT hàm laDangNghe',
+    (src.match(/function laDangNghe\s*\(/g) || []).length === 1);
+  kiem('laDangNghe đòi PHẢI CÓ tiến độ (vế !!s)',
+    /function laDangNghe[\s\S]{0,200}?return\s*!!s\s*&&/.test(src));
+  kiem('getStats CŨNG đòi phải có tiến độ',
+    /getStats[\s\S]{0,900}?TRIM\(COALESCE\(tien_do, ''\)\) <> ''/.test(src));
+
+  // ⚠️ Giao diện có bản sao riêng tên isDangNghe — phải khớp từng vế.
+  const ui = readFileSync(join(goc, '..', 'index.html'), 'utf8');
+  const m = ui.match(/function isDangNghe\(tienDo\)\{[\s\S]*?\n\}/);
+  kiem('index.html có hàm isDangNghe', !!m);
+  kiem('⚠️ isDangNghe CŨNG đòi phải có tiến độ (nếu không, Tổng quan đếm nhiều hơn máy chủ)',
+    !!m && /return\s*!!s\s*&&/.test(m[0]), m && m[0]);
+  kiem('isDangNghe loại "Tạm nghỉ" và "BT"',
+    !!m && /'Tạm nghỉ'/.test(m[0]) && /'BT'/.test(m[0]));
+
+  // Khác biệt CÒN LẠI là hợp lý, KHÔNG ép cho bằng nhau: getStats bỏ người
+  // chưa có khu vực (bảng chia theo khu vực thì biết xếp vào đâu), còn ô
+  // "Đang nghe" ở Tổng quan vẫn đếm họ. Giao diện phải NÓI RA chỗ lệch đó.
+  kiem('⚠️ Tổng quan có dòng nhắc khi còn học viên chưa có Khu vực',
+    /veNhacChuaCoKhuVuc_/.test(ui) && /ovChuaCoKhuVuc/.test(ui));
+}
+
+// =====================================================================
+// 3c) ⭐ EDU LMS chỉ được tính ở MỘT chỗ
+//
+// 26/08/2026 em từng ghi vào kế hoạch rằng "EDU LMS tính bằng hai đường" —
+// ĐỌC KỸ LẠI THÌ SAI: cả getMonthlySummaryOverall lẫn getKVTongSummary đều
+// gọi CHUNG tomTatEduLms(). Ca kiểm dưới đây giữ cho nó mãi như vậy.
+// =====================================================================
+console.log('\n3c) ⭐ EDU LMS chỉ tính ở MỘT chỗ');
+{
+  const src = readFileSync(join(goc, 'src/handlers/hoc-vien.js'), 'utf8');
+  kiem('chỉ có ĐÚNG MỘT hàm tomTatEduLms',
+    (src.match(/function tomTatEduLms\s*\(/g) || []).length === 1);
+  kiem('getMonthlySummaryOverall gọi lại tomTatEduLms',
+    /getMonthlySummaryOverall[\s\S]{0,400}?tomTatEduLms\(/.test(src));
+  kiem('getKVTongSummary CŨNG gọi lại tomTatEduLms (không tự tính riêng)',
+    /getKVTongSummary[\s\S]{0,600}?tomTatEduLms\(/.test(src));
+  const soLanGoi = (src.match(/hangEduLms\(/g) || []).length;
+  kiem('⚠️ chỉ có ĐÚNG MỘT chỗ đọc cột edu_lms để tính %',
+    soLanGoi <= 2, 'đang có ' + soLanGoi + ' lần gọi hangEduLms');
+}
+
+// =====================================================================
 // 4) getProgressBreakdown — đếm theo Tiến độ
 // =====================================================================
 console.log('\n4) getProgressBreakdown — đếm theo Tiến độ');
