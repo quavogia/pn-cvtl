@@ -1,0 +1,32 @@
+# ---------------------------------------------------------------------
+# Những thứ KHÔNG bao giờ được đưa lên kho (thêm 27/08/2026)
+#
+# Lý do có file này: chạy bộ kiểm thử giao diện phải `npm install playwright`,
+# lần nào cũng sinh ra thư mục node_modules 30 MB và làm mọi công cụ báo
+# "có file chưa đẩy". Đó là thư viện tải về, không phải mã của mình.
+#
+# ⚠️ CỐ Ý KHÔNG bỏ qua `cvtl-api/dist/` — đó là bản worker ĐÃ DỰNG và ĐANG
+# CHẠY THẬT trên Cloudflare, bắt buộc phải nằm trong kho.
+# ---------------------------------------------------------------------
+
+# Thư viện npm tải về — cài lại bằng `npm install` bất cứ lúc nào
+node_modules/
+
+# ---------------------------------------------------------------------
+# ⚠️⚠️ AN TOÀN: KHO NÀY LÀ KHO CÔNG KHAI (public)
+# Mã cài đặt (MA_CAI_DAT), khoá API, token... TUYỆT ĐỐI không được nằm trong
+# bất kỳ file nào của kho. Chúng phải là Secret trên Cloudflare Dashboard.
+# Mấy dòng dưới đây là LƯỚI AN TOÀN phòng khi lỡ tạo nhầm file bí mật ở máy.
+# ---------------------------------------------------------------------
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+
+# Trạng thái tạm của Wrangler khi chạy thử ở máy
+.wrangler/
+
+# Rác của hệ điều hành / trình soạn thảo
+.DS_Store
+Thumbs.db
+*.log
