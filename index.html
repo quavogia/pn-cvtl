@@ -635,13 +635,14 @@
           <div id="bc_noiDung" style="color:#94a3b8;">Đang tải…</div>
           <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
             <b>Cách đọc:</b>
-            <span title="đã có số liệu">✅ đã nhập</span> ·
+            <span title="trên web đã có số">✅ đã có số</span> ·
             <span title="chưa có số liệu nhưng chưa quá hạn">⏳ chưa tới hạn</span> ·
-            <span title="quá hạn hết tuần + 2 ngày mà vẫn chưa có số">⚠️ quá hạn chưa nhập</span> ·
+            <span title="quá hạn hết tuần + 2 ngày mà trên web vẫn chưa có số">⚠️ quá hạn chưa có số</span> ·
             <span title="tuần đó không có buổi / bảng nhập tay không có tuần này">— không áp dụng</span> ·
             <span title="hệ thống chưa có nhật ký từ thời điểm đó nên KHÔNG dám chấm thiếu">❓ chưa đủ dữ liệu</span>
             <br>Hạn báo cáo là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
             <br>👉 Ô <b>gạch chân</b> (⏳ ⚠️ ❓) <b>bấm được</b> — bấm là mở thẳng tab con để nhập, vẫn giữ nguyên khu vực và tháng đang xem.
+            <br>📌 Bảng này hỏi <b>&quot;đã chép số sang web chưa&quot;</b>, không phải &quot;đã làm việc chưa&quot;. Sổ gốc vẫn là <b>My Memo</b>.
           </div>
         </div>
       </div>
@@ -674,10 +675,16 @@
              (anh Rise chốt 26/08/2026, sau khi rà soát thấy trang 🤖 Trợ lý đã
              lo phần "bức tranh + phân tích"). Ở đây CỐ Ý chỉ có dấu tick,
              KHÔNG có con số — nhờ vậy mới cho cả phòng cùng xem được. -->
+        <!-- ---- 🏆 Thi đua truyền đạo (27/08/2026) ----
+             Thay cho lưới "Kỷ luật nhập liệu hằng tuần" 12 cột.
+             ⭐ Anh Rise chốt: "con số mà anh muốn show nhất để các khu vực thi
+             đua chỉ là con số truyền đạo thôi". Trước đó số này CHỈ có ở trang
+             🤖 Trợ lý — mà Trợ lý chỉ Admin thấy, nên khu vực trưởng không nhìn
+             được nhau, không thi đua được. Đặt ở đây thì ai có khu vực đều thấy. -->
         <div class="card" style="margin-top:16px;" id="bcLuoiCard">
-          <h3 style="margin:0 0 4px 0;">📋 Kỷ luật nhập liệu hằng tuần — <span id="bcLuoi_monthLabel"></span></h3>
+          <h3 style="margin:0 0 4px 0;">🏆 Thi đua truyền đạo — <span id="bcLuoi_monthLabel"></span></h3>
           <div style="color:#64748b;font-size:13px;margin-bottom:10px;">
-            Mỗi ô là một tuần: khu vực đó đã bấm <b>Báo cáo</b> chưa, và còn hạng mục nào quá hạn chưa nhập.
+            Số truyền đạo của cả 8 khu vực, xếp theo <b>Đơn thuần</b> giảm dần.
           </div>
           <div id="bcLuoi_noiDung" style="color:#94a3b8;">Đang tải…</div>
         </div>
@@ -2467,9 +2474,9 @@ function loadTPDecreasedPanel(){
 // =====================================================================
 
 var BC_KYHIEU = {
-  du:              { icon: '✅', mau: '#16a34a', ten: 'đã nhập' },
+  du:              { icon: '✅', mau: '#16a34a', ten: 'đã có số trên web' },
   chua:            { icon: '⏳', mau: '#94a3b8', ten: 'chưa tới hạn' },
-  tre:             { icon: '⚠️', mau: '#dc2626', ten: 'quá hạn chưa nhập' },
+  tre:             { icon: '⚠️', mau: '#dc2626', ten: 'quá hạn chưa có số trên web' },
   khong_ap_dung:   { icon: '—',  mau: '#cbd5e1', ten: 'không áp dụng' },
   chua_du_du_lieu: { icon: '❓', mau: '#a78bfa', ten: 'chưa đủ dữ liệu' }
 };
@@ -2481,7 +2488,6 @@ var BC_KYHIEU = {
 var BC_TAB = {
   tho_phuong:       'tp',
   trudo_truyen_dao: 'trudo',
-  trudo_cong_viec:  'trudo',
   giao_duc:         'edu',
   dao_tao:          'daotao',
   le_hoi:           'lehoi'
@@ -2573,7 +2579,7 @@ function veBaoCaoPanel_(d){
   for (var k = 0; k < d.tuan.length; k++) tongTre += d.tuan[k].soTre;
   if (tongTre > 0) {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;color:#991b1b;">'
-      + '⚠️ Còn <b>' + tongTre + '</b> ô quá hạn chưa nhập trong tháng này.</div>';
+      + '⚠️ Còn <b>' + tongTre + '</b> ô quá hạn <b>chưa có số trên web</b> trong tháng này.</div>';
   } else {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#f0fdf4;border-radius:8px;color:#166534;">'
       + '✅ Không có ô nào quá hạn. Tốt!</div>';
@@ -2647,11 +2653,28 @@ function huyBaoCaoTuan_(tuan){
 }
 
 // ---------------------------------------------------------------------
-// LƯỚI TOÀN SI-ÔN ở màn hình 📊 Tổng
+// 🏆 THI ĐUA TRUYỀN ĐẠO — màn hình 📊 Tổng  (27/08/2026)
 //
-// ⚠️ Người CHƯA được gán khu vực nào sẽ bị máy chủ chặn ở đây. Màn hình
-// 📊 Tổng thì ai cũng vào được, nên phải GIẤU HẲN cái khung này thay vì hiện
-// một dòng đỏ khó hiểu — họ có làm gì sai đâu.
+// ⭐ Anh Rise: "con số mà anh muốn show nhất để các khu vực thi đua CHỈ là
+// con số truyền đạo thôi". Trước đó chỗ này là lưới "Kỷ luật nhập liệu" 12
+// cột — anh xem thấy "cũng không cần thiết lắm", và đúng: nó đang đỏ đều 8
+// khu vực vì một cột báo oan (điểm danh công việc), nên không so được ai với ai.
+//
+// ⚠️⚠️ SỐ LẤY TỪ `getAllKhuVucOverview` — ĐÚNG HÀM đang nuôi bảng "Mục tiêu &
+// Thực tế" ở tab 🎯 Mục tiêu và trang 🤖 Trợ lý. TUYỆT ĐỐI KHÔNG tự cộng lại
+// đơn thuần / hữu hiệu / báp-têm ở đây: hai nơi cùng tính một con số thì sớm
+// muộn cũng lệch, và lúc đó không ai biết tin bảng nào (bài học #33).
+//
+// ⚠️ Người CHƯA được gán khu vực nào thì GIẤU HẲN khung này. Màn 📊 Tổng ai
+// cũng vào được, hiện một dòng đỏ khó hiểu cho người không làm gì sai là tệ.
+//
+// ⚠️ LƯU Ý CHO BƯỚC 4b (lọc theo phạm vi cho các hàm trả danh sách):
+// `getAllKhuVucOverview` PHẢI tiếp tục trả ĐỦ 8 khu vực cho mọi người có
+// phạm vi — thi đua thì phải nhìn thấy nhau. Lọc nó là giết bảng này.
+//
+// 📌 Hàm máy chủ `getBaoCaoLuoi` vẫn còn nguyên và vẫn được kiểm thử, chỉ tạm
+// không có màn hình nào gọi. Giữ lại để nếu anh Rise muốn lưới kỷ luật quay
+// về thì chỉ phải sửa giao diện.
 // ---------------------------------------------------------------------
 function loadBaoCaoLuoi(){
   var card = document.getElementById('bcLuoiCard');
@@ -2662,76 +2685,101 @@ function loadBaoCaoLuoi(){
   var monthKey = kvMonthKey();
   document.getElementById('bcLuoi_monthLabel').textContent = monthKey;
   box.innerHTML = '<span style="color:#94a3b8;">Đang tải…</span>';
-  google.script.run.withSuccessHandler(function(d){
-    veBaoCaoLuoi_(d);
+  google.script.run.withSuccessHandler(function(ds){
+    veThiDua_(ds);
   }).withFailureHandler(function(){
     card.style.display = 'none';
-  }).getBaoCaoLuoi(monthKey);
+  }).getAllKhuVucOverview(monthKey);
 }
 
-function veBaoCaoLuoi_(d){
+/** Huy chương cho 3 hạng đầu — chỉ khi khu vực đó thật sự CÓ số. */
+function bcHuy_(hang, coSo){
+  if (!coSo) return '<span style="color:#cbd5e1;">' + (hang + 1) + '</span>';
+  if (hang === 0) return '🥇';
+  if (hang === 1) return '🥈';
+  if (hang === 2) return '🥉';
+  return '<span style="color:#94a3b8;">' + (hang + 1) + '</span>';
+}
+
+function veThiDua_(ds){
   var box = document.getElementById('bcLuoi_noiDung');
-  if (!d || !d.dong || !d.dong.length) {
+  if (!ds || !ds.length) {
     box.innerHTML = '<div style="color:#94a3b8;">Chưa có khu vực nào.</div>';
     return;
   }
-  var soTuan = d.soTuan || 0;
-  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:760px;">';
-  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
-  h += '<th style="padding:8px;white-space:nowrap;">Khu vực</th>';
-  for (var t = 1; t <= soTuan; t++) {
-    var nhan = d.dong[0].tuan[t - 1] ? d.dong[0].tuan[t - 1].nhan : '';
-    h += '<th style="padding:8px;text-align:center;white-space:nowrap;" title="' + esc(nhan) + '">T' + t + '</th>';
-  }
-  for (var i = 0; i < d.hangMuc.length; i++) {
-    h += '<th style="padding:8px;text-align:center;font-size:11px;line-height:1.3;">' + esc(d.hangMuc[i].ten) + '</th>';
-  }
-  h += '</tr></thead><tbody>';
+  var phamVi = phamViCuaToi_();
+  var rows = ds.map(function(x){
+    var g = x.goalSummary || { goal: {}, actual: {}, percent: {} };
+    return {
+      khuVuc: x.khuVuc,
+      donThuan: Number(g.actual.donThuan) || 0,
+      huuHieu: Number(g.actual.huuHieu) || 0,
+      bt: Number(g.actual.bt) || 0,
+      mtDonThuan: Number(g.goal.donThuan) || 0,
+      pct: g.percent ? g.percent.donThuan : null
+    };
+  });
+  // ⚠️ Xếp theo ĐƠN THUẦN giảm dần — đúng "con số truyền đạo" anh Rise nêu.
+  // Bằng nhau thì xét tiếp Báp-têm rồi Hữu hiệu, để hai khu vực cùng số đơn
+  // thuần vẫn có thứ tự ổn định chứ không nhảy lung tung mỗi lần mở trang.
+  rows.sort(function(a, b){
+    if (b.donThuan !== a.donThuan) return b.donThuan - a.donThuan;
+    if (b.bt !== a.bt) return b.bt - a.bt;
+    if (b.huuHieu !== a.huuHieu) return b.huuHieu - a.huuHieu;
+    return String(a.khuVuc).localeCompare(String(b.khuVuc), 'vi');
+  });
 
-  for (var r = 0; r < d.dong.length; r++) {
-    var row = d.dong[r];
-    // ⚠️ Chỉ tô đậm "dòng của tôi" khi người xem là khu vực trưởng / địa vực
-    // trưởng. Admin xem được MỌI khu vực nên tô hết thành ra tô bằng không —
-    // mà việc tô là để họ tìm nhanh hàng của mình.
-    var cuaToi = row.laCuaToi && !isChuTaiKhoan_();
-    h += '<tr style="border-bottom:1px solid #f1f5f9;' + (cuaToi ? 'background:#eff6ff;' : '') + '">';
-    h += '<td style="padding:8px;white-space:nowrap;font-weight:' + (cuaToi ? '700' : '400') + ';">'
-      + esc(row.khuVuc) + '</td>';
-    for (var w = 0; w < row.tuan.length; w++) {
-      h += '<td style="padding:8px;text-align:center;">' + bcLuoiO_(row.tuan[w]) + '</td>';
-    }
-    for (var k = 0; k < d.hangMuc.length; k++) {
-      var g = row.theoHangMuc[d.hangMuc[k].ma] || { du: 0, apDung: 0, tre: 0 };
-      h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcTyLe_(g) + '</td>';
-    }
-    h += '</tr>';
+  var tong = { donThuan: 0, huuHieu: 0, bt: 0 };
+  rows.forEach(function(r){ tong.donThuan += r.donThuan; tong.huuHieu += r.huuHieu; tong.bt += r.bt; });
+
+  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:560px;">';
+  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">'
+    + '<th style="padding:8px;width:44px;text-align:center;"></th>'
+    + '<th style="padding:8px;">Khu vực</th>'
+    + '<th style="padding:8px;text-align:center;">Đơn thuần</th>'
+    + '<th style="padding:8px;text-align:center;">Hữu hiệu</th>'
+    + '<th style="padding:8px;text-align:center;">Báp-têm</th>'
+    + '<th style="padding:8px;text-align:center;">% mục tiêu<br><span style="font-weight:400;font-size:11px;color:#94a3b8;">(đơn thuần)</span></th>'
+    + '</tr></thead><tbody>';
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    // Tô nhạt hàng của chính mình để khu vực trưởng tìm ra ngay. Admin xem
+    // được mọi khu vực nên tô hết thành ra tô bằng không.
+    var cuaToi = !isChuTaiKhoan_() && phamVi.indexOf(r.khuVuc) >= 0;
+    h += '<tr style="border-bottom:1px solid #f1f5f9;' + (cuaToi ? 'background:#eff6ff;' : '') + '">'
+      + '<td style="padding:8px;text-align:center;font-size:16px;">' + bcHuy_(i, r.donThuan > 0) + '</td>'
+      + '<td style="padding:8px;white-space:nowrap;font-weight:' + (cuaToi ? '700' : '400') + ';">' + esc(r.khuVuc) + '</td>'
+      + '<td style="padding:8px;text-align:center;font-weight:700;font-size:15px;">' + r.donThuan + '</td>'
+      + '<td style="padding:8px;text-align:center;">' + r.huuHieu + '</td>'
+      + '<td style="padding:8px;text-align:center;">' + r.bt + '</td>'
+      + '<td style="padding:8px;text-align:center;">' + bcPhanTramMT_(r.pct, r.mtDonThuan) + '</td>'
+      + '</tr>';
   }
+  h += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;">'
+    + '<td style="padding:8px;"></td><td style="padding:8px;">Cả Si-ôn</td>'
+    + '<td style="padding:8px;text-align:center;">' + tong.donThuan + '</td>'
+    + '<td style="padding:8px;text-align:center;">' + tong.huuHieu + '</td>'
+    + '<td style="padding:8px;text-align:center;">' + tong.bt + '</td>'
+    + '<td style="padding:8px;"></td></tr>';
   h += '</tbody></table></div>';
+
+  // ⚠️ Bắt buộc có dòng này: Hữu hiệu và Báp-têm là HAI NHÓM RIÊNG trong hệ
+  // thống (người đã báp-têm KHÔNG còn được đếm vào hữu hiệu). Không nói ra
+  // thì người đọc sẽ cộng nhầm hoặc tưởng hữu hiệu bị tụt.
   h += '<div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.9;">'
-    + '<b>Cột T1…T' + soTuan + ':</b> ✅ đã báo cáo · ⚠️ quá hạn mà chưa báo cáo · ⏳ chưa tới hạn · '
-    + '<span style="color:#cbd5e1;">·</span> tuần chưa bắt đầu · 🔁 số đã đổi sau khi báo cáo'
-    + '<br><b>Các cột bên phải:</b> số tuần đã nhập / số tuần có áp dụng hạng mục đó.'
-    + ' Tuần không áp dụng và tuần chưa đủ dữ liệu KHÔNG bị tính vào mẫu số.</div>';
+    + '<b>Hữu hiệu và Báp-têm là hai nhóm riêng</b> — người đã Báp-têm không còn được đếm vào Hữu hiệu, nên đừng cộng hai cột lại.'
+    + '<br><b>% mục tiêu</b> tính trên Đơn thuần; mục tiêu khu vực <b>cộng dồn từ Mục tiêu cá nhân</b>. '
+    + 'Khu vực chưa ai đặt mục tiêu thì hiện <b>—</b> (chưa có), <b>không phải 0%</b>.'
+    + '</div>';
   box.innerHTML = h;
 }
 
-function bcLuoiO_(w){
-  if (w.daBaoCao) {
-    var s = '<span title="Đã báo cáo lúc ' + esc(w.nhanBaoCao) + '" style="color:#16a34a;font-size:16px;">✅</span>';
-    if (w.daSuaSau) s += '<span title="Số liệu đã đổi sau khi báo cáo" style="color:#b45309;">🔁</span>';
-    return s;
-  }
-  if (w.thoiDiem === 'chua_toi') return '<span style="color:#cbd5e1;">·</span>';
-  if (w.soTre > 0) {
-    return '<span title="' + w.soTre + ' hạng mục quá hạn chưa nhập" style="color:#dc2626;font-size:16px;">⚠️</span>';
-  }
-  return '<span title="chưa báo cáo, nhưng chưa tới hạn" style="color:#94a3b8;font-size:16px;">⏳</span>';
-}
-
-function bcTyLe_(g){
-  if (!g.apDung) return '<span style="color:#cbd5e1;" title="tháng này chưa có tuần nào áp dụng">—</span>';
-  var mau = g.tre > 0 ? '#dc2626' : (g.du === g.apDung ? '#16a34a' : '#64748b');
-  return '<span style="color:' + mau + ';font-weight:600;">' + g.du + '/' + g.apDung + '</span>';
+function bcPhanTramMT_(pct, mucTieu){
+  if (!mucTieu) return '<span style="color:#cbd5e1;" title="khu vực này chưa ai đặt mục tiêu">—</span>';
+  if (pct === null || pct === undefined) return '<span style="color:#cbd5e1;">—</span>';
+  var mau = pct >= 100 ? '#16a34a' : (pct >= 50 ? '#64748b' : '#dc2626');
+  return '<span style="color:' + mau + ';font-weight:600;">' + pct + '%</span>';
 }
 
 function escTP_(s){
@@ -3026,7 +3074,7 @@ function veNhacBaoCaoXong_(box, d){
   box.style.background = '#fffbeb';
   box.style.color = '#92400e';
   box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa báo cáo</b> · ' + esc(d.khuVuc)
-    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa nhập đủ.' : ' — đã nhập đủ mọi hạng mục.')
+    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa có số trên web.' : ' — đã có đủ số trên web.')
     + link;
 }
 
