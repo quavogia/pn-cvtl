@@ -191,6 +191,9 @@ export const DANH_MUC = {
   // có con số, và anh Rise muốn cả phòng nhìn nhau mà cố.
   getBaoCaoTuan:           { doc: true,  fn: baoCao.getBaoCaoTuan },
   getBaoCaoLuoi:           { doc: true,  fn: baoCao.getBaoCaoLuoi },
+  // ⭐ Tích V từng hạng mục (27/08/2026). CỐ Ý không đặt `chuThoi` — khu vực
+  // trưởng phải tích được cho khu vực mình; hàm tự kiểm `duocXemKhuVuc`.
+  toggleBaoCaoTich:        { doc: false, fn: baoCao.toggleBaoCaoTich },
   saveBaoCaoTuan:          { doc: false, fn: baoCao.saveBaoCaoTuan },
   // Gỡ báo cáo thì chỉ Trưởng phòng / Admin — giống nút "Hủy báo cáo" cũ.
   huyBaoCaoTuan:           { doc: false, chuThoi: true, fn: baoCao.huyBaoCaoTuan },
