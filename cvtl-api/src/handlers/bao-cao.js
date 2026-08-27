@@ -48,16 +48,27 @@ export const HAM_DAO_TAO = ['toggleDaoTaoBai', 'setDaoTaoBaiAll', 'setDaoTaoQuye
 export const HAM_LE_HOI = ['toggleLeHoiLan'];
 
 /**
- * Sáu dòng của bảng kiểm — ứng với 5 hạng mục anh Rise chốt 26/08/2026:
- * "thờ phượng, trudo, giáo dục, đào tạo, lễ hội lời". Riêng Trudo tách làm
- * hai dòng vì anh nói rõ Trudo gồm "đơn thuần, hữu hiệu, báp-têm VÀ điểm
- * danh công việc" — hai thứ này nhập ở hai bảng khác hẳn nhau, gộp một dòng
- * thì nhập một bên cũng thành ✅, không nhắc được bên còn lại.
+ * NĂM dòng của bảng kiểm — đúng 5 hạng mục anh Rise chốt 26/08/2026:
+ * "thờ phượng, trudo, giáo dục, đào tạo, lễ hội lời".
+ *
+ * ⚠️⚠️ 27/08/2026 — ĐÃ BỎ dòng thứ sáu "Trudo — điểm danh công việc".
+ * Bản đầu có nó vì anh Rise liệt kê điểm danh công việc trong nhóm Trudo.
+ * NHƯNG hôm sau anh nói rõ: **việc đó nhập thẳng trên My Memo**, bảng
+ * `cv_cong_viec` trên web chỉ để CHỮA CHÁY khi ai đó nhập muộn ở My Memo.
+ * Nghĩa là bảng trống KHÔNG có nghĩa là chưa làm — nó là bình thường.
+ * Chấm ⚠️ ở đó là **báo thiếu oan cho cả 8 khu vực, mọi tuần**, và vì một ô
+ * ⚠️ đủ làm cả dòng tuần đỏ nên nó nhuộm đỏ luôn bảng theo dõi toàn Si-ôn.
+ *
+ * 📌 BÀI HỌC: trước khi chấm một bảng dữ liệu, phải hỏi **bảng đó có phải
+ * NGUỒN THẬT không**. "Có dữ liệu" ≠ "là nơi người ta nhập". Ở dự án này sổ
+ * gốc là My Memo; web chỉ là lớp con số chép sang.
+ *
+ * ⚠️ Bảng `cv_cong_viec` và tab Trudo GIỮ NGUYÊN — chữa cháy vẫn dùng được.
+ * Chỉ bỏ khỏi phần CHẤM ĐIỂM.
  */
 export const HANG_MUC = [
   { ma: 'tho_phuong', ten: 'Thờ phượng', nhom: 'Thờ phượng' },
   { ma: 'trudo_truyen_dao', ten: 'Trudo — truyền đạo', nhom: 'Trudo' },
-  { ma: 'trudo_cong_viec', ten: 'Trudo — điểm danh công việc', nhom: 'Trudo' },
   { ma: 'giao_duc', ten: 'Giáo dục', nhom: 'Giáo dục' },
   { ma: 'dao_tao', ten: 'Đào tạo 70 bài', nhom: 'Đào tạo' },
   { ma: 'le_hoi', ten: 'Lễ hội Lời', nhom: 'Lễ hội' },
@@ -152,7 +163,7 @@ async function layDanhSachKhuVuc(db) {
 // ⚠️ Vì sao gom một lượt rồi mới chia: bảng kiểm phải trả lời câu hỏi
 // "(khu vực, tuần) này ĐÃ CÓ DÒNG chưa". Hỏi riêng từng khu vực × từng tuần
 // là 8 x 6 x 6 = 288 lượt truy vấn cho một lần mở trang. Gom một lượt thì
-// chỉ 7 truy vấn cho toàn bộ Si-ôn.
+// chỉ 6 truy vấn cho toàn bộ Si-ôn.
 //
 // ⚠️⚠️ VÌ SAO Ở ĐÂY VIẾT SQL RIÊNG CHỨ KHÔNG GỌI LẠI HÀM CŨ (bài học #33):
 // bài học đó cấm TÍNH LẠI MỘT CON SỐ đã có nơi khác tính — vì hai nơi tính
@@ -162,7 +173,7 @@ async function layDanhSachKhuVuc(db) {
 // việc khác hẳn nhau, và lẫn hai thứ đó lại chính là báo thiếu oan.
 // ---------------------------------------------------------------------
 async function gomDuLieuThang(db, thang) {
-  const [tp, gd, cv, dt, moc, nk, mocNhatKy] = await Promise.all([
+  const [tp, gd, dt, moc, nk, mocNhatKy] = await Promise.all([
     // 1. Thờ phượng — CHỈ CẦN CÓ ÍT NHẤT MỘT DÒNG cho (tháng, kv, tuần).
     //    ⚠️ Cố ý KHÔNG đòi đủ cả hai loại '1lan' và '4lan'. Kiểm chứng số
     //    thật 26/08/2026: TUẦN 1 tháng 8/2026 chỉ có ĐÚNG MỘT buổi (Thứ Bảy
@@ -179,22 +190,18 @@ async function gomDuLieuThang(db, thang) {
       [thang]
     ),
 
-    // 3. Điểm danh công việc — ô để trống bị XOÁ HẲN DÒNG, nên có dòng tức
-    //    là thật sự có người nhập.
-    db.all("SELECT DISTINCT khu_vuc, tuan FROM cv_cong_viec WHERE thang = ?", [thang]),
-
-    // 4. Đơn thuần — theo NGÀY, phải quy về tuần bằng lịch thật.
+    // 3. Đơn thuần — theo NGÀY, phải quy về tuần bằng lịch thật.
     db.all(
       "SELECT DISTINCT khu_vuc, ngay FROM nhat_ky_don_thuan WHERE substr(ngay,1,7) = ?",
       [thang]
     ),
 
-    // 5. Sổ mốc (hữu hiệu / báp-têm) — cũng theo ngày.
+    // 4. Sổ mốc (hữu hiệu / báp-têm) — cũng theo ngày.
     //    ⭐ Nhờ bảng này mà Hữu hiệu / Báp-têm chia được theo tuần CHÍNH XÁC;
     //    hoc_vien.tien_do không có mốc thời gian nên không dùng được.
     db.all("SELECT DISTINCT khu_vuc, ngay FROM so_moc WHERE thang = ?", [thang]),
 
-    // 6. Đào tạo + Lễ hội — hai tab này KHÔNG có cột "tuần" và KHÔNG có ngày
+    // 5. Đào tạo + Lễ hội — hai tab này KHÔNG có cột "tuần" và KHÔNG có ngày
     //    cho từng thao tác, nên cách duy nhất biết "tuần đó có ai đụng vào
     //    không" là NHẬT KÝ THAY ĐỔI.
     db.all(
@@ -206,7 +213,7 @@ async function gomDuLieuThang(db, thang) {
       [msDauNgayVN(thang + '-01'), msDauNgayVN(congNgay(thang + '-01', 40).slice(0, 7) + '-01')]
     ),
 
-    // 7. ⚠️ Nhật ký chỉ bắt đầu ghi từ 26/08/2026. Mọi tuần KẾT THÚC trước
+    // 6. ⚠️ Nhật ký chỉ bắt đầu ghi từ 26/08/2026. Mọi tuần KẾT THÚC trước
     //    mốc này thì hệ thống KHÔNG CÓ CÁCH NÀO biết Đào tạo / Lễ hội có
     //    được nhập hay không → phải hiện ❓, tuyệt đối không hiện ⚠️.
     db.first('SELECT MIN(thoi_gian_ms) AS m FROM nhat_ky_thay_doi', []),
@@ -228,7 +235,6 @@ async function gomDuLieuThang(db, thang) {
 
   for (const r of tp || []) them('tho_phuong', r.khu_vuc, r.tuan);
   for (const r of gd || []) them('giao_duc', r.khu_vuc, r.tuan);
-  for (const r of cv || []) them('trudo_cong_viec', r.khu_vuc, r.tuan);
   for (const r of dt || []) themTheoNgay('trudo_truyen_dao', r.khu_vuc, r.ngay);
   for (const r of moc || []) themTheoNgay('trudo_truyen_dao', r.khu_vuc, r.ngay);
   for (const r of nk || []) {
@@ -327,6 +333,39 @@ function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
 }
 
 // ---------------------------------------------------------------------
+// SO DẤU VẾT — cờ 🔁 "số đã đổi sau khi báo cáo"
+//
+// ⚠️⚠️ 27/08/2026 — PHẢI so theo TỪNG HẠNG MỤC, tuyệt đối không so chuỗi thô.
+// Dấu vết lưu dạng `tho_phuong=1;trudo_truyen_dao=0;...`. Hôm nay danh sách
+// hạng mục đổi (bỏ "Trudo — điểm danh công việc"), nên chuỗi hiện tại KHÔNG
+// thể bằng chuỗi đã lưu tuần trước — so thô là **mọi tuần đã báo cáo đều bị
+// gắn cờ 🔁**, tức báo oan cả phòng vì một thay đổi của phần mềm chứ không
+// phải của họ. Đúng loại lỗi mà cả file này sinh ra để tránh.
+//
+// Luật: CHỈ so những hạng mục có ở CẢ HAI bên. Hạng mục mới thêm hoặc vừa bị
+// bỏ thì im lặng — thà bỏ sót còn hơn báo oan.
+// ---------------------------------------------------------------------
+function tachDauVet(s) {
+  const m = {};
+  for (const phan of chuoi(s).split(';')) {
+    const i = phan.indexOf('=');
+    if (i > 0) m[phan.slice(0, i)] = phan.slice(i + 1);
+  }
+  return m;
+}
+
+export function daSuaSauKhiBaoCao(snapCu, dauVetMoi) {
+  const cu = tachDauVet(snapCu);
+  if (!Object.keys(cu).length) return false; // chưa có dấu vết -> không kết luận
+  const moi = tachDauVet(dauVetMoi);
+  for (const ma of Object.keys(moi)) {
+    if (cu[ma] === undefined) continue; // hạng mục MỚI thêm -> im lặng
+    if (cu[ma] !== moi[ma]) return true;
+  }
+  return false;
+}
+
+// ---------------------------------------------------------------------
 // Dựng bảng kiểm đầy đủ cho MỘT khu vực trong MỘT tháng
 // ---------------------------------------------------------------------
 function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao) {
@@ -389,7 +428,7 @@ function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao) {
         // 🔁 Số đã đổi sau khi báo cáo. Anh Rise chốt KHÔNG khoá ô, nên
         // chuyện này xảy ra được — không phải để bắt lỗi ai, mà để anh biết
         // bản đã gửi lên trên có còn khớp không.
-        daSuaSau: chuoi(bc.snap_json) !== '' && chuoi(bc.snap_json) !== hienTai,
+        daSuaSau: daSuaSauKhiBaoCao(bc.snap_json, hienTai),
       } : { daBaoCao: false },
       dauVetHienTai: hienTai,
     };
