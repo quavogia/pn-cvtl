@@ -681,10 +681,25 @@
              đua chỉ là con số truyền đạo thôi". Trước đó số này CHỈ có ở trang
              🤖 Trợ lý — mà Trợ lý chỉ Admin thấy, nên khu vực trưởng không nhìn
              được nhau, không thi đua được. Đặt ở đây thì ai có khu vực đều thấy. -->
-        <div class="card" style="margin-top:16px;" id="bcLuoiCard">
-          <h3 style="margin:0 0 4px 0;">🏆 Thi đua truyền đạo — <span id="bcLuoi_monthLabel"></span></h3>
+        <div class="card" style="margin-top:16px;" id="bcThiDuaCard">
+          <h3 style="margin:0 0 4px 0;">🏆 Thi đua truyền đạo — <span id="bcThiDua_monthLabel"></span></h3>
           <div style="color:#64748b;font-size:13px;margin-bottom:10px;">
             Số truyền đạo của cả 8 khu vực, xếp theo <b>Đơn thuần</b> giảm dần.
+          </div>
+          <div id="bcThiDua_noiDung" style="color:#94a3b8;">Đang tải…</div>
+        </div>
+
+        <!-- ---- 📋 Kỷ luật nhập liệu hằng tuần ----
+             ⚠️ ĐƯA TRỞ LẠI 27/08/2026 sau khi gỡ vài giờ. Anh Rise chốt việc
+             của web: "ở web chúng ta chỉ giải quyết bài toán sao cho kiểm soát
+             được là các khu vực đã nhập trên web hàng tuần là được" — mà đây
+             là màn hình DUY NHẤT làm được việc đó trên cả 8 khu vực.
+             Lúc gỡ nó đúng là vô dụng, nhưng vì cột "Điểm danh công việc" báo
+             oan làm đỏ đều 8 khu vực. Bỏ cột đó xong thì lưới phân biệt được. -->
+        <div class="card" style="margin-top:16px;" id="bcLuoiCard">
+          <h3 style="margin:0 0 4px 0;">📋 Kỷ luật nhập liệu hằng tuần — <span id="bcLuoi_monthLabel"></span></h3>
+          <div style="color:#64748b;font-size:13px;margin-bottom:10px;">
+            Mỗi ô là một tuần: khu vực đó đã bấm <b>Báo cáo</b> chưa, và còn hạng mục nào quá hạn chưa có số trên web.
           </div>
           <div id="bcLuoi_noiDung" style="color:#94a3b8;">Đang tải…</div>
         </div>
@@ -2432,7 +2447,8 @@ function loadKVTongPanel(){
   }).withFailureHandler(function(err){
     showMsg('Lỗi tải Tổng: ' + err.message, false);
   }).getKVTongSummary(monthKey);
-  loadBaoCaoLuoi();
+  loadThiDua();
+  loadLuoiKyLuat();
   loadTPDecreasedPanel();
 }
 
@@ -2676,7 +2692,40 @@ function huyBaoCaoTuan_(tuan){
 // không có màn hình nào gọi. Giữ lại để nếu anh Rise muốn lưới kỷ luật quay
 // về thì chỉ phải sửa giao diện.
 // ---------------------------------------------------------------------
-function loadBaoCaoLuoi(){
+function loadThiDua(){
+  var card = document.getElementById('bcThiDuaCard');
+  var box = document.getElementById('bcThiDua_noiDung');
+  if (!card || !box) return;
+  if (!coPhamVi_()) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  var monthKey = kvMonthKey();
+  document.getElementById('bcThiDua_monthLabel').textContent = monthKey;
+  box.innerHTML = '<span style="color:#94a3b8;">Đang tải…</span>';
+  google.script.run.withSuccessHandler(function(ds){
+    veThiDua_(ds);
+  }).withFailureHandler(function(){
+    card.style.display = 'none';
+  }).getAllKhuVucOverview(monthKey);
+}
+
+// ---------------------------------------------------------------------
+// 📋 LƯỚI KỶ LUẬT NHẬP LIỆU — màn hình 📊 Tổng
+//
+// ⭐⭐ Anh Rise chốt 27/08/2026, đây là VIỆC DUY NHẤT của web:
+//   "nhập trên memo thì phải nhập rõ tên đơn thuần nhưng ở web thì tối giản
+//    chỉ là các con số, cho nên ở web chúng ta chỉ giải quyết bài toán sao
+//    cho kiểm soát được là các khu vực đã nhập trên web hàng tuần là được"
+//
+// ⚠️ Nghĩa là KHÔNG có chuyện "đã nhập ở Memo rồi nên khỏi nhập web". Hai
+// việc KHÁC NHAU: Memo ghi tên từng người, web ghi con số tổng. Làm ở Memo
+// không tạo ra con số trên web. Đừng bao giờ thêm lựa chọn "web hay memo"
+// vào bảng kiểm — đã cân nhắc và bác bỏ.
+//
+// ⚠️ Khối này từng bị gỡ vài giờ sáng 27/08 vì nó đỏ đều 8 khu vực, nhìn như
+// đồ bỏ. Nguyên nhân thật là cột "Điểm danh công việc" báo oan (bảng đó nhập
+// ở My Memo). Bỏ cột đó xong lưới mới phân biệt được ai với ai.
+// ---------------------------------------------------------------------
+function loadLuoiKyLuat(){
   var card = document.getElementById('bcLuoiCard');
   var box = document.getElementById('bcLuoi_noiDung');
   if (!card || !box) return;
@@ -2685,11 +2734,11 @@ function loadBaoCaoLuoi(){
   var monthKey = kvMonthKey();
   document.getElementById('bcLuoi_monthLabel').textContent = monthKey;
   box.innerHTML = '<span style="color:#94a3b8;">Đang tải…</span>';
-  google.script.run.withSuccessHandler(function(ds){
-    veThiDua_(ds);
+  google.script.run.withSuccessHandler(function(d){
+    veBaoCaoLuoi_(d);
   }).withFailureHandler(function(){
     card.style.display = 'none';
-  }).getAllKhuVucOverview(monthKey);
+  }).getBaoCaoLuoi(monthKey);
 }
 
 /** Huy chương cho 3 hạng đầu — chỉ khi khu vực đó thật sự CÓ số. */
@@ -2702,7 +2751,7 @@ function bcHuy_(hang, coSo){
 }
 
 function veThiDua_(ds){
-  var box = document.getElementById('bcLuoi_noiDung');
+  var box = document.getElementById('bcThiDua_noiDung');
   if (!ds || !ds.length) {
     box.innerHTML = '<div style="color:#94a3b8;">Chưa có khu vực nào.</div>';
     return;
@@ -2768,11 +2817,78 @@ function veThiDua_(ds){
   // thống (người đã báp-têm KHÔNG còn được đếm vào hữu hiệu). Không nói ra
   // thì người đọc sẽ cộng nhầm hoặc tưởng hữu hiệu bị tụt.
   h += '<div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.9;">'
-    + '<b>Hữu hiệu và Báp-têm là hai nhóm riêng</b> — người đã Báp-têm không còn được đếm vào Hữu hiệu, nên đừng cộng hai cột lại.'
+    + '⚠️ <b>Số này đếm những gì ĐÃ NHẬP TRÊN WEB.</b> Khu vực chưa chép số sang web sẽ hiện <b>0</b> — '
+    + 'đó là chưa nhập, KHÔNG có nghĩa là chưa truyền đạo. Xem bảng Kỷ luật ngay dưới để biết ai chưa nhập.'
+    + '<br><b>Hữu hiệu và Báp-têm là hai nhóm riêng</b> — người đã Báp-têm không còn được đếm vào Hữu hiệu, nên đừng cộng hai cột lại.'
     + '<br><b>% mục tiêu</b> tính trên Đơn thuần; mục tiêu khu vực <b>cộng dồn từ Mục tiêu cá nhân</b>. '
     + 'Khu vực chưa ai đặt mục tiêu thì hiện <b>—</b> (chưa có), <b>không phải 0%</b>.'
     + '</div>';
   box.innerHTML = h;
+}
+
+function veBaoCaoLuoi_(d){
+  var box = document.getElementById('bcLuoi_noiDung');
+  if (!d || !d.dong || !d.dong.length) {
+    box.innerHTML = '<div style="color:#94a3b8;">Chưa có khu vực nào.</div>';
+    return;
+  }
+  var soTuan = d.soTuan || 0;
+  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:760px;">';
+  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
+  h += '<th style="padding:8px;white-space:nowrap;">Khu vực</th>';
+  for (var t = 1; t <= soTuan; t++) {
+    var nhan = d.dong[0].tuan[t - 1] ? d.dong[0].tuan[t - 1].nhan : '';
+    h += '<th style="padding:8px;text-align:center;white-space:nowrap;" title="' + esc(nhan) + '">T' + t + '</th>';
+  }
+  for (var i = 0; i < d.hangMuc.length; i++) {
+    h += '<th style="padding:8px;text-align:center;font-size:11px;line-height:1.3;">' + esc(d.hangMuc[i].ten) + '</th>';
+  }
+  h += '</tr></thead><tbody>';
+
+  for (var r = 0; r < d.dong.length; r++) {
+    var row = d.dong[r];
+    // ⚠️ Chỉ tô đậm "dòng của tôi" khi người xem là khu vực trưởng / địa vực
+    // trưởng. Admin xem được MỌI khu vực nên tô hết thành ra tô bằng không —
+    // mà việc tô là để họ tìm nhanh hàng của mình.
+    var cuaToi = row.laCuaToi && !isChuTaiKhoan_();
+    h += '<tr style="border-bottom:1px solid #f1f5f9;' + (cuaToi ? 'background:#eff6ff;' : '') + '">';
+    h += '<td style="padding:8px;white-space:nowrap;font-weight:' + (cuaToi ? '700' : '400') + ';">'
+      + esc(row.khuVuc) + '</td>';
+    for (var w = 0; w < row.tuan.length; w++) {
+      h += '<td style="padding:8px;text-align:center;">' + bcLuoiO_(row.tuan[w]) + '</td>';
+    }
+    for (var k = 0; k < d.hangMuc.length; k++) {
+      var g = row.theoHangMuc[d.hangMuc[k].ma] || { du: 0, apDung: 0, tre: 0 };
+      h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcTyLe_(g) + '</td>';
+    }
+    h += '</tr>';
+  }
+  h += '</tbody></table></div>';
+  h += '<div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.9;">'
+    + '<b>Cột T1…T' + soTuan + ':</b> ✅ đã báo cáo · ⚠️ quá hạn mà chưa báo cáo · ⏳ chưa tới hạn · '
+    + '<span style="color:#cbd5e1;">·</span> tuần chưa bắt đầu · 🔁 số đã đổi sau khi báo cáo'
+    + '<br><b>Các cột bên phải:</b> số tuần ĐÃ CÓ SỐ TRÊN WEB / số tuần có áp dụng hạng mục đó.'
+    + ' Tuần không áp dụng và tuần chưa đủ dữ liệu KHÔNG bị tính vào mẫu số.</div>';
+  box.innerHTML = h;
+}
+
+function bcLuoiO_(w){
+  if (w.daBaoCao) {
+    var s = '<span title="Đã báo cáo lúc ' + esc(w.nhanBaoCao) + '" style="color:#16a34a;font-size:16px;">✅</span>';
+    if (w.daSuaSau) s += '<span title="Số liệu đã đổi sau khi báo cáo" style="color:#b45309;">🔁</span>';
+    return s;
+  }
+  if (w.thoiDiem === 'chua_toi') return '<span style="color:#cbd5e1;">·</span>';
+  if (w.soTre > 0) {
+    return '<span title="' + w.soTre + ' hạng mục quá hạn chưa có số trên web" style="color:#dc2626;font-size:16px;">⚠️</span>';
+  }
+  return '<span title="chưa báo cáo, nhưng chưa tới hạn" style="color:#94a3b8;font-size:16px;">⏳</span>';
+}
+
+function bcTyLe_(g){
+  if (!g.apDung) return '<span style="color:#cbd5e1;" title="tháng này chưa có tuần nào áp dụng">—</span>';
+  var mau = g.tre > 0 ? '#dc2626' : (g.du === g.apDung ? '#16a34a' : '#64748b');
+  return '<span style="color:' + mau + ';font-weight:600;">' + g.du + '/' + g.apDung + '</span>';
 }
 
 function bcPhanTramMT_(pct, mucTieu){
