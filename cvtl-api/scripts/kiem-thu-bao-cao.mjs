@@ -336,7 +336,18 @@ console.log('\n10) ⭐ Định nghĩa "đã nhập" của từng hạng mục');
   kiem('Thờ phượng chấm đúng tuần 2', o(r.result, 2, 'tho_phuong') === 'du');
   kiem('Thờ phượng tuần 3 chưa có', o(r.result, 3, 'tho_phuong') !== 'du');
   kiem('Giáo dục chấm đúng tuần 3', o(r.result, 3, 'giao_duc') === 'du');
-  kiem('Điểm danh công việc chấm đúng tuần 4', o(r.result, 4, 'trudo_cong_viec') === 'du');
+  // ⚠️⚠️ 27/08/2026 — "Trudo — điểm danh công việc" ĐÃ BỊ BỎ khỏi bảng kiểm.
+  // Anh Rise nói rõ việc đó nhập thẳng trên My Memo; bảng cv_cong_viec trên
+  // web chỉ để chữa cháy khi nhập muộn. Bảng trống là BÌNH THƯỜNG, chấm ⚠️ ở
+  // đó là báo oan cả 8 khu vực mọi tuần. Ca dưới đây CẤM nó quay lại.
+  kiem('⚠️ KHÔNG còn hạng mục "trudo_cong_viec" (nhập ở My Memo, không chấm ở web)',
+    o(r.result, 4, 'trudo_cong_viec') === '(khong co hang muc)',
+    String(o(r.result, 4, 'trudo_cong_viec')));
+  kiem('bảng kiểm còn ĐÚNG 5 hạng mục',
+    r.result.tuan[0].hangMuc.length === 5,
+    r.result.tuan[0].hangMuc.map((x) => x.ma).join(','));
+  kiem('vẫn có dòng "trudo_truyen_dao" (đừng bỏ nhầm cả nhóm Trudo)',
+    r.result.tuan[0].hangMuc.some((x) => x.ma === 'trudo_truyen_dao'));
   // ⭐ 23/08 là tuần 5 theo LỊCH THẬT (sửa 26/08/2026). Cách chia cũ
   // ceil(ngày/7) cho ra tuần 4 — nếu ca này đỏ nghĩa là ai đó vừa quay lại
   // cách chia tuần cũ.
@@ -507,7 +518,25 @@ console.log('\n16) ⭐ Dấu vết "đã sửa sau báo cáo" — và KHÔNG bá
   kiem('dấu vết chỉ ghi 0/1, KHÔNG ghi "tre"/"chua"/"du"',
     /^([a-z_]+=[01];?)+$/.test(snap) && !/tre|chua|du/.test(snap.replace(/[a-z_]+=/g, '')),
     snap);
-  kiem('dấu vết có đủ 6 hạng mục', snap.split(';').length === 6, snap);
+  kiem('dấu vết có đủ 5 hạng mục', snap.split(';').length === 5, snap);
+
+  // ⚠️⚠️ 27/08/2026 — SO DẤU VẾT PHẢI THEO TỪNG HẠNG MỤC, KHÔNG SO CHUỖI THÔ.
+  // Hôm nay bỏ "trudo_cong_viec" khỏi bảng kiểm. Dấu vết đã lưu từ hôm trước
+  // vẫn còn khoá đó, nên so chuỗi thô là MỌI tuần đã báo cáo đều bị gắn cờ 🔁
+  // "đã sửa sau báo cáo" — báo oan cả phòng vì phần mềm đổi, không phải họ.
+  const { daSuaSauKhiBaoCao } = await import(join(goc, 'src/handlers/bao-cao.js'));
+  kiem('⚠️ dấu vết CŨ còn hạng mục đã bỏ -> KHÔNG bật cờ 🔁',
+    daSuaSauKhiBaoCao('tho_phuong=1;trudo_cong_viec=0;giao_duc=1',
+      'tho_phuong=1;giao_duc=1') === false);
+  kiem('⚠️ hạng mục MỚI thêm (dấu vết cũ chưa có) -> cũng KHÔNG bật cờ',
+    daSuaSauKhiBaoCao('tho_phuong=1', 'tho_phuong=1;hang_muc_moi=0') === false);
+  kiem('số của hạng mục CÓ Ở CẢ HAI mà đổi -> VẪN bật cờ',
+    daSuaSauKhiBaoCao('tho_phuong=0;giao_duc=1',
+      'tho_phuong=1;giao_duc=1') === true);
+  kiem('chưa có dấu vết (chuỗi rỗng) -> không kết luận gì',
+    daSuaSauKhiBaoCao('', 'tho_phuong=1') === false);
+  kiem('dấu vết y hệt -> không bật cờ',
+    daSuaSauKhiBaoCao('tho_phuong=1;giao_duc=0', 'tho_phuong=1;giao_duc=0') === false);
 }
 
 // =====================================================================
@@ -546,8 +575,8 @@ console.log('\n18) Chặn tháng hỏng — và KHÔNG được để màn hình
   // KHÔNG được trả rỗng (bài học #34: "chưa có" khác "màn hình trắng").
   const r = await goi('getBaoCaoTuan', ['2026-09', 'K My'], KVT);
   kiem('tháng chưa nhập gì vẫn trả đủ tuần', r.result.tuan.length >= 4);
-  kiem('và mỗi tuần vẫn đủ 6 dòng hạng mục',
-    r.result.tuan.every((t) => t.hangMuc.length === 6));
+  kiem('và mỗi tuần vẫn đủ 5 dòng hạng mục',
+    r.result.tuan.every((t) => t.hangMuc.length === 5));
 }
 
 // =====================================================================
@@ -602,7 +631,7 @@ console.log('\n21) Tổng theo hạng mục trong lưới');
       === d.theoHangMuc.tho_phuong.apDung);
   kiem('Đào tạo chưa có nhật ký -> KHÔNG tuần nào bị tính là áp dụng',
     d.theoHangMuc.dao_tao.apDung === 0, JSON.stringify(d.theoHangMuc.dao_tao));
-  kiem('lưới liệt kê đủ 6 hạng mục', r.result.hangMuc.length === 6);
+  kiem('lưới liệt kê đủ 5 hạng mục', r.result.hangMuc.length === 5);
 }
 
 // =====================================================================
