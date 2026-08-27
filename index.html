@@ -268,6 +268,11 @@
      Có vì "Trudo — truyền đạo" cần tới ba thứ, rất dễ nhập thiếu rồi tích V. */
   .bc-canhap{font-size:10px;font-weight:400;color:#94a3b8;line-height:1.35;
              margin-top:3px;white-space:normal;}
+  /* Link phụ dưới tên cột — có khi MỘT hạng mục nhập ở HAI nơi khác nhau.
+     Hiện chỉ Trudo cần: Đơn thuần/Hữu hiệu/Báp-têm ở menu 🏛️ Trudo, còn
+     Điểm danh công việc ở tab con Trudo. Một link không chỉ được cả hai. */
+  .bc-them{font-size:10px;font-weight:400;margin-top:2px;white-space:normal;}
+  .bc-them .bc-nhay{color:#2563eb;padding:1px 4px;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -655,7 +660,7 @@
           <div id="bc_noiDung" style="color:#94a3b8;">Đang tải…</div>
           <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
             <b>Cách dùng:</b> nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô của hạng mục đó.
-            Tích đủ cả tuần rồi bấm <b>✅ Xong tuần</b>.
+            Tích đủ cả tuần rồi bấm <b>📋 Báo cáo</b>.
             <br><b>Cách đọc ô:</b>
             <span title="đã tích">✅ đã tích</span> ·
             <span title="viền xanh nét đứt: web đã có số rồi, chỉ còn thiếu cái tích">⬜ viền xanh nét đứt = <b>web đã có số, nhớ tích</b></span> ·
@@ -663,10 +668,11 @@
             <span title="tuần đó không có buổi / không áp dụng hạng mục này">➖ không áp dụng</span>
             <br>Hạn là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
             <br>👉 Bấm vào <b>tên cột</b> để mở thẳng nơi nhập, vẫn giữ nguyên khu vực và tháng đang xem.
-            <br>⚠️ <b>Trudo — truyền đạo cần ĐỦ BA thứ:</b> Đơn thuần · Hữu hiệu · Báp-têm — nhập ở <b>menu 🏛️ Trudo</b> bên trái,
-            <b>không phải</b> tab con Trudo trong màn hình này (tab đó chỉ có biểu đồ để xem).
-            <br>📌 <b>Điểm danh công việc</b> nằm trong tab con Trudo nhưng <b>KHÔNG</b> thuộc bảng này —
-            việc đó nhập thẳng trên <b>My Memo</b>, bảng trên web chỉ để chữa cháy khi nhập muộn.
+            <br>⚠️ <b>Trudo — truyền đạo cần ĐỦ BỐN thứ:</b> Đơn thuần · Hữu hiệu · Báp-têm · Điểm danh công việc.
+            <br>&nbsp;&nbsp;&nbsp;&nbsp;Ba thứ đầu nhập ở <b>menu 🏛️ Trudo</b> bên trái (bấm tên cột);
+            <b>Điểm danh công việc</b> nhập ở <b>tab con Trudo</b> trong màn hình này —
+            bấm link nhỏ <b>→ Điểm danh CV</b> ngay dưới tên cột.
+            <br>📌 Sổ gốc của <b>Điểm danh công việc</b> vẫn là <b>My Memo</b>; bảng trên web để chữa cháy khi nhập muộn.
             <br>📌 Tuần nào <b>thật sự bằng 0</b> thì cứ tích V — đó là cách nói &quot;tôi đã rà, tuần này không có&quot;.
             <br>📌 Bảng này hỏi <b>&quot;đã chép số sang web chưa&quot;</b>, không phải &quot;đã làm việc chưa&quot;. Sổ gốc vẫn là <b>My Memo</b>.
           </div>
@@ -2539,7 +2545,11 @@ var BC_NOI = {
   },
   trudo_truyen_dao: {
     di: 'menu:trudo', o: 'menu 🏛️ Trudo',
-    nhap: 'Đơn thuần · Hữu hiệu · Báp-têm'
+    // ⭐ Anh Rise 27/08/2026: "trong mục trudo thì có thêm việc điểm danh công
+    // việc tin lành nữa". Bốn thứ, và chúng nhập ở HAI NƠI khác nhau — nên cột
+    // này là cột duy nhất có link phụ `them`.
+    nhap: 'Đơn thuần · Hữu hiệu · Báp-têm · Điểm danh công việc',
+    them: { ten: '→ Điểm danh CV', di: 'kv:trudo', o: 'tab con Trudo' }
   },
   giao_duc: {
     di: 'kv:edu', o: 'tab con Giáo dục',
@@ -2655,10 +2665,19 @@ function veBaoCaoPanel_(d){
         + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
         + '>' + ten + '</span>'
         + '<div class="bc-canhap">' + esc(noi.nhap) + '</div>';
+      // ⚠️ Link phụ: một hạng mục có thể nhập ở HAI nơi. Chỉ đường tới một nơi
+      // rồi im về nơi kia thì người ta nhập thiếu mà vẫn tích V (bài học #70).
+      if (noi.them) {
+        ten += '<div class="bc-them"><span class="bc-nhay" role="button" tabindex="0"'
+          + ' title="Nhập ở ' + esc(noi.them.o) + '. Bấm để mở."'
+          + ' onclick="bcToiTab_(\'' + noi.them.di + '\')"'
+          + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
+          + '>' + esc(noi.them.ten) + '</span></div>';
+      }
     }
     h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;">' + ten + '</th>';
   }
-  h += '<th style="padding:8px;text-align:center;white-space:nowrap;">Xong tuần</th>';
+  h += '<th style="padding:8px;text-align:center;white-space:nowrap;">Báo cáo</th>';
   h += '</tr></thead><tbody>';
 
   for (var t = 0; t < d.tuan.length; t++) {
@@ -2702,7 +2721,7 @@ function bcNutBaoCao_(d, w){
     return s;
   }
   if (w.thoiDiem === 'chua_toi') return '<span style="color:#cbd5e1;">—</span>';
-  return '<button type="button" class="done" style="margin:0;" onclick="bamBaoCaoTuan_(' + w.tuan + ')">✅ Xong tuần</button>';
+  return '<button type="button" class="done" style="margin:0;" onclick="bamBaoCaoTuan_(' + w.tuan + ')">📋 Báo cáo</button>';
 }
 
 // ⚠️ CỐ Ý KHÔNG khoá nút khi còn thiếu — anh Rise chốt "cảnh báo mềm, không
@@ -2722,7 +2741,7 @@ function bamBaoCaoTuan_(tuan){
         if (tt === 'tre' || tt === 'chua') thieu.push(w.hangMuc[j].ten);
       }
     }
-    var hoi = 'Xác nhận XONG Tuần ' + tuan + ' cho khu vực ' + kv + '?';
+    var hoi = 'BÁO CÁO Tuần ' + tuan + ' cho khu vực ' + kv + '?';
     if (thieu.length) {
       hoi += '\n\nCác hạng mục sau CHƯA được tích V:\n  • ' + thieu.join('\n  • ')
         + '\n\nĐúng là tuần này không có, hay còn quên tích?'
@@ -2730,7 +2749,7 @@ function bamBaoCaoTuan_(tuan){
     }
     if (!confirm(hoi)) return;
     google.script.run.withSuccessHandler(function(){
-      showMsg('Đã xác nhận xong Tuần ' + tuan + ' — ' + kv, true);
+      showMsg('Đã báo cáo Tuần ' + tuan + ' — ' + kv, true);
       loadBaoCaoPanel();
     }).withFailureHandler(function(err){
       showMsg('Không xác nhận được: ' + err.message, false);
@@ -2742,8 +2761,8 @@ function bamBaoCaoTuan_(tuan){
 
 function huyBaoCaoTuan_(tuan){
   var kv = selectedKV;
-  if (!confirm('Gỡ xác nhận "xong Tuần ' + tuan + '" của khu vực ' + kv + '?\n\n'
-    + 'Ô tích V và số liệu KHÔNG bị xoá — chỉ gỡ dấu "đã xong tuần".')) return;
+  if (!confirm('Gỡ báo cáo Tuần ' + tuan + ' của khu vực ' + kv + '?\n\n'
+    + 'Ô tích V và số liệu KHÔNG bị xoá — chỉ gỡ dấu "đã báo cáo".')) return;
   google.script.run.withSuccessHandler(function(){
     showMsg('Đã gỡ báo cáo Tuần ' + tuan, true);
     loadBaoCaoPanel();
@@ -3168,15 +3187,15 @@ function veNhacBaoCaoXong_(box, d){
   if (w.baoCao && w.baoCao.daBaoCao) {
     box.style.background = '#f0fdf4';
     box.style.color = '#166534';
-    box.innerHTML = '✅ <b>Đã xong Tuần ' + w.tuan + '</b> (' + esc(w.nhan) + ') · '
+    box.innerHTML = '✅ <b>Đã báo cáo Tuần ' + w.tuan + '</b> (' + esc(w.nhan) + ') · '
       + esc(d.khuVuc) + ' · ' + esc(w.baoCao.nhan) + link;
     return;
   }
   const conThieu = w.soTre + w.soChua;
   box.style.background = '#fffbeb';
   box.style.color = '#92400e';
-  box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa xác nhận xong</b> · ' + esc(d.khuVuc)
-    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa tích V.' : ' — đã tích đủ, chỉ còn bấm Xong tuần.')
+  box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa báo cáo</b> · ' + esc(d.khuVuc)
+    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa tích V.' : ' — đã tích đủ, chỉ còn bấm Báo cáo.')
     + link;
 }
 
@@ -3852,7 +3871,7 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
       // Cơ chế này CHÍNH LÀ nguyên nhân của lỗi B7 (bảng kẹt xám sau khi Hủy
       // báo cáo) và việc treo #13 ("bị tối ô nhập Tuần 3" của Đ Uyên) — gỡ nó
       // là xoá luôn cả một LOẠI lỗi, không phải sửa từng lần.
-      // 📌 Từ nay: xác nhận xong tuần rồi VẪN SỬA ĐƯỢC. Không có dấu cảnh báo
+      // 📌 Từ nay: báo cáo tuần rồi VẪN SỬA ĐƯỢC. Không có dấu cảnh báo
       // nào cả — anh Rise chốt 27/08/2026 bỏ hẳn cờ "số đã đổi sau báo cáo".
       cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
