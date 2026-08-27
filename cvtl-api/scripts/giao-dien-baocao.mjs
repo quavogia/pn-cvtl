@@ -353,8 +353,13 @@ kiem('khung này là bảng Thi đua, không phải lưới Kỷ luật',
 // chưa chép số sang web sẽ hiện 0 — không nói ra thì người đọc tưởng khu vực
 // đó không truyền đạo, và đem xếp hạng như vậy là oan cho người làm thật.
 kiem('⚠️ nói rõ số chỉ đếm cái ĐÃ NHẬP TRÊN WEB', /ĐÃ NHẬP TRÊN WEB/.test(chuTD));
-kiem('⚠️ nói rõ 0 nghĩa là chưa nhập, KHÔNG phải chưa truyền đạo',
-  /KHÔNG có nghĩa là chưa truyền đạo/.test(chuTD));
+// ⭐ Anh Rise 27/08/2026: "nếu đơn thuần = 0 nghĩa là chưa nhập đơn thuần
+// hoặc không có, anh chỉ muốn kiểm soát đã nhập hay chưa thôi". Câu chữ phải
+// nói ĐÚNG hai khả năng đó — bản trước khẳng định 0 "KHÔNG có nghĩa là chưa
+// truyền đạo", tức là khẳng định quá tay một điều web không biết.
+kiem('⚠️ nói rõ 0 = chưa nhập HOẶC thật sự không có',
+  /chưa nhập/.test(chuTD) && /thật sự không có/.test(chuTD)
+  && /không phân biệt được/.test(chuTD), chuTD.slice(0, 120));
 
 // ---------------------------------------------------------------------
 console.log('\n6b) 📋 Lưới Kỷ luật nhập liệu — ĐÃ ĐƯA TRỞ LẠI');
