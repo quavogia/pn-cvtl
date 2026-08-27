@@ -47,6 +47,14 @@ for (const t of [1, 2, 3, 4]) sqlite.prepare('INSERT INTO tp_tho_phuong (thang,k
 for (const t of [1, 2, 3]) sqlite.prepare('INSERT INTO giao_duc_thanh_vien (thang,khu_vuc,ten,tuan,edu_lms,tt127_ngay) VALUES (?,?,?,?,?,0)').run('2026-08', 'K Thành', 'Cô C', t, 'x');
 for (const d of ['2026-08-02', '2026-08-14', '2026-08-23']) sqlite.prepare('INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan) VALUES (?,?,?)').run(d, 'K Thành', 1);
 sqlite.prepare("INSERT INTO le_hoi_cau_hinh (ma_le_hoi,ten_le_hoi,ngay_bat_dau,ngay_ket_thuc,danh_sach_bai,so_lan_yeu_cau) VALUES ('2026-08-loi','Lễ hội Lời','2026-08-01','2026-08-30','4-6,4-7',3)").run();
+// ⭐ Mục tiêu cá nhân — CỐ Ý chỉ gieo cho 2/4 khu vực, và K Thành cố ý để
+// mt_bt = 0. Nhờ vậy bảng Thi đua kiểm được ĐỦ ba nhánh của một ô:
+//   có mục tiêu + có số (K Thành ĐT 3/4) · có mục tiêu + chưa có số (TT Châu
+//   0/10) · CHƯA đặt mục tiêu (K Thành BT, và cả Đ Uyên / K My).
+for (const [kv, ten, dt, hh, bt] of [['K Thành', 'Cô A', 4, 1, 0], ['TT Châu', 'Cô B', 10, 2, 1]]) {
+  sqlite.prepare('INSERT INTO muc_tieu_ca_nhan (thang,khu_vuc,ten,mt_don_thuan,mt_huu_hieu,mt_bt,mt_tt127_ngay) VALUES (?,?,?,?,?,?,0)')
+    .run('2026-08', kv, ten, dt, hh, bt);
+}
 
 const CHU = { email: 'chu@gmail.com', ten: 'Trưởng phòng', laChu: true, phamVi: '' };
 const KVT = { email: 'kvt@gmail.com', ten: 'KVT K Thành', laChu: false, phamVi: 'K Thành' };
@@ -385,15 +393,35 @@ console.log('\n6) 🏆 Bảng thi đua truyền đạo ở màn hình 📊 Tổn
 await page.evaluate(() => selectKVTong());
 await page.waitForTimeout(1200);
 kiem('khung Thi đua hiện với Admin', await page.locator('#bcThiDuaCard').isVisible());
+// ⚠️ Từ 27/08/2026 mỗi ô số có HAI tầng: `.td-so` (thực tế) và `.td-mt`
+// ("/ mục tiêu · %"). Phải đọc đúng `.td-so`, nếu lấy cả textContent thì ô sẽ
+// ra "3/ 4 · 75%" và ca "khớp tuyệt đối" bên dưới đỏ oan.
 const td = await page.evaluate(() =>
   [...document.querySelectorAll('#bcThiDua_noiDung tbody tr')].map((tr) =>
-    [...tr.children].map((x) => x.textContent.trim())));
+    [...tr.children].map((x) => {
+      const so = x.querySelector('.td-so');
+      return (so ? so.textContent : x.textContent).trim();
+    })));
+const tdMT = await page.evaluate(() =>
+  [...document.querySelectorAll('#bcThiDua_noiDung tbody tr')].map((tr) =>
+    [...tr.querySelectorAll('.td-mt')].map((x) => x.textContent.trim().replace(/\s+/g, ' '))));
 const dauTD = await page.evaluate(() =>
   [...document.querySelectorAll('#bcThiDua_noiDung thead th')].map((x) => x.textContent.trim()));
 kiem('4 khu vực + 1 dòng TỔNG', td.length === 5, String(td.length));
 kiem('có cột Đơn thuần / Hữu hiệu / Báp-têm',
   dauTD.some((x) => x === 'Đơn thuần') && dauTD.some((x) => x === 'Hữu hiệu')
   && dauTD.some((x) => x === 'Báp-têm'), JSON.stringify(dauTD));
+
+// ⚠️⚠️ 27/08/2026 — BỎ cột "% mục tiêu" GỘP. Anh Rise hỏi "cột mục tiêu đó
+// phải là trung bình của tất cả các hạng mục chứ nhỉ"; đã tính thử trên SỐ
+// THẬT và cho thấy trung bình cộng làm K Trâm (0 đơn thuần) xếp TRÊN K Đức
+// (32 đơn thuần) — vì mục tiêu Báp-têm chỉ 1–5 người nên một báp-têm đã là
+// 20–33%. Anh chốt TÁCH RIÊNG: mỗi cột tự mang "/ mục tiêu · %" của nó.
+kiem('⚠️ KHÔNG còn cột "% mục tiêu" gộp', !dauTD.some((x) => /% mục tiêu/.test(x)), JSON.stringify(dauTD));
+kiem('bảng còn ĐÚNG 5 cột: huy chương + Khu vực + 3 hạng mục',
+  dauTD.length === 5, JSON.stringify(dauTD));
+kiem('mỗi dòng có ĐỦ 3 ô mục tiêu (ĐT · HH · BT)',
+  tdMT.length === 5 && tdMT.every((r) => r.length === 3), JSON.stringify(tdMT));
 
 // ⚠️ Số PHẢI khớp tuyệt đối với getAllKhuVucOverview — nếu lệch nghĩa là ai
 // đó đã tự cộng lại đơn thuần ở giao diện thay vì dùng chung một hàm (bài
@@ -419,6 +447,33 @@ td.slice(0, 4).forEach((r) => {
 kiem('⚠️ số khớp TUYỆT ĐỐI với getAllKhuVucOverview',
   khopHet && td.length === 5, chiTiet.join(' | ') || ('bảng chỉ có ' + td.length + ' dòng'));
 
+// ⚠️ Dòng nhỏ "/ mục tiêu · %" cũng phải khớp TUYỆT ĐỐI với nguồn — nếu ai đó
+// tự tính lại % ở giao diện thì ca này đỏ (bài học #33).
+const mtNguon = {};
+goc6.forEach((x) => { mtNguon[x.khuVuc] = x.goalSummary; });
+let mtKhop = true;
+const mtChiTiet = [];
+td.slice(0, 4).forEach((r, i) => {
+  const g = mtNguon[r[1]];
+  if (!g) { mtKhop = false; mtChiTiet.push(r[1] + ':khong-co'); return; }
+  [['donThuan', 0], ['huuHieu', 1], ['bt', 2]].forEach(([ma, k]) => {
+    const mt = Number(g.goal[ma]) || 0;
+    const mong = mt ? ('/ ' + mt + ' · ' + g.percent[ma] + '%') : 'chưa đặt MT';
+    if (tdMT[i][k] !== mong) {
+      mtKhop = false;
+      mtChiTiet.push(r[1] + '.' + ma + ': bang="' + tdMT[i][k] + '" mong="' + mong + '"');
+    }
+  });
+});
+kiem('⚠️ dòng "/ mục tiêu · %" khớp TUYỆT ĐỐI với nguồn',
+  mtKhop && td.length === 5, mtChiTiet.join(' | ') || ('bảng chỉ có ' + td.length + ' dòng'));
+
+// ⚠️ Hạng mục CHƯA ai đặt mục tiêu phải ghi "chưa đặt MT", TUYỆT ĐỐI không ra
+// 0% — 0% đọc thành "làm mà không được gì", còn sự thật là "chưa có thước đo".
+kiem('⚠️ hạng mục chưa đặt mục tiêu ghi "chưa đặt MT", không phải 0%',
+  tdMT.some((r) => r.indexOf('chưa đặt MT') >= 0)
+  && !tdMT.some((r) => r.some((x) => x === '0%')), JSON.stringify(tdMT));
+
 // Xếp hạng: Đơn thuần giảm dần. Sai thứ tự thì bảng thi đua vô nghĩa.
 const cotDT = td.slice(0, 4).map((r) => Number(r[2]));
 kiem('xếp theo Đơn thuần GIẢM DẦN',
@@ -433,7 +488,13 @@ kiem('tổng Đơn thuần = cộng các khu vực',
 // nhầm hoặc tưởng hữu hiệu bị tụt khi có người báp-têm.
 const chuTD = await page.evaluate(() => document.getElementById('bcThiDuaCard').textContent);
 kiem('có giải thích Hữu hiệu và Báp-têm là hai nhóm riêng', /hai nhóm riêng/.test(chuTD));
-kiem('nói rõ chưa đặt mục tiêu thì hiện — chứ không phải 0%', /không phải 0%/.test(chuTD));
+kiem('nói rõ chưa đặt mục tiêu thì hiện chưa đặt MT chứ không phải 0%', /không phải 0%/.test(chuTD));
+// ⚠️⚠️ Lời cảnh báo này là KẾT LUẬN của cả một vòng phân tích trên số thật —
+// mất nó thì lần sau sẽ có người gộp ba cột % lại lần nữa.
+kiem('⚠️ chú thích CẤM cộng / lấy trung bình ba cột %',
+  /trung bình ba cột/.test(chuTD) || /ĐỪNG cộng hay lấy trung bình/.test(chuTD), chuTD.slice(0, 200));
+kiem('⚠️ nói rõ % chỉ để TỰ SOI, không so được giữa các khu vực',
+  /tự soi/i.test(chuTD) && /không so được giữa các khu vực/.test(chuTD));
 kiem('khung này là bảng Thi đua, không phải lưới Kỷ luật',
   /Thi đua truyền đạo/.test(chuTD) && !/Kỷ luật nhập liệu/.test(chuTD), chuTD.slice(0, 90));
 // ⚠️⚠️ Bảng thi đua đếm những gì ĐÃ NHẬP TRÊN WEB. Khu vực ghi ở My Memo mà
