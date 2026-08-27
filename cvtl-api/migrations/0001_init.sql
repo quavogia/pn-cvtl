@@ -427,3 +427,32 @@ CREATE TABLE IF NOT EXISTS bao_cao_tuan (
   PRIMARY KEY (thang, khu_vuc, tuan)
 );
 CREATE INDEX IF NOT EXISTS ix_bct_thang ON bao_cao_tuan (thang);
+
+-- ---------------------------------------------------------------------
+-- 24) bao_cao_tich — MỖI Ô TÍCH V LÀ MỘT DÒNG  (thêm 27/08/2026)
+--
+-- ⭐ Anh Rise chốt: "bỏ nút báo cáo thành tích V vào những hạng mục đã điểm
+--    danh hàng tuần". Trước đây chỉ có MỘT nút cho cả tuần nên không biết
+--    hạng mục nào đã xong; nay tích từng ô (tuần × hạng mục).
+--
+-- ⚠️ Đây là LỜI KHAI của người dùng, KHÔNG phải dữ liệu máy đo được. Anh Rise
+--    chọn "người tích hết, máy chỉ gợi ý" — máy vẫn dò xem web đã có số chưa
+--    để nhắc, nhưng KHÔNG tự tích thay.
+--
+-- ⚠️ Nhờ bảng này mà trạng thái ❓ "chưa đủ dữ liệu" BIẾN MẤT: Đào tạo và Lễ
+--    hội trước đây phải đoán qua nhật ký thay đổi (chỉ có từ 26/08/2026), nay
+--    người tích tay nên không phải đoán nữa.
+--
+-- Không có dòng = chưa tích. Bỏ tích thì XOÁ dòng, không lưu cờ 0/1 —
+-- để "chưa bao giờ tích" và "tích rồi bỏ" là một, đỡ một trạng thái.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bao_cao_tich (
+  thang         TEXT NOT NULL,
+  khu_vuc       TEXT NOT NULL,
+  tuan          INTEGER NOT NULL,
+  hang_muc      TEXT NOT NULL,
+  nguoi         TEXT,
+  thoi_gian_ms  INTEGER NOT NULL,
+  PRIMARY KEY (thang, khu_vuc, tuan, hang_muc)
+);
+CREATE INDEX IF NOT EXISTS ix_bcti_thang ON bao_cao_tich (thang);
