@@ -185,13 +185,23 @@ kiem('Thờ phượng tuần 1 = ✅ (chỉ có dòng 1lan vẫn tính là đã 
 kiem('Thờ phượng tuần 6 = — (không áp dụng)', bang[5][1] === '—', bang[5][1]);
 kiem('Trudo tuần 5 = ✅ (23/08 là tuần 5 theo LỊCH THẬT)', bang[4][2] === '✅', bang[4][2]);
 kiem('Trudo tuần 4 KHÔNG phải ✅', bang[3][2] !== '✅', bang[3][2]);
-kiem('Đào tạo = ❓ chứ không phải ⚠️ (chưa đủ dữ liệu)', bang[0][5] === '❓', bang[0][5]);
+kiem('Đào tạo = ❓ chứ không phải ⚠️ (chưa đủ dữ liệu)', bang[0][4] === '❓', bang[0][4]);
 kiem('tuần chưa tới hạn KHÔNG có ô nào bị chấm ⚠️',
-  bang[5].slice(1, 7).every((x) => x !== '⚠️'), JSON.stringify(bang[5]));
+  bang[5].slice(1, 6).every((x) => x !== '⚠️'), JSON.stringify(bang[5]));
 const dau = await page.evaluate(() =>
   [...document.querySelectorAll('#bc_noiDung thead th')].map((t) => t.textContent.trim()));
 kiem('KHÔNG lặp tên lễ hội hai lần',
   !dau.some((x) => x.includes('Lễ hội Lời (Lễ hội Lời)')), JSON.stringify(dau));
+// ⚠️⚠️ 27/08/2026 — anh Rise: "bảng điểm danh công việc đã được nhập thẳng
+// trên My Memo rồi, bảng đó chỉ có để chữa cháy". Chấm ⚠️ ở cột đó là báo oan
+// cả 8 khu vực mọi tuần, và vì một ô ⚠️ đủ làm đỏ cả dòng nên nó nhuộm đỏ
+// luôn bảng theo dõi toàn Si-ôn. Hai ca dưới đây CẤM cột đó quay lại.
+kiem('⚠️ KHÔNG còn cột "Trudo — điểm danh công việc"',
+  !dau.some((x) => /điểm danh công việc/i.test(x)), JSON.stringify(dau));
+kiem('bảng còn ĐÚNG 7 cột: Tuần + 5 hạng mục + Báo cáo',
+  dau.length === 7, JSON.stringify(dau));
+kiem('vẫn còn cột "Trudo — truyền đạo" (đừng bỏ nhầm cả nhóm Trudo)',
+  dau.some((x) => x.includes('truyền đạo')), JSON.stringify(dau));
 
 // ---------------------------------------------------------------------
 // ⭐ 26/08/2026 — anh Rise: "trong tab báo cáo này làm sao để biết đã nhập hay
@@ -211,7 +221,7 @@ let lu = await oNhay();
 kiem('ô ⚠️ bấm được', lu[0][2] === '⚠️#NHAY', lu[0][2]);
 kiem('ô ⏳ bấm được', lu[4][1] === '⏳#NHAY', lu[4][1]);
 kiem('ô ❓ bấm được (máy không dám chấm, nhưng người vẫn nên vào xem)',
-  lu[0][5] === '❓#NHAY', lu[0][5]);
+  lu[0][4] === '❓#NHAY', lu[0][4]);
 // ⚠️ Đây mới là phần quan trọng: ô ĐÃ XONG mà cũng gạch chân bấm được thì
 // nhìn lướt không còn phân biệt được đâu là chỗ cần đụng tới.
 kiem('⚠️ ô ✅ KHÔNG bấm được', lu[0][1] === '✅', lu[0][1]);
@@ -221,7 +231,10 @@ const nhacO = (r, c) => page.evaluate(([a, b]) =>
   document.querySelectorAll('#bc_noiDung tbody tr')[a].children[b]
     .querySelector('span.bc-nhay').getAttribute('title'), [r, c]);
 kiem('lời nhắc nói rõ mở tab nào', /bấm để mở tab TP nhập/.test(await nhacO(4, 1)), await nhacO(4, 1));
-kiem('lời nhắc vẫn giữ nghĩa ký hiệu', /quá hạn chưa nhập/.test(await nhacO(0, 2)), await nhacO(0, 2));
+// ⚠️ Câu chữ đổi 27/08/2026: sổ gốc là My Memo, web chỉ là lớp con số. Nói
+// "chưa nhập" nghe như khu vực đó CHƯA LÀM VIỆC — đổ oan cho người ta.
+kiem('lời nhắc nói "chưa có số trên web", KHÔNG nói "chưa nhập"',
+  /quá hạn chưa có số trên web/.test(await nhacO(0, 2)), await nhacO(0, 2));
 
 // Bấm thử TỪNG hạng mục -> phải rơi đúng tab con của hạng mục đó.
 const bamO = async (r, c) => {
@@ -236,10 +249,9 @@ const bamO = async (r, c) => {
 for (const [ten, r, c, tab] of [
   ['Thờ phượng', 4, 1, 'tp'],
   ['Trudo — truyền đạo', 0, 2, 'trudo'],
-  ['Trudo — điểm danh công việc', 0, 3, 'trudo'],
-  ['Giáo dục', 3, 4, 'edu'],
-  ['Đào tạo 70 bài', 0, 5, 'daotao'],
-  ['Lễ hội Lời', 5, 6, 'lehoi'],
+  ['Giáo dục', 3, 3, 'edu'],
+  ['Đào tạo 70 bài', 0, 4, 'daotao'],
+  ['Lễ hội Lời', 5, 5, 'lehoi'],
 ]) {
   const den = await bamO(r, c);
   kiem('bấm ô "' + ten + '" -> mở tab con ' + tab, den === tab, 'tới ' + den);
@@ -254,9 +266,12 @@ kiem('⚠️ nhảy tab KHÔNG đổi tháng đang xem',
   (await page.evaluate(() => document.getElementById('kvMonth').value)) === '2026-08',
   await page.evaluate(() => document.getElementById('kvMonth').value));
 
-kiem('phần "Cách đọc" có nói ô gạch chân bấm được',
-  /bấm được/.test(await page.evaluate(() =>
-    document.getElementById('kvsub-baocao').textContent)));
+const chuBaoCao = await page.evaluate(() =>
+  document.getElementById('kvsub-baocao').textContent);
+kiem('phần "Cách đọc" có nói ô gạch chân bấm được', /bấm được/.test(chuBaoCao));
+kiem('⚠️ KHÔNG còn chữ "chưa nhập" (đổ oan là chưa làm việc)',
+  !/chưa nhập/.test(chuBaoCao), chuBaoCao.slice(0, 200));
+kiem('nói rõ sổ gốc vẫn là My Memo', /My Memo/.test(chuBaoCao));
 
 // Trả về tab Báo cáo cho các phần sau chạy tiếp.
 await page.evaluate(() => selectKVSubTab('baocao'));
@@ -281,23 +296,72 @@ kiem('Admin gỡ được báo cáo',
   sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tuan').get().n === 0);
 
 // ---------------------------------------------------------------------
-console.log('\n6) Lưới toàn Si-ôn ở màn hình 📊 Tổng');
+console.log('\n6) 🏆 Bảng thi đua truyền đạo ở màn hình 📊 Tổng');
+// ⭐ 27/08/2026 — thay lưới "Kỷ luật nhập liệu" 12 cột. Anh Rise: "con số mà
+// anh muốn show nhất để các khu vực thi đua CHỈ là con số truyền đạo thôi".
 await page.evaluate(() => selectKVTong());
-await page.waitForTimeout(1000);
-kiem('khung lưới hiện với Admin', await page.locator('#bcLuoiCard').isVisible());
-const luoi = await page.evaluate(() =>
+await page.waitForTimeout(1200);
+kiem('khung hiện với Admin', await page.locator('#bcLuoiCard').isVisible());
+const td = await page.evaluate(() =>
   [...document.querySelectorAll('#bcLuoi_noiDung tbody tr')].map((tr) =>
-    [...tr.children].map((td) => td.textContent.trim())));
-kiem('đủ 4 khu vực', luoi.length === 4, String(luoi.length));
-kiem('mỗi dòng 1 + 6 tuần + 6 hạng mục = 13 ô', luoi[0].length === 13, String(luoi[0].length));
-kiem('K Thành: Thờ phượng 4/5', luoi.find((r) => r[0] === 'K Thành')[7] === '4/5');
-kiem('Đào tạo = — (chưa đủ dữ liệu, không tính vào mẫu số)',
-  luoi.find((r) => r[0] === 'K Thành')[11] === '—');
+    [...tr.children].map((x) => x.textContent.trim())));
+const dauTD = await page.evaluate(() =>
+  [...document.querySelectorAll('#bcLuoi_noiDung thead th')].map((x) => x.textContent.trim()));
+kiem('4 khu vực + 1 dòng TỔNG', td.length === 5, String(td.length));
+kiem('có cột Đơn thuần / Hữu hiệu / Báp-têm',
+  dauTD.some((x) => x === 'Đơn thuần') && dauTD.some((x) => x === 'Hữu hiệu')
+  && dauTD.some((x) => x === 'Báp-têm'), JSON.stringify(dauTD));
+
+// ⚠️ Số PHẢI khớp tuyệt đối với getAllKhuVucOverview — nếu lệch nghĩa là ai
+// đó đã tự cộng lại đơn thuần ở giao diện thay vì dùng chung một hàm (bài
+// học #33). Đây là ca đắt giá nhất của phần này.
+const goc6 = await page.evaluate(() => new Promise((ok) => {
+  google.script.run.withSuccessHandler(ok).getAllKhuVucOverview('2026-08');
+}));
+const mongDoi = {};
+goc6.forEach((x) => { mongDoi[x.khuVuc] = x.goalSummary.actual; });
+let khopHet = true;
+const chiTiet = [];
+td.slice(0, 4).forEach((r) => {
+  const m = mongDoi[r[1]];
+  if (!m) { khopHet = false; chiTiet.push(r[1] + ':khong-co'); return; }
+  if (String(m.donThuan) !== r[2] || String(m.huuHieu) !== r[3] || String(m.bt) !== r[4]) {
+    khopHet = false;
+    chiTiet.push(r[1] + ': bang=' + r.slice(2, 5).join('/') + ' nguon=' + [m.donThuan, m.huuHieu, m.bt].join('/'));
+  }
+});
+kiem('⚠️ số khớp TUYỆT ĐỐI với getAllKhuVucOverview', khopHet, chiTiet.join(' | '));
+
+// Xếp hạng: Đơn thuần giảm dần. Sai thứ tự thì bảng thi đua vô nghĩa.
+const cotDT = td.slice(0, 4).map((r) => Number(r[2]));
+kiem('xếp theo Đơn thuần GIẢM DẦN',
+  cotDT.every((v, k) => k === 0 || cotDT[k - 1] >= v), JSON.stringify(cotDT));
+kiem('khu vực dẫn đầu có huy chương 🥇', td[0][0] === '🥇', td[0][0]);
+kiem('dòng cuối là TỔNG cả Si-ôn', td[4][1] === 'Cả Si-ôn', td[4][1]);
+kiem('tổng Đơn thuần = cộng các khu vực',
+  Number(td[4][2]) === cotDT.reduce((a, b) => a + b, 0),
+  td[4][2] + ' vs ' + cotDT.reduce((a, b) => a + b, 0));
+
+// ⚠️ Hữu hiệu và Báp-têm là HAI NHÓM RIÊNG — không nói ra thì người đọc cộng
+// nhầm hoặc tưởng hữu hiệu bị tụt khi có người báp-têm.
+const chuTD = await page.evaluate(() => document.getElementById('bcLuoiCard').textContent);
+kiem('có giải thích Hữu hiệu và Báp-têm là hai nhóm riêng', /hai nhóm riêng/.test(chuTD));
+kiem('nói rõ chưa đặt mục tiêu thì hiện — chứ không phải 0%', /không phải 0%/.test(chuTD));
+// ⚠️ Kiểm trên MÀN HÌNH, không kiểm document.body.textContent — textContent
+// của body nuốt luôn cả chú thích trong <script>, mà chú thích thì có nhắc
+// tên lưới cũ. Kiểm sai chỗ là ca đỏ oan.
+kiem('⚠️ khung này KHÔNG còn là lưới "Kỷ luật nhập liệu hằng tuần"',
+  !/Kỷ luật nhập liệu/.test(chuTD) && /Thi đua truyền đạo/.test(chuTD), chuTD.slice(0, 90));
+const maNguon6 = readFileSync(join(GOC, 'index.html'), 'utf8');
+kiem('mã nguồn KHÔNG còn hàm vẽ lưới cũ',
+  !/function veBaoCaoLuoi_/.test(maNguon6) && !/function bcLuoiO_/.test(maNguon6)
+  && !/function bcTyLe_/.test(maNguon6));
+
 // Người chưa gán khu vực -> GIẤU HẲN khung, không hiện dòng đỏ (họ đâu có sai).
 await vaoVai(THANH_DO, [], false);
 await page.evaluate(() => { selectKVTong(); });
 await page.waitForTimeout(900);
-kiem('người chưa gán khu vực: khung lưới bị GIẤU HẲN',
+kiem('người chưa gán khu vực: khung bị GIẤU HẲN',
   !(await page.locator('#bcLuoiCard').isVisible()));
 
 // ---------------------------------------------------------------------
