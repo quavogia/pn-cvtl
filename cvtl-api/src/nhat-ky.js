@@ -65,6 +65,7 @@ export const VI_TRI_KHU_VUC = {
   saveTPWeek: 1,
   setDaoTaoBaiAll: 0,
   setDaoTaoQuyenAll: 0,
+  toggleBaoCaoTich: 1,
   toggleDaoTaoBai: 0,
   toggleLeHoiLan: 1,
   unhideCVNguoi: 0,
