@@ -274,6 +274,12 @@
   .bc-them{font-size:10px;font-weight:400;margin-top:2px;white-space:normal;}
   .bc-them .bc-nhay{color:#2563eb;padding:1px 4px;}
 
+  /* ---------- Ô bảng Thi đua: SỐ THẬT ở trên, "/ mục tiêu · %" ở dưới ----------
+     27/08/2026 — bỏ cột "% mục tiêu" gộp. Xem lời giải thích ở veThiDua_. */
+  .td-so{font-weight:700;font-size:15px;line-height:1.2;}
+  .td-mt{font-size:11px;font-weight:400;color:#94a3b8;line-height:1.35;
+         margin-top:2px;white-space:nowrap;}
+
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
   .chart-legend .dot{width:12px;height:12px;border-radius:3px;display:inline-block;margin-right:7px;vertical-align:middle;}
@@ -2830,13 +2836,18 @@ function veThiDua_(ds){
   var phamVi = phamViCuaToi_();
   var rows = ds.map(function(x){
     var g = x.goalSummary || { goal: {}, actual: {}, percent: {} };
+    var pc = g.percent || {};
     return {
       khuVuc: x.khuVuc,
       donThuan: Number(g.actual.donThuan) || 0,
       huuHieu: Number(g.actual.huuHieu) || 0,
       bt: Number(g.actual.bt) || 0,
       mtDonThuan: Number(g.goal.donThuan) || 0,
-      pct: g.percent ? g.percent.donThuan : null
+      mtHuuHieu: Number(g.goal.huuHieu) || 0,
+      mtBt: Number(g.goal.bt) || 0,
+      pctDonThuan: pc.donThuan === undefined ? null : pc.donThuan,
+      pctHuuHieu: pc.huuHieu === undefined ? null : pc.huuHieu,
+      pctBt: pc.bt === undefined ? null : pc.bt
     };
   });
   // ⚠️ Xếp theo ĐƠN THUẦN giảm dần — đúng "con số truyền đạo" anh Rise nêu.
@@ -2849,8 +2860,11 @@ function veThiDua_(ds){
     return String(a.khuVuc).localeCompare(String(b.khuVuc), 'vi');
   });
 
-  var tong = { donThuan: 0, huuHieu: 0, bt: 0 };
-  rows.forEach(function(r){ tong.donThuan += r.donThuan; tong.huuHieu += r.huuHieu; tong.bt += r.bt; });
+  var tong = { donThuan: 0, huuHieu: 0, bt: 0, mtDonThuan: 0, mtHuuHieu: 0, mtBt: 0 };
+  rows.forEach(function(r){
+    tong.donThuan += r.donThuan;   tong.huuHieu += r.huuHieu;   tong.bt += r.bt;
+    tong.mtDonThuan += r.mtDonThuan; tong.mtHuuHieu += r.mtHuuHieu; tong.mtBt += r.mtBt;
+  });
 
   var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:560px;">';
   h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">'
@@ -2859,7 +2873,6 @@ function veThiDua_(ds){
     + '<th style="padding:8px;text-align:center;">Đơn thuần</th>'
     + '<th style="padding:8px;text-align:center;">Hữu hiệu</th>'
     + '<th style="padding:8px;text-align:center;">Báp-têm</th>'
-    + '<th style="padding:8px;text-align:center;">% mục tiêu<br><span style="font-weight:400;font-size:11px;color:#94a3b8;">(đơn thuần)</span></th>'
     + '</tr></thead><tbody>';
 
   for (var i = 0; i < rows.length; i++) {
@@ -2870,18 +2883,17 @@ function veThiDua_(ds){
     h += '<tr style="border-bottom:1px solid #f1f5f9;' + (cuaToi ? 'background:#eff6ff;' : '') + '">'
       + '<td style="padding:8px;text-align:center;font-size:16px;">' + bcHuy_(i, r.donThuan > 0) + '</td>'
       + '<td style="padding:8px;white-space:nowrap;font-weight:' + (cuaToi ? '700' : '400') + ';">' + esc(r.khuVuc) + '</td>'
-      + '<td style="padding:8px;text-align:center;font-weight:700;font-size:15px;">' + r.donThuan + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + r.huuHieu + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + r.bt + '</td>'
-      + '<td style="padding:8px;text-align:center;">' + bcPhanTramMT_(r.pct, r.mtDonThuan) + '</td>'
+      + bcOThiDua_(r.donThuan, r.mtDonThuan, r.pctDonThuan)
+      + bcOThiDua_(r.huuHieu, r.mtHuuHieu, r.pctHuuHieu)
+      + bcOThiDua_(r.bt, r.mtBt, r.pctBt)
       + '</tr>';
   }
   h += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;">'
     + '<td style="padding:8px;"></td><td style="padding:8px;">Cả Si-ôn</td>'
-    + '<td style="padding:8px;text-align:center;">' + tong.donThuan + '</td>'
-    + '<td style="padding:8px;text-align:center;">' + tong.huuHieu + '</td>'
-    + '<td style="padding:8px;text-align:center;">' + tong.bt + '</td>'
-    + '<td style="padding:8px;"></td></tr>';
+    + bcOThiDua_(tong.donThuan, tong.mtDonThuan, bcTyLe100_(tong.donThuan, tong.mtDonThuan))
+    + bcOThiDua_(tong.huuHieu, tong.mtHuuHieu, bcTyLe100_(tong.huuHieu, tong.mtHuuHieu))
+    + bcOThiDua_(tong.bt, tong.mtBt, bcTyLe100_(tong.bt, tong.mtBt))
+    + '</tr>';
   h += '</tbody></table></div>';
 
   // ⚠️ Bắt buộc có dòng này: Hữu hiệu và Báp-têm là HAI NHÓM RIÊNG trong hệ
@@ -2892,17 +2904,55 @@ function veThiDua_(ds){
     + 'hoặc tuần đó thật sự không có — web không phân biệt được hai điều đó. '
     + 'Muốn biết khu vực nào chưa nhập tuần nào thì mở tab con <b>📋 Báo cáo</b> của khu vực đó.'
     + '<br><b>Hữu hiệu và Báp-têm là hai nhóm riêng</b> — người đã Báp-têm không còn được đếm vào Hữu hiệu, nên đừng cộng hai cột lại.'
-    + '<br><b>% mục tiêu</b> tính trên Đơn thuần; mục tiêu khu vực <b>cộng dồn từ Mục tiêu cá nhân</b>. '
-    + 'Khu vực chưa ai đặt mục tiêu thì hiện <b>—</b> (chưa có), <b>không phải 0%</b>.'
+    + '<br><b>Cách đọc ô:</b> số lớn là <b>thực tế</b>, dòng nhỏ bên dưới là <b>/ mục tiêu · %</b>. '
+    + 'Mục tiêu khu vực <b>cộng dồn từ Mục tiêu cá nhân</b> của tháng đó. '
+    + 'Hạng mục chưa ai đặt mục tiêu thì hiện <b>chưa đặt MT</b> (chưa có), <b>không phải 0%</b>.'
+    + '<br>⚠️ <b>ĐỪNG cộng hay lấy trung bình ba cột % này.</b> Mục tiêu Báp-têm thường chỉ 1–5 người '
+    + 'nên <b>một</b> báp-têm đã là 20–33%, trong khi mục tiêu Đơn thuần hàng trăm. '
+    + 'Trung bình lại thì khu vực <b>0 đơn thuần</b> có thể xếp trên khu vực <b>32 đơn thuần</b> — '
+    + 'đã tính thử trên số thật 27/08/2026 và đúng là như vậy.'
+    + '<br>📌 <b>% chỉ để mỗi khu vực TỰ SOI</b> với mục tiêu chính mình đặt, '
+    + '<b>không so được giữa các khu vực</b> — ai đặt mục tiêu thấp thì % cao.'
     + '</div>';
   box.innerHTML = h;
 }
 
-function bcPhanTramMT_(pct, mucTieu){
-  if (!mucTieu) return '<span style="color:#cbd5e1;" title="khu vực này chưa ai đặt mục tiêu">—</span>';
-  if (pct === null || pct === undefined) return '<span style="color:#cbd5e1;">—</span>';
-  var mau = pct >= 100 ? '#16a34a' : (pct >= 50 ? '#64748b' : '#dc2626');
-  return '<span style="color:' + mau + ';font-weight:600;">' + pct + '%</span>';
+/**
+ * ⭐⭐ MỘT Ô của bảng Thi đua: số thật ở trên, "/ mục tiêu · %" ở dưới.
+ *
+ * Anh Rise 27/08/2026: "cột mục tiêu đó phải là trung bình của tất cả các hạng
+ * mục chứ nhỉ". Đã tính thử trên SỐ THẬT rồi đưa anh xem, và anh chốt phương án
+ * TÁCH RIÊNG chứ không gộp. Lý do phải nhớ:
+ *
+ * ⚠️⚠️ KHÔNG CÓ MỘT CON SỐ % NÀO GỘP ĐƯỢC BA HẠNG MỤC MÀ KHÔNG BÓP MÉO.
+ *   · Trung bình cộng ba tỉ lệ -> ba hạng mục nặng bằng nhau, trong khi mục
+ *     tiêu Báp-têm chỉ 1–5 người còn Đơn thuần hàng trăm. Số thật 27/08/2026:
+ *     K Trâm (0 đơn thuần, 1 báp-têm) ra 6.7% và xếp TRÊN K Đức (32 đơn thuần,
+ *     19.8%) ra 6.6%. Một báp-têm đảo cả bảng xếp hạng.
+ *   · Gộp mẫu số (cộng hết mục tiêu, cộng hết thực tế) -> Đơn thuần át hẳn vì
+ *     số to gấp 10–100 lần, ra gần y hệt cột cũ; lại còn cộng 1 báp-têm ngang
+ *     1 đơn thuần, hai thứ không cùng độ khó.
+ * 👉 Ai định gom ba cột này thành một con số, đọc lại đoạn trên trước đã.
+ */
+function bcOThiDua_(soThucTe, mucTieu, pct){
+  var duoi;
+  if (!mucTieu) {
+    duoi = '<span title="hạng mục này chưa ai đặt mục tiêu">chưa đặt MT</span>';
+  } else if (pct === null || pct === undefined) {
+    duoi = '/ ' + mucTieu;
+  } else {
+    var mau = pct >= 100 ? '#16a34a' : (pct >= 50 ? '#64748b' : '#dc2626');
+    duoi = '/ ' + mucTieu + ' · <span style="color:' + mau + ';font-weight:600;">' + pct + '%</span>';
+  }
+  return '<td style="padding:8px;text-align:center;">'
+    + '<div class="td-so">' + soThucTe + '</div>'
+    + '<div class="td-mt">' + duoi + '</div></td>';
+}
+
+/** Tỉ lệ % làm tròn 1 chữ số. Mục tiêu 0 thì trả null (KHÔNG trả 0%). */
+function bcTyLe100_(thucTe, mucTieu){
+  if (!mucTieu) return null;
+  return Math.round((thucTe / mucTieu) * 1000) / 10;
 }
 
 function escTP_(s){
