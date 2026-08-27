@@ -40,7 +40,10 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE INDEX IF NOT EXISTS ix_nktd_thoi_gian ON nhat_ky_thay_doi (thoi_gian_ms)",
   "CREATE INDEX IF NOT EXISTS ix_nktd_kv ON nhat_ky_thay_doi (khu_vuc, thoi_gian_ms)",
   "CREATE TABLE IF NOT EXISTS bao_cao_tuan ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, snap_json TEXT NOT NULL, nguoi_bao_cao TEXT, thoi_gian_ms INTEGER NOT NULL, PRIMARY KEY (thang, khu_vuc, tuan) )",
-  "CREATE INDEX IF NOT EXISTS ix_bct_thang ON bao_cao_tuan (thang)"
+  "CREATE INDEX IF NOT EXISTS ix_bct_thang ON bao_cao_tuan (thang)",
+  // Mỗi ô tích V là một dòng (27/08/2026). Không có dòng = chưa tích.
+  "CREATE TABLE IF NOT EXISTS bao_cao_tich ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, hang_muc TEXT NOT NULL, nguoi TEXT, thoi_gian_ms INTEGER NOT NULL, PRIMARY KEY (thang, khu_vuc, tuan, hang_muc) )",
+  "CREATE INDEX IF NOT EXISTS ix_bcti_thang ON bao_cao_tich (thang)"
 ];
 
 // =====================================================================
