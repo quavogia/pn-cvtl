@@ -330,7 +330,11 @@ td.slice(0, 4).forEach((r) => {
     chiTiet.push(r[1] + ': bang=' + r.slice(2, 5).join('/') + ' nguon=' + [m.donThuan, m.huuHieu, m.bt].join('/'));
   }
 });
-kiem('⚠️ số khớp TUYỆT ĐỐI với getAllKhuVucOverview', khopHet, chiTiet.join(' | '));
+// ⚠️ Phải đòi ĐỦ 5 dòng: bảng RỖNG thì vòng lặp trên không chạy lần nào và
+// khopHet vẫn là true — ca sẽ BÁO XANH OAN. Đã dính đúng bẫy này 27/08/2026:
+// xoá nhầm hàm bcHuy_ làm bảng không vẽ được mà ca này vẫn xanh.
+kiem('⚠️ số khớp TUYỆT ĐỐI với getAllKhuVucOverview',
+  khopHet && td.length === 5, chiTiet.join(' | ') || ('bảng chỉ có ' + td.length + ' dòng'));
 
 // Xếp hạng: Đơn thuần giảm dần. Sai thứ tự thì bảng thi đua vô nghĩa.
 const cotDT = td.slice(0, 4).map((r) => Number(r[2]));
@@ -361,29 +365,20 @@ kiem('⚠️ nói rõ 0 = chưa nhập HOẶC thật sự không có',
   /chưa nhập/.test(chuTD) && /thật sự không có/.test(chuTD)
   && /không phân biệt được/.test(chuTD), chuTD.slice(0, 120));
 
-// ---------------------------------------------------------------------
-console.log('\n6b) 📋 Lưới Kỷ luật nhập liệu — ĐÃ ĐƯA TRỞ LẠI');
-// ⭐⭐ Anh Rise chốt 27/08/2026 việc DUY NHẤT của web: "ở web chúng ta chỉ giải
-// quyết bài toán sao cho kiểm soát được là các khu vực đã nhập trên web hàng
-// tuần là được". Lưới này là màn hình DUY NHẤT làm được việc đó trên cả 8 khu
-// vực — nên nó phải tồn tại. Đã từng bị gỡ vài giờ vì cột "Điểm danh công
-// việc" báo oan làm nó đỏ đều; bỏ cột đó xong thì nó phân biệt được.
-kiem('khung Kỷ luật hiện với Admin', await page.locator('#bcLuoiCard').isVisible());
-const luoi = await page.evaluate(() =>
-  [...document.querySelectorAll('#bcLuoi_noiDung tbody tr')].map((tr) =>
-    [...tr.children].map((x) => x.textContent.trim())));
-kiem('đủ 4 khu vực', luoi.length === 4, String(luoi.length));
-kiem('mỗi dòng 1 + 6 tuần + 5 hạng mục = 12 ô', luoi[0].length === 12, String(luoi[0].length));
-kiem('K Thành: Thờ phượng 4/5', luoi.find((r) => r[0] === 'K Thành')[7] === '4/5',
-  JSON.stringify(luoi.find((r) => r[0] === 'K Thành')));
-const dauLuoi = await page.evaluate(() =>
-  [...document.querySelectorAll('#bcLuoi_noiDung thead th')].map((x) => x.textContent.trim()));
-kiem('⚠️ lưới cũng KHÔNG còn cột "Điểm danh công việc"',
-  !dauLuoi.some((x) => /điểm danh công việc/i.test(x)), JSON.stringify(dauLuoi));
-const chuLuoi = await page.evaluate(() => document.getElementById('bcLuoiCard').textContent);
-kiem('⚠️ lưới KHÔNG dùng chữ "chưa nhập" (đổ oan là chưa làm việc)',
-  !/chưa nhập(?! liệu)/.test(chuLuoi), chuLuoi.slice(0, 160));
-kiem('lưới nói "chưa có số trên web"', /chưa có số trên web/.test(chuLuoi));
+// ⚠️⚠️ 27/08/2026 — LƯỚI "KỶ LUẬT NHẬP LIỆU" ĐÃ BỎ HẲN.
+// Anh Rise: "anh chưa hiểu bảng kỷ luật chỗ này để làm gì" -> "bỏ hẳn đi, anh
+// sẽ kiểm soát từ tab báo cáo của các khu vực". Nguyên nhân nó khó đọc: trộn
+// HAI câu hỏi trong một dòng — nửa trái hỏi "đã bấm NÚT Báo cáo chưa", nửa
+// phải hỏi "đã nhập SỐ chưa" — mà anh chỉ cần câu thứ hai.
+// 📌 Bài học: một bảng trả lời hai câu hỏi khác nhau thì không trả lời câu nào.
+const maNguon6 = readFileSync(join(GOC, 'index.html'), 'utf8');
+kiem('⚠️ KHÔNG còn khung lưới Kỷ luật trong mã nguồn',
+  !/id="bcLuoi/.test(maNguon6) && !/bcLuoi_noiDung/.test(maNguon6));
+kiem('⚠️ KHÔNG còn hàm vẽ lưới',
+  !/function veBaoCaoLuoi_/.test(maNguon6) && !/function bcLuoiO_/.test(maNguon6)
+  && !/function bcTyLe_/.test(maNguon6) && !/function loadLuoiKyLuat/.test(maNguon6));
+kiem('màn 📊 Tổng KHÔNG còn hiện chữ "Kỷ luật nhập liệu"',
+  !/Kỷ luật nhập liệu/.test(await page.evaluate(() => document.getElementById('kvsub-tong').textContent)));
 
 // Người chưa gán khu vực -> GIẤU HẲN khung, không hiện dòng đỏ (họ đâu có sai).
 await vaoVai(THANH_DO, [], false);
@@ -391,8 +386,6 @@ await page.evaluate(() => { selectKVTong(); });
 await page.waitForTimeout(900);
 kiem('người chưa gán khu vực: khung Thi đua bị GIẤU HẲN',
   !(await page.locator('#bcThiDuaCard').isVisible()));
-kiem('người chưa gán khu vực: khung Kỷ luật cũng bị GIẤU HẲN',
-  !(await page.locator('#bcLuoiCard').isVisible()));
 
 // ---------------------------------------------------------------------
 console.log('\n7) ⚠️ ĐÃ GỠ hai nút "Báo cáo T3/T7" và cơ chế KHOÁ Ô XÁM');
