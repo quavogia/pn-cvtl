@@ -301,12 +301,12 @@ console.log('\n6) 🏆 Bảng thi đua truyền đạo ở màn hình 📊 Tổn
 // anh muốn show nhất để các khu vực thi đua CHỈ là con số truyền đạo thôi".
 await page.evaluate(() => selectKVTong());
 await page.waitForTimeout(1200);
-kiem('khung hiện với Admin', await page.locator('#bcLuoiCard').isVisible());
+kiem('khung Thi đua hiện với Admin', await page.locator('#bcThiDuaCard').isVisible());
 const td = await page.evaluate(() =>
-  [...document.querySelectorAll('#bcLuoi_noiDung tbody tr')].map((tr) =>
+  [...document.querySelectorAll('#bcThiDua_noiDung tbody tr')].map((tr) =>
     [...tr.children].map((x) => x.textContent.trim())));
 const dauTD = await page.evaluate(() =>
-  [...document.querySelectorAll('#bcLuoi_noiDung thead th')].map((x) => x.textContent.trim()));
+  [...document.querySelectorAll('#bcThiDua_noiDung thead th')].map((x) => x.textContent.trim()));
 kiem('4 khu vực + 1 dòng TỔNG', td.length === 5, String(td.length));
 kiem('có cột Đơn thuần / Hữu hiệu / Báp-têm',
   dauTD.some((x) => x === 'Đơn thuần') && dauTD.some((x) => x === 'Hữu hiệu')
@@ -344,24 +344,49 @@ kiem('tổng Đơn thuần = cộng các khu vực',
 
 // ⚠️ Hữu hiệu và Báp-têm là HAI NHÓM RIÊNG — không nói ra thì người đọc cộng
 // nhầm hoặc tưởng hữu hiệu bị tụt khi có người báp-têm.
-const chuTD = await page.evaluate(() => document.getElementById('bcLuoiCard').textContent);
+const chuTD = await page.evaluate(() => document.getElementById('bcThiDuaCard').textContent);
 kiem('có giải thích Hữu hiệu và Báp-têm là hai nhóm riêng', /hai nhóm riêng/.test(chuTD));
 kiem('nói rõ chưa đặt mục tiêu thì hiện — chứ không phải 0%', /không phải 0%/.test(chuTD));
-// ⚠️ Kiểm trên MÀN HÌNH, không kiểm document.body.textContent — textContent
-// của body nuốt luôn cả chú thích trong <script>, mà chú thích thì có nhắc
-// tên lưới cũ. Kiểm sai chỗ là ca đỏ oan.
-kiem('⚠️ khung này KHÔNG còn là lưới "Kỷ luật nhập liệu hằng tuần"',
-  !/Kỷ luật nhập liệu/.test(chuTD) && /Thi đua truyền đạo/.test(chuTD), chuTD.slice(0, 90));
-const maNguon6 = readFileSync(join(GOC, 'index.html'), 'utf8');
-kiem('mã nguồn KHÔNG còn hàm vẽ lưới cũ',
-  !/function veBaoCaoLuoi_/.test(maNguon6) && !/function bcLuoiO_/.test(maNguon6)
-  && !/function bcTyLe_/.test(maNguon6));
+kiem('khung này là bảng Thi đua, không phải lưới Kỷ luật',
+  /Thi đua truyền đạo/.test(chuTD) && !/Kỷ luật nhập liệu/.test(chuTD), chuTD.slice(0, 90));
+// ⚠️⚠️ Bảng thi đua đếm những gì ĐÃ NHẬP TRÊN WEB. Khu vực ghi ở My Memo mà
+// chưa chép số sang web sẽ hiện 0 — không nói ra thì người đọc tưởng khu vực
+// đó không truyền đạo, và đem xếp hạng như vậy là oan cho người làm thật.
+kiem('⚠️ nói rõ số chỉ đếm cái ĐÃ NHẬP TRÊN WEB', /ĐÃ NHẬP TRÊN WEB/.test(chuTD));
+kiem('⚠️ nói rõ 0 nghĩa là chưa nhập, KHÔNG phải chưa truyền đạo',
+  /KHÔNG có nghĩa là chưa truyền đạo/.test(chuTD));
+
+// ---------------------------------------------------------------------
+console.log('\n6b) 📋 Lưới Kỷ luật nhập liệu — ĐÃ ĐƯA TRỞ LẠI');
+// ⭐⭐ Anh Rise chốt 27/08/2026 việc DUY NHẤT của web: "ở web chúng ta chỉ giải
+// quyết bài toán sao cho kiểm soát được là các khu vực đã nhập trên web hàng
+// tuần là được". Lưới này là màn hình DUY NHẤT làm được việc đó trên cả 8 khu
+// vực — nên nó phải tồn tại. Đã từng bị gỡ vài giờ vì cột "Điểm danh công
+// việc" báo oan làm nó đỏ đều; bỏ cột đó xong thì nó phân biệt được.
+kiem('khung Kỷ luật hiện với Admin', await page.locator('#bcLuoiCard').isVisible());
+const luoi = await page.evaluate(() =>
+  [...document.querySelectorAll('#bcLuoi_noiDung tbody tr')].map((tr) =>
+    [...tr.children].map((x) => x.textContent.trim())));
+kiem('đủ 4 khu vực', luoi.length === 4, String(luoi.length));
+kiem('mỗi dòng 1 + 6 tuần + 5 hạng mục = 12 ô', luoi[0].length === 12, String(luoi[0].length));
+kiem('K Thành: Thờ phượng 4/5', luoi.find((r) => r[0] === 'K Thành')[7] === '4/5',
+  JSON.stringify(luoi.find((r) => r[0] === 'K Thành')));
+const dauLuoi = await page.evaluate(() =>
+  [...document.querySelectorAll('#bcLuoi_noiDung thead th')].map((x) => x.textContent.trim()));
+kiem('⚠️ lưới cũng KHÔNG còn cột "Điểm danh công việc"',
+  !dauLuoi.some((x) => /điểm danh công việc/i.test(x)), JSON.stringify(dauLuoi));
+const chuLuoi = await page.evaluate(() => document.getElementById('bcLuoiCard').textContent);
+kiem('⚠️ lưới KHÔNG dùng chữ "chưa nhập" (đổ oan là chưa làm việc)',
+  !/chưa nhập(?! liệu)/.test(chuLuoi), chuLuoi.slice(0, 160));
+kiem('lưới nói "chưa có số trên web"', /chưa có số trên web/.test(chuLuoi));
 
 // Người chưa gán khu vực -> GIẤU HẲN khung, không hiện dòng đỏ (họ đâu có sai).
 await vaoVai(THANH_DO, [], false);
 await page.evaluate(() => { selectKVTong(); });
 await page.waitForTimeout(900);
-kiem('người chưa gán khu vực: khung bị GIẤU HẲN',
+kiem('người chưa gán khu vực: khung Thi đua bị GIẤU HẲN',
+  !(await page.locator('#bcThiDuaCard').isVisible()));
+kiem('người chưa gán khu vực: khung Kỷ luật cũng bị GIẤU HẲN',
   !(await page.locator('#bcLuoiCard').isVisible()));
 
 // ---------------------------------------------------------------------
