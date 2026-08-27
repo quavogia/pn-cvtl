@@ -244,10 +244,30 @@
   /* Ô trong bảng kiểm mà CÒN VIỆC thì bấm được -> nhảy tới tab con để nhập.
      Gạch chân nét đứt là dấu hiệu "bấm được", để phân biệt với ô ✅ / — .
      Vùng bấm nới rộng bằng padding cho dễ trúng trên điện thoại. */
-  .bc-nhay{font-size:16px;cursor:pointer;display:inline-block;padding:2px 6px;border-radius:6px;
+  .bc-nhay{cursor:pointer;display:inline-block;padding:2px 6px;border-radius:6px;
            border-bottom:1px dashed currentColor;line-height:1.15;}
   .bc-nhay:hover{background:#f1f5f9;}
   .bc-nhay:focus-visible{outline:2px solid #2563eb;outline-offset:1px;}
+
+  /* ---------- Ô TÍCH V trong bảng kiểm (27/08/2026) ----------
+     Người tích tay từng hạng mục. Máy KHÔNG tự tích — chỉ tô viền xanh gợi ý
+     "web đã có số rồi, nhớ tích". Ba lớp phụ: da-tich / tre / goi-y. */
+  .bc-tich{display:inline-flex;align-items:center;justify-content:center;
+           width:26px;height:26px;border:2px solid #cbd5e1;border-radius:6px;
+           cursor:pointer;font-size:16px;font-weight:700;color:#fff;
+           background:#fff;line-height:1;user-select:none;transition:all .12s;}
+  .bc-tich:hover{border-color:#2563eb;background:#eff6ff;}
+  .bc-tich:focus-visible{outline:2px solid #2563eb;outline-offset:2px;}
+  .bc-tich.da-tich{background:#16a34a;border-color:#16a34a;}
+  .bc-tich.da-tich:hover{background:#15803d;border-color:#15803d;}
+  /* Quá hạn mà chưa tích: viền đỏ, nền hồng nhạt — nhìn lướt là thấy. */
+  .bc-tich.tre{border-color:#dc2626;background:#fef2f2;}
+  /* Web đã có số mà chưa tích: viền xanh lá nét đứt — lời mời tích, không phải lỗi. */
+  .bc-tich.goi-y{border-color:#16a34a;border-style:dashed;background:#f0fdf4;}
+  /* Dòng nhỏ dưới tên cột: liệt kê ĐỦ những thứ phải nhập cho hạng mục đó.
+     Có vì "Trudo — truyền đạo" cần tới ba thứ, rất dễ nhập thiếu rồi tích V. */
+  .bc-canhap{font-size:10px;font-weight:400;color:#94a3b8;line-height:1.35;
+             margin-top:3px;white-space:normal;}
 
   /* ---------- Biểu đồ dạng ĐƯỜNG (thuần CSS/SVG, không phụ thuộc thư viện ngoài) ---------- */
   .chart-legend{display:flex;gap:24px;margin-top:14px;font-size:14px;color:#475569;flex-wrap:wrap;justify-content:center;}
@@ -634,14 +654,20 @@
           <h3 style="margin-top:0;">📋 Bảng kiểm tuần — <span id="bc_kvLabel"></span> · <span id="bc_monthLabel"></span></h3>
           <div id="bc_noiDung" style="color:#94a3b8;">Đang tải…</div>
           <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
-            <b>Cách đọc:</b>
-            <span title="trên web đã có số">✅ đã có số</span> ·
-            <span title="chưa có số liệu nhưng chưa quá hạn">⏳ chưa tới hạn</span> ·
-            <span title="quá hạn hết tuần + 2 ngày mà trên web vẫn chưa có số">⚠️ quá hạn chưa có số</span> ·
-            <span title="tuần đó không có buổi / bảng nhập tay không có tuần này">— không áp dụng</span> ·
-            <span title="hệ thống chưa có nhật ký từ thời điểm đó nên KHÔNG dám chấm thiếu">❓ chưa đủ dữ liệu</span>
-            <br>Hạn báo cáo là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
-            <br>👉 Ô <b>gạch chân</b> (⏳ ⚠️ ❓) <b>bấm được</b> — bấm là mở thẳng tab con để nhập, vẫn giữ nguyên khu vực và tháng đang xem.
+            <b>Cách dùng:</b> nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô của hạng mục đó.
+            Tích đủ cả tuần rồi bấm <b>✅ Xong tuần</b>.
+            <br><b>Cách đọc ô:</b>
+            <span title="đã tích">✅ đã tích</span> ·
+            <span title="viền xanh nét đứt: web đã có số rồi, chỉ còn thiếu cái tích">⬜ viền xanh nét đứt = <b>web đã có số, nhớ tích</b></span> ·
+            <span title="viền đỏ: quá hạn mà chưa tích">⬜ viền đỏ = <b>quá hạn chưa tích</b></span> ·
+            <span title="tuần đó không có buổi / không áp dụng hạng mục này">➖ không áp dụng</span>
+            <br>Hạn là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
+            <br>👉 Bấm vào <b>tên cột</b> để mở thẳng nơi nhập, vẫn giữ nguyên khu vực và tháng đang xem.
+            <br>⚠️ <b>Trudo — truyền đạo cần ĐỦ BA thứ:</b> Đơn thuần · Hữu hiệu · Báp-têm — nhập ở <b>menu 🏛️ Trudo</b> bên trái,
+            <b>không phải</b> tab con Trudo trong màn hình này (tab đó chỉ có biểu đồ để xem).
+            <br>📌 <b>Điểm danh công việc</b> nằm trong tab con Trudo nhưng <b>KHÔNG</b> thuộc bảng này —
+            việc đó nhập thẳng trên <b>My Memo</b>, bảng trên web chỉ để chữa cháy khi nhập muộn.
+            <br>📌 Tuần nào <b>thật sự bằng 0</b> thì cứ tích V — đó là cách nói &quot;tôi đã rà, tuần này không có&quot;.
             <br>📌 Bảng này hỏi <b>&quot;đã chép số sang web chưa&quot;</b>, không phải &quot;đã làm việc chưa&quot;. Sổ gốc vẫn là <b>My Memo</b>.
           </div>
         </div>
@@ -2475,54 +2501,114 @@ function loadTPDecreasedPanel(){
 // tính một thứ thì sớm muộn cũng lệch (bài học #33).
 // =====================================================================
 
+// ⭐⭐ 27/08/2026 — Ô TÍCH V thay cho biểu tượng máy tự chấm.
+// Anh Rise: "bỏ nút báo cáo thành tích V vào những hạng mục đã điểm danh hàng
+// tuần" + "người tích hết, máy chỉ gợi ý".
+//
+// ⚠️ CHỈ CÒN BỐN trạng thái — ❓ "chưa đủ dữ liệu" đã bỏ hẳn vì máy không phải
+// đoán Đào tạo / Lễ hội qua nhật ký nữa.
 var BC_KYHIEU = {
-  du:              { icon: '✅', mau: '#16a34a', ten: 'đã có số trên web' },
-  chua:            { icon: '⏳', mau: '#94a3b8', ten: 'chưa tới hạn' },
-  tre:             { icon: '⚠️', mau: '#dc2626', ten: 'quá hạn chưa có số trên web' },
-  khong_ap_dung:   { icon: '—',  mau: '#cbd5e1', ten: 'không áp dụng' },
-  chua_du_du_lieu: { icon: '❓', mau: '#a78bfa', ten: 'chưa đủ dữ liệu' }
+  du:            { icon: '✅', mau: '#16a34a', ten: 'đã tích' },
+  chua:          { icon: '⬜', mau: '#94a3b8', ten: 'chưa tích, nhưng chưa tới hạn' },
+  tre:           { icon: '⬜', mau: '#dc2626', ten: 'QUÁ HẠN mà chưa tích' },
+  khong_ap_dung: { icon: '➖', mau: '#cbd5e1', ten: 'không áp dụng' }
 };
 
-// ⭐ 26/08/2026 — anh Rise hỏi: "trong tab báo cáo này làm sao để biết đã nhập
-// hay chưa để ấn báo cáo?". Bảng kiểm đang CHẨN ĐOÁN đúng nhưng KHÔNG DẪN
-// ĐƯỜNG: thấy ⚠️ rồi vẫn phải tự nhớ hạng mục đó nằm ở tab con nào. Từ nay ô
-// nào còn việc thì bấm được, bấm là nhảy thẳng sang đúng chỗ nhập.
-var BC_TAB = {
-  tho_phuong:       'tp',
-  trudo_truyen_dao: 'trudo',
-  giao_duc:         'edu',
-  dao_tao:          'daotao',
-  le_hoi:           'lehoi'
-};
-var BC_TAB_TEN = {
-  tp: 'TP', trudo: 'Trudo', edu: 'Giáo dục', daotao: 'Đào tạo', lehoi: '🎉 Lễ hội'
-};
-
-// ⚠️ CHỈ ô còn việc mới bấm được. Ô ✅ (xong rồi) và ô — (không áp dụng) để
-// nguyên, không bấm — nhờ vậy nhìn lướt là biết ngay đâu là chỗ cần đụng tới.
-// Ô ❓ vẫn cho bấm: máy không dám chấm thiếu, nhưng người vẫn nên vào xem.
-var BC_CAN_LAM = { tre: 1, chua: 1, chua_du_du_lieu: 1 };
-
-function bcO_(tt, ma){
-  var k = BC_KYHIEU[tt] || BC_KYHIEU.chua;
-  var tab = BC_TAB[ma];
-  if (!tab || !BC_CAN_LAM[tt]) {
-    return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">' + k.icon + '</span>';
+// ---------------------------------------------------------------------
+// ⭐⭐ NƠI NHẬP CỦA TỪNG HẠNG MỤC — anh Rise yêu cầu 27/08/2026:
+//   "trong trudo thì có hạng mục nhập điểm danh công việc mà nhập đơn thuần,
+//    hữu hiệu, báp-têm, nên chú thích rõ để người tích biết cần nhập đủ"
+//
+// ⚠️⚠️ MỘT HẠNG MỤC CÓ THỂ CẦN NHẬP NHIỀU THỨ. Nguy hiểm nhất là "Trudo —
+// truyền đạo": người ta nhập Đơn thuần xong tưởng đủ rồi tích V, quên mất
+// Hữu hiệu và Báp-têm. Vì vậy dưới mỗi tên cột phải LIỆT KÊ ĐỦ.
+//
+// ⚠️⚠️ VÀ ĐÂY LÀ CHỖ TRƯỚC ĐÓ EM LÀM SAI: `trudo_truyen_dao` từng trỏ về tab
+// con `kv → Trudo`. Tab đó chỉ có BIỂU ĐỒ (chỉ xem) và bảng Điểm danh công
+// việc — KHÔNG nhập đơn thuần được. Nơi nhập thật là MENU 🏛️ Trudo ở cấp
+// một (do trudo-ui.js dựng), gồm 4 tab con: Đơn thuần · Hữu hiệu · Báp-têm ·
+// Xếp hạng. Chỉ đường sai còn tệ hơn không chỉ đường.
+//
+//   di: 'kv:<tab con>'  -> tab con trong Hiện trạng khu vực
+//   di: 'menu:<panel>'  -> mục ở thanh bên trái
+// ---------------------------------------------------------------------
+var BC_NOI = {
+  tho_phuong: {
+    di: 'kv:tp', o: 'tab con TP',
+    nhap: '≥1 lần · ≥4 lần'
+  },
+  trudo_truyen_dao: {
+    di: 'menu:trudo', o: 'menu 🏛️ Trudo',
+    nhap: 'Đơn thuần · Hữu hiệu · Báp-têm'
+  },
+  giao_duc: {
+    di: 'kv:edu', o: 'tab con Giáo dục',
+    nhap: 'EDU LMS · Trực 127'
+  },
+  dao_tao: {
+    di: 'kv:daotao', o: 'tab con Đào tạo',
+    nhap: 'bài học · chứng chỉ'
+  },
+  le_hoi: {
+    di: 'kv:lehoi', o: 'tab con 🎉 Lễ hội',
+    nhap: 'số lần phát biểu'
   }
-  var nhac = k.ten + ' — bấm để mở tab ' + (BC_TAB_TEN[tab] || tab) + ' nhập';
-  return '<span class="bc-nhay" role="button" tabindex="0" title="' + esc(nhac) + '"'
-    + ' onclick="bcToiTab_(\'' + tab + '\')"'
-    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();bcToiTab_(\'' + tab + '\');}"'
-    + ' style="color:' + k.mau + ';border-bottom-color:' + k.mau + ';">' + k.icon + '</span>';
+};
+
+/**
+ * Vẽ MỘT ô tích V.
+ * ⚠️ Ô "không áp dụng" thì KHÔNG bấm được — tích vào tuần không có buổi nào
+ * là lời khai vô nghĩa.
+ */
+function bcO_(hm, tuan, choSua){
+  var k = BC_KYHIEU[hm.trangThai] || BC_KYHIEU.chua;
+  if (hm.trangThai === 'khong_ap_dung') {
+    return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">➖</span>';
+  }
+  if (!choSua) {
+    // Người chỉ được xem: hiện kết quả, không bấm được.
+    return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:17px;">' + k.icon + '</span>';
+  }
+  var nhac = hm.daTich
+    ? 'Đã tích — bấm để bỏ tích'
+    : (hm.goiY
+        ? 'Web ĐÃ CÓ SỐ cho ô này rồi — bấm để tích V'
+        : (hm.trangThai === 'tre' ? 'QUÁ HẠN mà chưa tích — bấm để tích V' : 'Bấm để tích V'));
+  // ⚠️ GỢI Ý được ưu tiên hơn QUÁ HẠN. "Web đã có số rồi, chỉ quên tích" khác
+  // hẳn "chưa làm gì cả" — tô đỏ chỗ người ta đã làm xong việc là báo oan.
+  var lop = 'bc-tich' + (hm.daTich ? ' da-tich'
+    : (hm.goiY ? ' goi-y' : (hm.trangThai === 'tre' ? ' tre' : '')));
+  return '<span class="' + lop + '" role="checkbox" tabindex="0"'
+    + ' aria-checked="' + (hm.daTich ? 'true' : 'false') + '"'
+    + ' title="' + esc(nhac) + '"'
+    + ' onclick="bcTich_(' + tuan + ',\'' + hm.ma + '\',' + (hm.daTich ? 'false' : 'true') + ')"'
+    + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
+    + '>' + (hm.daTich ? '✓' : '') + '</span>';
 }
 
-// Nhảy tới tab con để nhập. GIỮ NGUYÊN khu vực và tháng đang xem — người ta
-// đang đứng ở tháng 8 của khu vực mình thì phải rơi đúng vào đó, không được
-// tự nhảy về tháng hiện tại (bài học #38).
-function bcToiTab_(tab){
-  selectKVSubTab(tab);
+// Nhảy tới ĐÚNG nơi nhập. GIỮ NGUYÊN khu vực và tháng đang xem — người ta
+// đang đứng ở tháng 8 của khu vực mình thì phải rơi đúng vào đó (bài học #38).
+function bcToiTab_(di){
+  var s = String(di || '');
+  if (s.indexOf('menu:') === 0) {
+    showPanel(s.slice(5));
+    window.scrollTo(0, 0);
+    return;
+  }
+  selectKVSubTab(s.indexOf('kv:') === 0 ? s.slice(3) : s);
   var el = document.getElementById('kvSubTabs');
   if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
+}
+
+/** Bật/tắt một ô tích. Ghi xong thì vẽ lại cả bảng để số tóm tắt đúng ngay. */
+function bcTich_(tuan, hangMuc, tich){
+  var kv = selectedKV;
+  var monthKey = kvMonthKey();
+  google.script.run.withSuccessHandler(function(){
+    loadBaoCaoPanel();
+  }).withFailureHandler(function(err){
+    showMsg('Không tích được: ' + err.message, false);
+  }).toggleBaoCaoTich(monthKey, kv, tuan, hangMuc, !!tich);
 }
 
 // Bảng kiểm của MỘT khu vực. Gọi khi mở tab con hoặc đổi khu vực/tháng.
@@ -2550,13 +2636,29 @@ function veBaoCaoPanel_(d){
     return;
   }
   var hm = d.tuan[0].hangMuc;
+  var choSua = coPhamVi_() && (isChuTaiKhoan_() || phamViCuaToi_().indexOf(selectedKV) >= 0);
   var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:720px;">';
   h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
   h += '<th style="padding:8px;white-space:nowrap;">Tuần</th>';
   for (var i = 0; i < hm.length; i++) {
-    h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;">' + esc(hm[i].ten) + '</th>';
+    // ⭐ TÊN CỘT bấm được -> nhảy sang ĐÚNG nơi nhập. Ô bên dưới để tích V nên
+    // đường nhảy chuyển lên đây, một link cho cả cột.
+    // ⚠️ Dòng nhỏ bên dưới LIỆT KÊ ĐỦ những thứ phải nhập — anh Rise chốt
+    // 27/08/2026, vì "Trudo — truyền đạo" cần tới BA thứ (Đơn thuần, Hữu
+    // hiệu, Báp-têm) mà người ta rất dễ nhập một cái rồi tích V luôn.
+    var noi = BC_NOI[hm[i].ma];
+    var ten = esc(hm[i].ten);
+    if (noi) {
+      ten = '<span class="bc-nhay" role="button" tabindex="0"'
+        + ' title="Nhập ở ' + esc(noi.o) + ': ' + esc(noi.nhap) + '. Bấm để mở."'
+        + ' onclick="bcToiTab_(\'' + noi.di + '\')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click();}"'
+        + '>' + ten + '</span>'
+        + '<div class="bc-canhap">' + esc(noi.nhap) + '</div>';
+    }
+    h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;">' + ten + '</th>';
   }
-  h += '<th style="padding:8px;text-align:center;white-space:nowrap;">Báo cáo</th>';
+  h += '<th style="padding:8px;text-align:center;white-space:nowrap;">Xong tuần</th>';
   h += '</tr></thead><tbody>';
 
   for (var t = 0; t < d.tuan.length; t++) {
@@ -2569,7 +2671,7 @@ function veBaoCaoPanel_(d){
       + (laTuanNay ? ' <span style="color:#2563eb;font-size:11px;">← tuần này</span>' : '')
       + '</td>';
     for (var j = 0; j < w.hangMuc.length; j++) {
-      h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j].trangThai, w.hangMuc[j].ma) + '</td>';
+      h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j], w.tuan, choSua) + '</td>';
     }
     h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcNutBaoCao_(d, w) + '</td>';
     h += '</tr>';
@@ -2581,7 +2683,7 @@ function veBaoCaoPanel_(d){
   for (var k = 0; k < d.tuan.length; k++) tongTre += d.tuan[k].soTre;
   if (tongTre > 0) {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;color:#991b1b;">'
-      + '⚠️ Còn <b>' + tongTre + '</b> ô quá hạn <b>chưa có số trên web</b> trong tháng này.</div>';
+      + '⚠️ Còn <b>' + tongTre + '</b> ô <b>quá hạn mà chưa tích</b> trong tháng này.</div>';
   } else {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#f0fdf4;border-radius:8px;color:#166534;">'
       + '✅ Không có ô nào quá hạn. Tốt!</div>';
@@ -2593,10 +2695,6 @@ function bcNutBaoCao_(d, w){
   if (w.baoCao && w.baoCao.daBaoCao) {
     var s = '<span style="color:#16a34a;font-weight:600;" title="' + esc(w.baoCao.nguoi) + '">✅ '
       + esc(w.baoCao.nhan) + '</span>';
-    if (w.baoCao.daSuaSau) {
-      s += '<br><span style="color:#b45309;font-size:11px;" title="Số liệu đã đổi sau khi bấm Báo cáo">'
-        + '🔁 đã sửa sau báo cáo</span>';
-    }
     if (isChuTaiKhoan_()) {
       s += '<br><button type="button" class="secondary" style="margin-top:4px;padding:4px 10px;font-size:12px;"'
         + ' onclick="huyBaoCaoTuan_(' + w.tuan + ')">Gỡ</button>';
@@ -2604,7 +2702,7 @@ function bcNutBaoCao_(d, w){
     return s;
   }
   if (w.thoiDiem === 'chua_toi') return '<span style="color:#cbd5e1;">—</span>';
-  return '<button type="button" class="done" style="margin:0;" onclick="bamBaoCaoTuan_(' + w.tuan + ')">📋 Báo cáo</button>';
+  return '<button type="button" class="done" style="margin:0;" onclick="bamBaoCaoTuan_(' + w.tuan + ')">✅ Xong tuần</button>';
 }
 
 // ⚠️ CỐ Ý KHÔNG khoá nút khi còn thiếu — anh Rise chốt "cảnh báo mềm, không
@@ -2624,18 +2722,18 @@ function bamBaoCaoTuan_(tuan){
         if (tt === 'tre' || tt === 'chua') thieu.push(w.hangMuc[j].ten);
       }
     }
-    var hoi = 'Báo cáo Tuần ' + tuan + ' cho khu vực ' + kv + '?';
+    var hoi = 'Xác nhận XONG Tuần ' + tuan + ' cho khu vực ' + kv + '?';
     if (thieu.length) {
-      hoi += '\n\nCác mục sau CHƯA thấy số nào trong tuần này:\n  • ' + thieu.join('\n  • ')
-        + '\n\nĐúng là tuần này không có, hay còn quên nhập?'
-        + '\n(Bấm OK = báo cáo luôn. Bấm Cancel = để tôi nhập đã.)';
+      hoi += '\n\nCác hạng mục sau CHƯA được tích V:\n  • ' + thieu.join('\n  • ')
+        + '\n\nĐúng là tuần này không có, hay còn quên tích?'
+        + '\n(Bấm OK = xác nhận xong luôn. Bấm Cancel = để tôi tích đã.)';
     }
     if (!confirm(hoi)) return;
     google.script.run.withSuccessHandler(function(){
-      showMsg('Đã báo cáo Tuần ' + tuan + ' — ' + kv, true);
+      showMsg('Đã xác nhận xong Tuần ' + tuan + ' — ' + kv, true);
       loadBaoCaoPanel();
     }).withFailureHandler(function(err){
-      showMsg('Không báo cáo được: ' + err.message, false);
+      showMsg('Không xác nhận được: ' + err.message, false);
     }).saveBaoCaoTuan(monthKey, kv, tuan);
   }).withFailureHandler(function(err){
     showMsg('Lỗi: ' + err.message, false);
@@ -2644,8 +2742,8 @@ function bamBaoCaoTuan_(tuan){
 
 function huyBaoCaoTuan_(tuan){
   var kv = selectedKV;
-  if (!confirm('Gỡ báo cáo Tuần ' + tuan + ' của khu vực ' + kv + '?\n\n'
-    + 'Số liệu KHÔNG bị xoá — chỉ gỡ dấu "đã báo cáo".')) return;
+  if (!confirm('Gỡ xác nhận "xong Tuần ' + tuan + '" của khu vực ' + kv + '?\n\n'
+    + 'Ô tích V và số liệu KHÔNG bị xoá — chỉ gỡ dấu "đã xong tuần".')) return;
   google.script.run.withSuccessHandler(function(){
     showMsg('Đã gỡ báo cáo Tuần ' + tuan, true);
     loadBaoCaoPanel();
@@ -3070,17 +3168,15 @@ function veNhacBaoCaoXong_(box, d){
   if (w.baoCao && w.baoCao.daBaoCao) {
     box.style.background = '#f0fdf4';
     box.style.color = '#166534';
-    box.innerHTML = '✅ <b>Đã báo cáo Tuần ' + w.tuan + '</b> (' + esc(w.nhan) + ') · '
-      + esc(d.khuVuc) + ' · ' + esc(w.baoCao.nhan)
-      + (w.baoCao.daSuaSau ? ' <span style="color:#b45309;">🔁 số đã đổi sau khi báo cáo</span>' : '')
-      + link;
+    box.innerHTML = '✅ <b>Đã xong Tuần ' + w.tuan + '</b> (' + esc(w.nhan) + ') · '
+      + esc(d.khuVuc) + ' · ' + esc(w.baoCao.nhan) + link;
     return;
   }
   const conThieu = w.soTre + w.soChua;
   box.style.background = '#fffbeb';
   box.style.color = '#92400e';
-  box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa báo cáo</b> · ' + esc(d.khuVuc)
-    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa có số trên web.' : ' — đã có đủ số trên web.')
+  box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa xác nhận xong</b> · ' + esc(d.khuVuc)
+    + (conThieu ? ' — còn <b>' + conThieu + '</b> hạng mục chưa tích V.' : ' — đã tích đủ, chỉ còn bấm Xong tuần.')
     + link;
 }
 
@@ -3088,8 +3184,9 @@ function veNhacBaoCaoXong_(box, d){
 //     tpBaoCaoRowHtml_ · markTPBaoCaoStale_ · applyTPBaoCaoEditedState_ ·
 //     saveTPBaoCaoClick · huyTPBaoCaoClick
 // Việc báo cáo nay ở tab con 📋 Báo cáo (xem loadBaoCaoPanel bên trên), và
-// KHÔNG còn cơ chế "bôi vàng ô đã sửa sau báo cáo" ở đây nữa — dấu 🔁 tương
-// đương nằm trong chính bảng kiểm của tab đó.
+// KHÔNG còn cơ chế "bôi vàng ô đã sửa sau báo cáo" ở đây nữa. Dấu tương đương
+// từng nằm trong bảng kiểm của tab đó, nhưng 27/08/2026 cũng đã bỏ nốt: người
+// tự tích V nên nó bật oan khi ai đó tích trước rồi nhập số sau.
 // 📌 Hai hàm máy chủ `saveTPBaoCao` / `huyTPBaoCao` và bảng `tp_bao_cao` VẪN
 // CÒN (giữ 4 dòng lịch sử thật), nhưng từ nay KHÔNG còn màn hình nào gọi tới.
 // Muốn dọn hẳn thì phải sửa cả kiem-thu.mjs — để dành một đợt riêng.
@@ -3755,8 +3852,8 @@ function tpddRowHtml_(m, nhom, isFirst, isLast){
       // Cơ chế này CHÍNH LÀ nguyên nhân của lỗi B7 (bảng kẹt xám sau khi Hủy
       // báo cáo) và việc treo #13 ("bị tối ô nhập Tuần 3" của Đ Uyên) — gỡ nó
       // là xoá luôn cả một LOẠI lỗi, không phải sửa từng lần.
-      // 📌 Từ nay: báo cáo rồi VẪN SỬA ĐƯỢC. Nếu số đổi sau khi báo cáo, tab
-      // 📋 Báo cáo gắn dấu 🔁 để Trưởng phòng biết — nhắc chứ không chặn.
+      // 📌 Từ nay: xác nhận xong tuần rồi VẪN SỬA ĐƯỢC. Không có dấu cảnh báo
+      // nào cả — anh Rise chốt 27/08/2026 bỏ hẳn cờ "số đã đổi sau báo cáo".
       cells += '<td class="' + (i === 0 ? 'dd-week-sep' : '') + parity + '"><input type="text" value="' + esc(val) +
         '" data-nhom="' + esc(nhom) + '" data-ten="' + esc(m.ten) + '" data-tuan="' + tuan + '" data-buoi="' + b +
         '" onchange="saveTPDDCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
@@ -3843,7 +3940,7 @@ function saveTPDDCell(inputEl){
   }
 
   // ⚠️ ĐÃ GỠ 26/08/2026: khối "bôi vàng ô Điểm danh đã sửa sau khi báo cáo".
-  // Dấu hiệu tương đương nay là 🔁 trong tab 📋 Báo cáo — một chỗ, dễ hiểu hơn.
+  // 27/08/2026 bỏ luôn cả dấu tương đương trong tab 📋 Báo cáo — xem mã ở đó.
 
   google.script.run.withSuccessHandler(function(){
     refreshTPAutoFillAfterDD_(monthKey, nhom);
