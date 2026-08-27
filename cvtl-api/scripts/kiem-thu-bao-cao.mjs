@@ -98,6 +98,25 @@ function o(bang, tuan, ma) {
   return h ? h.trangThai : '(khong co hang muc)';
 }
 
+/**
+ * ⭐⭐ 27/08/2026 — `gy()` đọc GỢI Ý của máy: "web đã có số cho ô này chưa".
+ *
+ * Trước đây bảng kiểm CHẤM bằng chính thứ này (có dữ liệu = ✅). Nay anh Rise
+ * chốt "người tích hết, máy chỉ gợi ý" nên nó tụt xuống vai trò NHẮC NHỞ, còn
+ * chấm thì theo `daTich`.
+ *
+ * ⚠️ Mọi ca kiểm "định nghĩa đã nhập" bên dưới VẪN GIỮ NGUYÊN GIÁ TRỊ — chúng
+ * canh phần dò dữ liệu, thứ khó nhất của cả file (7 bảng, quy ngày ra tuần
+ * theo lịch thật, kiểm chứng trên SỐ THẬT ngày 26/08). Chỉ đổi từ đọc
+ * `trangThai` sang đọc `goiY`. Xoá chúng đi là mất trắng phần đó.
+ */
+function gy(bang, tuan, ma) {
+  const t = (bang.tuan || []).find((x) => x.tuan === tuan);
+  if (!t) return '(khong co tuan)';
+  const h = t.hangMuc.find((x) => x.ma === ma);
+  return h ? h.goiY : '(khong co hang muc)';
+}
+
 // --- các hàm gieo dữ liệu, viết đúng như hệ thống thật ghi ---
 const gieoTP = (kv, thang, tuan, loai, sl) => sqlite.prepare(
   'INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)'
@@ -186,7 +205,7 @@ console.log('\n3) ⚠️ BẪY 1 — Tuần 1 tháng 8/2026 chỉ có MỘT bu�
   gieoTP('K My', '2026-08', 1, '1lan', 2);
   const r = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('chỉ có dòng 1lan mà vẫn tính là ĐÃ NHẬP Thờ phượng',
-    o(r.result, 1, 'tho_phuong') === 'du', o(r.result, 1, 'tho_phuong'));
+    gy(r.result, 1, 'tho_phuong') === true, String(gy(r.result, 1, 'tho_phuong')));
 }
 
 // =====================================================================
@@ -201,9 +220,9 @@ console.log('\n4) ⚠️ BẪY 2 — Tuần 6 phải là "—", tuyệt đối k
   taoCSDL();
   const r = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('tuần 6: Thờ phượng = không áp dụng',
-    o(r.result, 6, 'tho_phuong') === 'khong_ap_dung', o(r.result, 6, 'tho_phuong'));
+    o(r.result, 6, 'tho_phuong') === 'khong_ap_dung', String(gy(r.result, 6, 'tho_phuong')));
   kiem('tuần 6: Giáo dục = không áp dụng (bảng nhập tay chỉ có tuần 1..5)',
-    o(r.result, 6, 'giao_duc') === 'khong_ap_dung', o(r.result, 6, 'giao_duc'));
+    o(r.result, 6, 'giao_duc') === 'khong_ap_dung', String(gy(r.result, 6, 'giao_duc')));
   const t = r.result.tuan.find((x) => x.tuan === 6);
   kiem('tuần 6 vẫn CÓ trong bảng (không bị gộp vào tuần 5)', !!t);
   kiem('tuần 6 KHÔNG có ô nào bị chấm "trễ"',
@@ -246,27 +265,42 @@ console.log('\n6) ⚠️ BẪY 3b — ân hạn ĐÚNG 2 ngày, không hơn khô
 }
 
 // =====================================================================
-console.log('\n7) ⚠️ BẪY 4 — Đào tạo / Lễ hội trước khi có nhật ký = ❓, KHÔNG phải ⚠️');
+console.log('\n7) ⚠️ BẪY 4 CŨ — nhật ký chỉ là GỢI Ý, không còn dùng để chấm');
 {
+  // ⭐⭐ 27/08/2026 — phần này ĐỔI BẢN CHẤT. Trước đây Đào tạo và Lễ hội được
+  // CHẤM bằng nhật ký thay đổi, mà nhật ký chỉ có từ 26/08/2026 nên mọi tuần
+  // trước đó phải hiện ❓ để khỏi vu oan. Nay người tích V tay, nên nhật ký
+  // tụt xuống vai trò GỢI Ý — và trạng thái ❓ biến mất hoàn toàn.
   taoCSDL();
   gieoLeHoi('2026-08-loi', 'Lễ hội Lời', '2026-08-01', '2026-08-30');
-  // Nhật ký chỉ bắt đầu từ 26/08 — y như thật.
   gieoNhatKy('toggleDaoTaoBai', 'Đ Uyên', msGiuaNgayVN('2026-08-26'));
 
   const r = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
-  kiem('tuần 1 (kết thúc 1/8, trước nhật ký): Đào tạo = chưa đủ dữ liệu',
-    o(r.result, 1, 'dao_tao') === 'chua_du_du_lieu', o(r.result, 1, 'dao_tao'));
-  kiem('tuần 1: Lễ hội = chưa đủ dữ liệu',
-    o(r.result, 1, 'le_hoi') === 'chua_du_du_lieu', o(r.result, 1, 'le_hoi'));
-  kiem('tuần 3 (kết thúc 15/8, vẫn trước nhật ký): Đào tạo = chưa đủ dữ liệu',
-    o(r.result, 3, 'dao_tao') === 'chua_du_du_lieu', o(r.result, 3, 'dao_tao'));
-  // Không có dòng nhật ký nào -> không có cơ sở gì cả, phải im lặng hoàn toàn.
+  kiem('tuần trước khi có nhật ký: máy KHÔNG gợi ý gì (nó không biết)',
+    gy(r.result, 1, 'dao_tao') === false && gy(r.result, 3, 'dao_tao') === false);
+  kiem('tuần 1: Lễ hội cũng không có gợi ý', gy(r.result, 1, 'le_hoi') === false);
+  // ⚠️ Không gợi ý KHÔNG có nghĩa là im lặng: chưa tích + quá hạn thì vẫn ⚠️.
+  // Đó là SỰ THẬT ("chưa ai tích"), không phải suy đoán như bản cũ.
+  kiem('chưa tích + quá hạn -> vẫn chấm trễ, và đó là sự thật chứ không suy đoán',
+    o(r.result, 1, 'dao_tao') === 'tre', o(r.result, 1, 'dao_tao'));
+  kiem('⚠️ nhưng KHÔNG còn trạng thái ❓ nào',
+    o(r.result, 1, 'dao_tao') !== 'chua_du_du_lieu'
+    && o(r.result, 3, 'dao_tao') !== 'chua_du_du_lieu');
+
+  // Tích V vào là hết trễ — đường thoát mà bản cũ không có.
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 1, 'dao_tao', true], KVT);
+  const r1b = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  kiem('⭐ tích V vào là hết trễ — đường thoát mà bản cũ (❓) không có',
+    o(r1b.result, 1, 'dao_tao') === 'du');
+
+  // Máy CÓ gợi ý khi nhật ký rơi đúng tuần của ĐÚNG khu vực đó.
   taoCSDL();
-  gieoLeHoi('2026-08-loi', 'Lễ hội Lời', '2026-08-01', '2026-08-30');
-  const r2 = await goi('getBaoCaoTuan', ['2020-01', 'K My'], KVT);
-  kiem('CSDL chưa có dòng nhật ký nào: Đào tạo không bị chấm trễ ở mọi tuần',
-    r2.result.tuan.every((t) => o(r2.result, t.tuan, 'dao_tao') === 'chua_du_du_lieu'));
+  gieoNhatKy('toggleDaoTaoBai', 'K My', msGiuaNgayVN('2026-08-26'));
+  const r2 = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  kiem('nhật ký 26/08 -> gợi ý đúng TUẦN 5', gy(r2.result, 5, 'dao_tao') === true);
+  kiem('không lây sang tuần khác', gy(r2.result, 4, 'dao_tao') === false);
 }
+
 
 // =====================================================================
 console.log('\n8) Đào tạo / Lễ hội có nhật ký thì chấm ĐÚNG TUẦN');
@@ -278,22 +312,22 @@ console.log('\n8) Đào tạo / Lễ hội có nhật ký thì chấm ĐÚNG TU�
   gieoNhatKy('toggleLeHoiLan', 'K My', msGiuaNgayVN('2026-08-11'));    // tuần 3
 
   const r = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
-  kiem('Đào tạo tuần 1 = đủ', o(r.result, 1, 'dao_tao') === 'du');
-  kiem('Đào tạo tuần 5 = đủ', o(r.result, 5, 'dao_tao') === 'du');
-  kiem('Đào tạo tuần 3 KHÔNG bị lây từ tuần khác', o(r.result, 3, 'dao_tao') !== 'du');
-  kiem('Lễ hội tuần 3 = đủ', o(r.result, 3, 'le_hoi') === 'du');
-  kiem('Lễ hội tuần 1 KHÔNG bị lây', o(r.result, 1, 'le_hoi') !== 'du');
+  kiem('Đào tạo tuần 1 = đủ', gy(r.result, 1, 'dao_tao') === true);
+  kiem('Đào tạo tuần 5 = đủ', gy(r.result, 5, 'dao_tao') === true);
+  kiem('Đào tạo tuần 3 KHÔNG bị lây từ tuần khác', gy(r.result, 3, 'dao_tao') === false);
+  kiem('Lễ hội tuần 3 = đủ', gy(r.result, 3, 'le_hoi') === true);
+  kiem('Lễ hội tuần 1 KHÔNG bị lây', gy(r.result, 1, 'le_hoi') === false);
 
   // Dòng nhật ký của khu vực KHÁC không được tính sang.
   kiem('khu vực khác không ăn ké dòng nhật ký của K My',
-    o((await goi('getBaoCaoTuan', ['2026-08', 'Đ Uyên'], CHU)).result, 1, 'dao_tao') !== 'du');
+    gy((await goi('getBaoCaoTuan', ['2026-08', 'Đ Uyên'], CHU)).result, 1, 'dao_tao') === false);
 
   // Lệnh bị LỖI thì không tính là đã nhập.
   taoCSDL();
   gieoNhatKy('toggleDaoTaoBai', 'K My', msGiuaNgayVN('2026-08-04'), 'loi');
   const r3 = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('dòng nhật ký ket_qua=loi KHÔNG tính là đã nhập',
-    o(r3.result, 2, 'dao_tao') !== 'du', o(r3.result, 2, 'dao_tao'));
+    gy(r3.result, 2, 'dao_tao') === false, String(gy(r3.result, 2, 'dao_tao')));
 }
 
 // =====================================================================
@@ -311,7 +345,7 @@ console.log('\n9) Lễ hội: tháng không có lễ hội thì để "—"');
   const r2 = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('có lễ hội: nhận đúng tên', r2.result.leHoi?.ten === 'Lễ hội Lời');
   kiem('tuần 6 vẫn trong khoảng lễ hội (30/8) nên KHÔNG phải "—"',
-    o(r2.result, 6, 'le_hoi') !== 'khong_ap_dung', o(r2.result, 6, 'le_hoi'));
+    o(r2.result, 6, 'le_hoi') !== 'khong_ap_dung', String(gy(r2.result, 6, 'le_hoi')));
 
   // Lễ hội chỉ diễn ra tuần 2 -> các tuần khác phải là "—".
   taoCSDL();
@@ -333,9 +367,9 @@ console.log('\n10) ⭐ Định nghĩa "đã nhập" của từng hạng mục');
   gieoDonThuan('K My', '2026-08-23', 6);                  // Đơn thuần tuần 5
   const r = await goi('getBaoCaoTuan', [TH, 'K My'], KVT);
 
-  kiem('Thờ phượng chấm đúng tuần 2', o(r.result, 2, 'tho_phuong') === 'du');
-  kiem('Thờ phượng tuần 3 chưa có', o(r.result, 3, 'tho_phuong') !== 'du');
-  kiem('Giáo dục chấm đúng tuần 3', o(r.result, 3, 'giao_duc') === 'du');
+  kiem('Thờ phượng chấm đúng tuần 2', gy(r.result, 2, 'tho_phuong') === true);
+  kiem('Thờ phượng tuần 3 chưa có', gy(r.result, 3, 'tho_phuong') === false);
+  kiem('Giáo dục chấm đúng tuần 3', gy(r.result, 3, 'giao_duc') === true);
   // ⚠️⚠️ 27/08/2026 — "Trudo — điểm danh công việc" ĐÃ BỊ BỎ khỏi bảng kiểm.
   // Anh Rise nói rõ việc đó nhập thẳng trên My Memo; bảng cv_cong_viec trên
   // web chỉ để chữa cháy khi nhập muộn. Bảng trống là BÌNH THƯỜNG, chấm ⚠️ ở
@@ -352,8 +386,8 @@ console.log('\n10) ⭐ Định nghĩa "đã nhập" của từng hạng mục');
   // ceil(ngày/7) cho ra tuần 4 — nếu ca này đỏ nghĩa là ai đó vừa quay lại
   // cách chia tuần cũ.
   kiem('Đơn thuần ngày 23/08 rơi vào TUẦN 5 (lịch thật, không phải tuần 4)',
-    o(r.result, 5, 'trudo_truyen_dao') === 'du', o(r.result, 5, 'trudo_truyen_dao'));
-  kiem('và KHÔNG rơi vào tuần 4', o(r.result, 4, 'trudo_truyen_dao') !== 'du');
+    gy(r.result, 5, 'trudo_truyen_dao') === true, String(gy(r.result, 5, 'trudo_truyen_dao')));
+  kiem('và KHÔNG rơi vào tuần 4', gy(r.result, 4, 'trudo_truyen_dao') === false);
 
   // Giáo dục: có dòng nhưng EDU LMS TRỐNG thì chưa tính là đã nhập —
   // dòng có thể sinh ra khi chỉ lưu Trực 127.
@@ -361,7 +395,7 @@ console.log('\n10) ⭐ Định nghĩa "đã nhập" của từng hạng mục');
   gieoGD('K My', TH, 'Cô B', 2, '');
   const r2 = await goi('getBaoCaoTuan', [TH, 'K My'], KVT);
   kiem('Giáo dục: có dòng nhưng EDU LMS trống -> CHƯA tính là đã nhập',
-    o(r2.result, 2, 'giao_duc') !== 'du', o(r2.result, 2, 'giao_duc'));
+    gy(r2.result, 2, 'giao_duc') === false, String(gy(r2.result, 2, 'giao_duc')));
 }
 
 // =====================================================================
@@ -372,14 +406,14 @@ console.log('\n11) ⭐ Hữu hiệu / Báp-têm lấy từ sổ mốc, chia tu�
   gieoMoc('K My', 'huu_hieu', '2026-08-13', 'Cô Thương');
   const r = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('mốc hữu hiệu 13/08 tính vào Trudo tuần 3',
-    o(r.result, 3, 'trudo_truyen_dao') === 'du');
-  kiem('không lây sang tuần 2', o(r.result, 2, 'trudo_truyen_dao') !== 'du');
+    gy(r.result, 3, 'trudo_truyen_dao') === true);
+  kiem('không lây sang tuần 2', gy(r.result, 2, 'trudo_truyen_dao') === false);
 
   taoCSDL();
   gieoMoc('K My', 'bap_tem', '2026-08-15', 'Cô Thương');
   const r2 = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('mốc báp-têm 15/08 cũng tính vào Trudo tuần 3',
-    o(r2.result, 3, 'trudo_truyen_dao') === 'du');
+    gy(r2.result, 3, 'trudo_truyen_dao') === true);
 }
 
 // =====================================================================
@@ -390,9 +424,9 @@ console.log('\n12) Khu vực này KHÔNG thấy dữ liệu khu vực kia');
   gieoDonThuan('Đ Uyên', '2026-08-07', 3);
   const a = await goi('getBaoCaoTuan', ['2026-08', 'Đ Uyên'], CHU);
   const b = await goi('getBaoCaoTuan', ['2026-08', 'K My'], CHU);
-  kiem('Đ Uyên thấy số của mình', o(a.result, 2, 'tho_phuong') === 'du');
-  kiem('K My KHÔNG thấy số của Đ Uyên', o(b.result, 2, 'tho_phuong') !== 'du');
-  kiem('K My KHÔNG thấy đơn thuần của Đ Uyên', o(b.result, 2, 'trudo_truyen_dao') !== 'du');
+  kiem('Đ Uyên thấy số của mình', gy(a.result, 2, 'tho_phuong') === true);
+  kiem('K My KHÔNG thấy số của Đ Uyên', gy(b.result, 2, 'tho_phuong') === false);
+  kiem('K My KHÔNG thấy đơn thuần của Đ Uyên', gy(b.result, 2, 'trudo_truyen_dao') === false);
 }
 
 // =====================================================================
@@ -495,49 +529,105 @@ console.log('\n15) Bấm Báo cáo — lưu, đếm, và CỐ Ý không chặn k
 }
 
 // =====================================================================
-console.log('\n16) ⭐ Dấu vết "đã sửa sau báo cáo" — và KHÔNG báo oan theo ngày');
+console.log('\n16) ⭐⭐ TÍCH V từng hạng mục — cơ chế mới thay nút Báo cáo');
 {
+  // ⭐ Anh Rise 27/08/2026: "bỏ nút báo cáo thành tích V vào những hạng mục đã
+  // điểm danh hàng tuần" + "người tích hết, máy chỉ gợi ý".
   taoCSDL();
-  await goi('saveBaoCaoTuan', ['2026-08', 'K My', 3], KVT);
+  gieoTP('K My', '2026-08', 3, '1lan', 9);   // web ĐÃ CÓ SỐ cho tuần 3
+
   let g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
-  kiem('vừa báo cáo xong: chưa có cờ "đã sửa sau"',
-    g.result.tuan.find((x) => x.tuan === 3).baoCao.daSuaSau === false);
+  const oTP = (b, t) => b.tuan.find((x) => x.tuan === t).hangMuc.find((x) => x.ma === 'tho_phuong');
 
-  // Nhập thêm số cho CHÍNH tuần đó -> phải bật cờ.
-  gieoTP('K My', '2026-08', 3, '1lan', 9);
+  // ⚠️⚠️ CA QUAN TRỌNG NHẤT: máy thấy có số nhưng TUYỆT ĐỐI KHÔNG tự tích.
+  // Nếu ca này đỏ nghĩa là ai đó đã cho máy tích thay người — trái hẳn điều
+  // anh Rise chốt, và biến lời khai thành số máy đoán.
+  kiem('⚠️ web ĐÃ CÓ SỐ nhưng máy KHÔNG tự tích', oTP(g.result, 3).daTich === false);
+  kiem('...mà chỉ bật gợi ý để nhắc người tích', oTP(g.result, 3).goiY === true);
+  kiem('chưa tích thì KHÔNG được tính là xong', oTP(g.result, 3).trangThai !== 'du');
+
+  // Tích V vào -> mới thành xong.
+  const r1 = await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'tho_phuong', true], KVT);
+  kiem('tích V được', !r1.error, JSON.stringify(r1));
   g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
-  kiem('nhập thêm số cho tuần đã báo cáo -> bật cờ 🔁',
-    g.result.tuan.find((x) => x.tuan === 3).baoCao.daSuaSau === true);
+  kiem('tích xong -> daTich = true', oTP(g.result, 3).daTich === true);
+  kiem('tích xong -> trạng thái thành "du"', oTP(g.result, 3).trangThai === 'du');
 
-  // ⚠️⚠️ CA QUAN TRỌNG NHẤT CỦA PHẦN NÀY: dấu vết chỉ chụp CÓ/KHÔNG dữ liệu.
-  // Nếu ai đó đổi nó thành chụp trạng thái ✅⏳⚠️ thì mọi báo cáo sẽ tự bật
-  // cờ "đã sửa" khi qua hạn, dù không ai đụng gì — báo oan cả phòng.
-  taoCSDL();
-  await goi('saveBaoCaoTuan', ['2026-08', 'K My', 3], KVT);
-  const snap = sqlite.prepare('SELECT snap_json FROM bao_cao_tuan').get().snap_json;
-  kiem('dấu vết chỉ ghi 0/1, KHÔNG ghi "tre"/"chua"/"du"',
-    /^([a-z_]+=[01];?)+$/.test(snap) && !/tre|chua|du/.test(snap.replace(/[a-z_]+=/g, '')),
-    snap);
-  kiem('dấu vết có đủ 5 hạng mục', snap.split(';').length === 5, snap);
+  // ⭐⭐ Tích được cả ô mà web KHÔNG có số — đó chính là cách khu vực nói
+  // "tuần này của tôi THẬT SỰ BẰNG 0", thứ máy không bao giờ tự biết. Bản cũ
+  // phải đi qua hộp thoại xác nhận của nút Báo cáo mới nói được điều này.
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 2, 'trudo_truyen_dao', true], KVT);
+  g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  const oTD = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'trudo_truyen_dao');
+  kiem('⭐ tích được cả ô web KHÔNG có số (nói "tuần này thật sự bằng 0")',
+    oTD.daTich === true && oTD.goiY === false && oTD.trangThai === 'du',
+    JSON.stringify(oTD));
 
-  // ⚠️⚠️ 27/08/2026 — SO DẤU VẾT PHẢI THEO TỪNG HẠNG MỤC, KHÔNG SO CHUỖI THÔ.
-  // Hôm nay bỏ "trudo_cong_viec" khỏi bảng kiểm. Dấu vết đã lưu từ hôm trước
-  // vẫn còn khoá đó, nên so chuỗi thô là MỌI tuần đã báo cáo đều bị gắn cờ 🔁
-  // "đã sửa sau báo cáo" — báo oan cả phòng vì phần mềm đổi, không phải họ.
-  const { daSuaSauKhiBaoCao } = await import(join(goc, 'src/handlers/bao-cao.js'));
-  kiem('⚠️ dấu vết CŨ còn hạng mục đã bỏ -> KHÔNG bật cờ 🔁',
-    daSuaSauKhiBaoCao('tho_phuong=1;trudo_cong_viec=0;giao_duc=1',
-      'tho_phuong=1;giao_duc=1') === false);
-  kiem('⚠️ hạng mục MỚI thêm (dấu vết cũ chưa có) -> cũng KHÔNG bật cờ',
-    daSuaSauKhiBaoCao('tho_phuong=1', 'tho_phuong=1;hang_muc_moi=0') === false);
-  kiem('số của hạng mục CÓ Ở CẢ HAI mà đổi -> VẪN bật cờ',
-    daSuaSauKhiBaoCao('tho_phuong=0;giao_duc=1',
-      'tho_phuong=1;giao_duc=1') === true);
-  kiem('chưa có dấu vết (chuỗi rỗng) -> không kết luận gì',
-    daSuaSauKhiBaoCao('', 'tho_phuong=1') === false);
-  kiem('dấu vết y hệt -> không bật cờ',
-    daSuaSauKhiBaoCao('tho_phuong=1;giao_duc=0', 'tho_phuong=1;giao_duc=0') === false);
+  // Bỏ tích -> XOÁ dòng, không lưu cờ 0.
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'tho_phuong', false], KVT);
+  kiem('bỏ tích thì XOÁ dòng, không lưu cờ 0',
+    sqlite.prepare("SELECT COUNT(*) n FROM bao_cao_tich WHERE hang_muc='tho_phuong'").get().n === 0);
+  g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  kiem('bỏ tích xong thì hết "du"', oTP(g.result, 3).daTich === false);
+
+  // Tích lại lần nữa không đẻ thêm dòng.
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'tho_phuong', true], KVT);
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'tho_phuong', true], KVT);
+  kiem('tích hai lần vẫn chỉ MỘT dòng',
+    sqlite.prepare("SELECT COUNT(*) n FROM bao_cao_tich WHERE hang_muc='tho_phuong'").get().n === 1);
+
+  // --- Chặn dữ liệu bậy ---
+  kiem('hạng mục không có thật -> chặn',
+    !!(await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'hang_muc_ma', true], KVT)).error);
+  kiem('tuần không có trong tháng -> chặn',
+    !!(await goi('toggleBaoCaoTich', ['2026-02', 'K My', 6, 'tho_phuong', true], KVT)).error);
+  kiem('⚠️ hạng mục "trudo_cong_viec" đã bỏ -> KHÔNG tích được',
+    !!(await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'trudo_cong_viec', true], KVT)).error);
+
+  // --- Phân quyền: quyền TÍCH = quyền XEM bảng kiểm ---
+  kiem('KVT KHÔNG tích được cho khu vực khác',
+    !!(await goi('toggleBaoCaoTich', ['2026-08', 'Đ Uyên', 3, 'tho_phuong', true], KVT)).error);
+  kiem('người chưa gán khu vực KHÔNG tích được',
+    !!(await goi('toggleBaoCaoTich', ['2026-08', 'K My', 3, 'tho_phuong', true], THANH_DO)).error);
+  kiem('Admin tích được cho MỌI khu vực',
+    !(await goi('toggleBaoCaoTich', ['2026-08', 'Đ Uyên', 3, 'tho_phuong', true], CHU)).error);
+
+  // --- Ô của khu vực này KHÔNG lẫn sang khu vực kia ---
+  g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  kiem('⚠️ ô tích của Đ Uyên KHÔNG lẫn sang K My',
+    oTP(g.result, 3).daTich === true, 'K My tự tích tuần 3 nên vẫn true');
+  const gDU = await goi('getBaoCaoTuan', ['2026-08', 'TT Châu'], CHU);
+  kiem('khu vực chưa ai tích thì sạch trơn',
+    gDU.result.tuan.every((t) => t.hangMuc.every((h) => h.daTich === false)));
 }
+
+// =====================================================================
+console.log('\n16b) ⭐ Trạng thái ❓ "chưa đủ dữ liệu" ĐÃ BỎ HẲN');
+{
+  // Trước 27/08/2026: Đào tạo và Lễ hội phải đoán qua nhật ký thay đổi (chỉ có
+  // từ 26/08) nên mọi tuần trước đó hiện ❓. Nay người tích tay -> hết đoán.
+  const src = readFileSync(join(goc, 'src/handlers/bao-cao.js'), 'utf8');
+  const { TRANG_THAI } = await import(join(goc, 'src/handlers/bao-cao.js'));
+  kiem('TRANG_THAI còn ĐÚNG 4 trạng thái', TRANG_THAI.length === 4, TRANG_THAI.join(','));
+  kiem("KHÔNG còn 'chua_du_du_lieu' trong danh sách trạng thái",
+    TRANG_THAI.indexOf('chua_du_du_lieu') < 0);
+  kiem('⚠️ mã nguồn KHÔNG còn TRẢ VỀ chua_du_du_lieu',
+    !/return 'chua_du_du_lieu'/.test(src));
+
+  taoCSDL();
+  const g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  const moiTrangThai = new Set();
+  g.result.tuan.forEach((t) => t.hangMuc.forEach((h) => moiTrangThai.add(h.trangThai)));
+  kiem('không ô nào còn ra ❓', !moiTrangThai.has('chua_du_du_lieu'),
+    [...moiTrangThai].join(','));
+  kiem('mọi trạng thái đều nằm trong 4 cái hợp lệ',
+    [...moiTrangThai].every((x) => TRANG_THAI.indexOf(x) >= 0), [...moiTrangThai].join(','));
+
+  // ⚠️ Cờ 🔁 "đã sửa sau báo cáo" cũng đã bỏ (anh Rise: người tự tích hết nên
+  // nó sẽ bật oan khi ai đó tích trước rồi nhập sau).
+  kiem('⚠️ KHÔNG còn cờ daSuaSau', !/daSuaSau/.test(src));
+}
+
 
 // =====================================================================
 console.log('\n17) Hủy báo cáo');
@@ -617,11 +707,15 @@ console.log('\n20) Nhãn tuần đọc được bằng mắt người');
 console.log('\n21) Tổng theo hạng mục trong lưới');
 {
   taoCSDL();
+  // ⭐ 27/08/2026 — cột bên phải đếm số tuần ĐÃ TÍCH V, không còn đếm "web có
+  // dữ liệu". Nên phải TÍCH thì mới có `du`, gieo số không đủ.
   gieoTP('K My', '2026-08', 1, '1lan', 2);
   gieoTP('K My', '2026-08', 2, '1lan', 3);
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 1, 'tho_phuong', true], KVT);
+  await goi('toggleBaoCaoTich', ['2026-08', 'K My', 2, 'tho_phuong', true], KVT);
   const r = await goi('getBaoCaoLuoi', ['2026-08'], KVT);
   const d = r.result.dong.find((x) => x.khuVuc === 'K My');
-  kiem('Thờ phượng: đếm đúng 2 tuần đã nhập', d.theoHangMuc.tho_phuong.du === 2,
+  kiem('Thờ phượng: đếm đúng 2 tuần ĐÃ TÍCH V', d.theoHangMuc.tho_phuong.du === 2,
     JSON.stringify(d.theoHangMuc.tho_phuong));
   // Tuần 6 không áp dụng Thờ phượng nên chỉ có 5 tuần được tính.
   kiem('Thờ phượng: chỉ tính 5 tuần áp dụng (tuần 6 không có T3/T7)',
@@ -629,8 +723,12 @@ console.log('\n21) Tổng theo hạng mục trong lưới');
   kiem('đủ + trễ + chưa = số tuần áp dụng',
     d.theoHangMuc.tho_phuong.du + d.theoHangMuc.tho_phuong.tre + d.theoHangMuc.tho_phuong.chua
       === d.theoHangMuc.tho_phuong.apDung);
-  kiem('Đào tạo chưa có nhật ký -> KHÔNG tuần nào bị tính là áp dụng',
-    d.theoHangMuc.dao_tao.apDung === 0, JSON.stringify(d.theoHangMuc.dao_tao));
+  // ⚠️ Đổi 27/08/2026: trước đây Đào tạo không có nhật ký thì mọi tuần ra ❓ nên
+  // apDung = 0. Nay không còn ❓ — Đào tạo áp dụng MỌI tuần, chưa tích thì trễ.
+  kiem('Đào tạo áp dụng mọi tuần (không còn ❓ để loại khỏi mẫu số)',
+    d.theoHangMuc.dao_tao.apDung === 6, JSON.stringify(d.theoHangMuc.dao_tao));
+  kiem('...và chưa ai tích thì du = 0',
+    d.theoHangMuc.dao_tao.du === 0, JSON.stringify(d.theoHangMuc.dao_tao));
   kiem('lưới liệt kê đủ 5 hạng mục', r.result.hangMuc.length === 5);
 }
 
@@ -648,15 +746,22 @@ console.log('\n22) Số liệu THẬT của tháng 8/2026 — chép nguyên từ
   // Đơn thuần K Thành: 02/08 (tuần 2), 14/08 (tuần 3), 23/08 (tuần 5).
   for (const d of ['2026-08-02', '2026-08-14', '2026-08-23']) gieoDonThuan('K Thành', d, 1);
 
+  // ⚠️ 27/08/2026 — đọc GỢI Ý chứ không đọc trạng thái: chấm nay theo tích V,
+  // còn phần dò dữ liệu (thứ ca này canh) đã thành gợi ý. Số kỳ vọng GIỮ
+  // NGUYÊN vì đây là bản chép số thật, sai một con là biết ngay ai đó vừa đổi
+  // định nghĩa "web đã có số".
   const r = await goi('getBaoCaoTuan', [TH, 'K Thành'], CHU);
-  kiem('TP: tuần 4 đủ', o(r.result, 4, 'tho_phuong') === 'du');
-  kiem('TP: tuần 5 CHƯA có (đúng số thật)', o(r.result, 5, 'tho_phuong') !== 'du');
-  kiem('Giáo dục: tuần 3 đủ, tuần 4 chưa',
-    o(r.result, 3, 'giao_duc') === 'du' && o(r.result, 4, 'giao_duc') !== 'du');
-  kiem('Đơn thuần: tuần 2, 3, 5 đủ',
-    ['2', '3', '5'].every((t) => o(r.result, Number(t), 'trudo_truyen_dao') === 'du'));
+  kiem('TP: tuần 4 web đã có số', gy(r.result, 4, 'tho_phuong') === true);
+  kiem('TP: tuần 5 CHƯA có (đúng số thật)', gy(r.result, 5, 'tho_phuong') === false);
+  kiem('Giáo dục: tuần 3 có, tuần 4 chưa',
+    gy(r.result, 3, 'giao_duc') === true && gy(r.result, 4, 'giao_duc') === false);
+  kiem('Đơn thuần: tuần 2, 3, 5 có',
+    [2, 3, 5].every((t) => gy(r.result, t, 'trudo_truyen_dao') === true));
   kiem('Đơn thuần: tuần 4 KHÔNG có (23/08 là tuần 5 chứ không phải tuần 4)',
-    o(r.result, 4, 'trudo_truyen_dao') !== 'du');
+    gy(r.result, 4, 'trudo_truyen_dao') === false);
+  // ⭐ Và dù web ĐÃ CÓ SỐ, chưa tích V thì vẫn KHÔNG được tính là xong.
+  kiem('⚠️ web có số nhưng chưa tích -> KHÔNG phải "du"',
+    o(r.result, 4, 'tho_phuong') !== 'du', o(r.result, 4, 'tho_phuong'));
   // ⚠️ cv_cong_viec rỗng hoàn toàn trên số thật — cả phòng chưa ai dùng bảng
   // Điểm danh công việc. Bảng kiểm PHẢI nói ra chuyện đó, đó là việc của nó.
   kiem('Điểm danh công việc: chưa ai nhập -> không tuần nào "đủ"',
