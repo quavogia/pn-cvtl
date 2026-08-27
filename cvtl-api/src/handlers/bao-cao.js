@@ -9,7 +9,7 @@
 // Bảng kiểm chấm "đủ / thiếu" cho cả phòng. Báo thiếu một lần oan là người
 // ta mất tin vào bảng kiểm, và từ đó bỏ qua cả những cảnh báo THẬT — tính
 // năng coi như hỏng dù mã chạy đúng. Vì vậy ở đây có tới BA trạng thái
-// "chưa nhưng không sao": chua / khong_ap_dung / chua_du_du_lieu.
+// "chưa nhưng không sao": chua / khong_ap_dung.
 //
 // ⚠️ Định nghĩa "đã nhập" là phần dễ sai nhất. Toàn bộ đã được KIỂM CHỨNG
 // TRÊN SỐ THẬT ngày 26/08/2026 (chỉ chạy SELECT) — xem chú thích từng hạng
@@ -75,14 +75,18 @@ export const HANG_MUC = [
 ];
 
 /**
- * Năm trạng thái của một ô trong bảng kiểm.
- *   du               ✅ đã có dữ liệu
- *   chua             ⏳ chưa có, nhưng CHƯA quá hạn -> KHÔNG phải lỗi
- *   tre              ⚠️ chưa có và ĐÃ quá hạn (hết tuần + 2 ngày ân hạn)
- *   khong_ap_dung    —  tuần đó không có buổi/không nhập được
- *   chua_du_du_lieu  ❓ hệ thống không có cách nào biết (xem mục nhật ký)
+ * BỐN trạng thái của một ô trong bảng kiểm (27/08/2026 — trước là năm).
+ *   du               ✅ người đã TÍCH V
+ *   chua             ⬜ chưa tích, nhưng CHƯA quá hạn -> KHÔNG phải lỗi
+ *   tre              ⬜ chưa tích và ĐÃ quá hạn (hết tuần + 2 ngày ân hạn)
+ *   khong_ap_dung    ➖ tuần đó không có buổi / không áp dụng
+ *
+ * ⭐ ĐÃ BỎ trạng thái thứ năm (❓ "chưa đủ dữ liệu"): trước đây Đào tạo và Lễ
+ * hội phải đoán qua nhật ký thay đổi (chỉ có từ 26/08/2026) nên mọi tuần
+ * trước đó hiện ❓. Nay người tích tay nên máy không phải đoán — bớt được một
+ * trạng thái mà ai nhìn cũng thấy khó hiểu.
  */
-export const TRANG_THAI = ['du', 'chua', 'tre', 'khong_ap_dung', 'chua_du_du_lieu'];
+export const TRANG_THAI = ['du', 'chua', 'tre', 'khong_ap_dung'];
 
 // ---------------------------------------------------------------------
 // Tiện ích ngày tháng — tất cả dùng Date.UTC, KHÔNG dùng giờ máy chủ
@@ -294,7 +298,7 @@ function tenHangMuc(h, leHoi) {
 // CHẤM MỘT Ô — trái tim của bảng kiểm
 // ---------------------------------------------------------------------
 function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
-  const { thang, hom, coDuLieu, leHoi, mocNhatKyMs } = boiCanhTuan;
+  const { thang, hom, daTich, leHoi } = boiCanhTuan;
   const t = tuanInfo;
 
   // --- (1) Hạng mục có ÁP DỤNG cho tuần này không? ---
@@ -312,66 +316,36 @@ function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
     if (leHoi.tuNgay && leHoi.tuNgay > cuoiTuan) return 'khong_ap_dung';
   }
 
-  // --- (2) Có dữ liệu rồi thì xong, khỏi xét gì thêm ---
-  if (coDuLieu) return 'du';
+  // --- (2) ĐÃ TÍCH V thì xong, khỏi xét gì thêm ---
+  // ⭐ 27/08/2026 — chấm theo LỜI KHAI của người dùng, KHÔNG theo dữ liệu máy
+  // dò được. Anh Rise chọn "người tích hết, máy chỉ gợi ý": máy vẫn dò xem web
+  // đã có số chưa (trường `goiY`) để NHẮC, nhưng không tự tích thay.
+  if (daTich) return 'du';
 
-  // --- (3) Chưa có dữ liệu. Hệ thống có ĐỦ CƠ SỞ để nói "thiếu" không? ---
-  // Đào tạo và Lễ hội chỉ biết được qua nhật ký thay đổi, mà nhật ký mới bật
-  // 26/08/2026. Tuần nào kết thúc TRƯỚC lúc đó thì im lặng, đừng vu oan.
-  if (maHangMuc === 'dao_tao' || maHangMuc === 'le_hoi') {
-    if (!mocNhatKyMs) return 'chua_du_du_lieu';
-    const ngayBatDauNhatKy = ngayCuaMs(mocNhatKyMs);
-    if (ngayKey(thang, t.denNgay) < ngayBatDauNhatKy) return 'chua_du_du_lieu';
-  }
-
-  // --- (4) Chưa có dữ liệu và có cơ sở. Đã QUÁ HẠN chưa? ---
-  // ⚠️ Đây là chỗ chống "báo thiếu oan" quan trọng nhất: hạn là HẾT TUẦN
-  // cộng 2 ngày ân hạn. Tuần đang diễn ra thì chưa ai trễ cả — hôm 26/08 là
-  // thứ Tư mà thứ Bảy của tuần là 29/08, chưa tới ngày thì lấy gì mà thiếu.
+  // --- (3) Chưa tích. Đã QUÁ HẠN chưa? ---
+  // ⚠️ Chỗ chống "báo thiếu oan" quan trọng nhất: hạn là HẾT TUẦN cộng 2 ngày
+  // ân hạn. Tuần đang diễn ra thì chưa ai trễ cả.
+  //
+  // ⭐⭐ TRẠNG THÁI 'chua_du_du_lieu' (❓) ĐÃ BỎ HẲN 27/08/2026. Trước đây Đào
+  // tạo và Lễ hội phải đoán qua nhật ký thay đổi (chỉ có từ 26/08/2026) nên
+  // mọi tuần trước đó phải hiện ❓. Nay người tích tay, máy không phải đoán
+  // nữa — bớt được một trạng thái mà ai nhìn cũng thấy khó hiểu.
   const hanChot = congNgay(ngayKey(thang, t.denNgay), AN_HAN_NGAY);
   return hom > hanChot ? 'tre' : 'chua';
 }
 
 // ---------------------------------------------------------------------
-// SO DẤU VẾT — cờ 🔁 "số đã đổi sau khi báo cáo"
-//
-// ⚠️⚠️ 27/08/2026 — PHẢI so theo TỪNG HẠNG MỤC, tuyệt đối không so chuỗi thô.
-// Dấu vết lưu dạng `tho_phuong=1;trudo_truyen_dao=0;...`. Hôm nay danh sách
-// hạng mục đổi (bỏ "Trudo — điểm danh công việc"), nên chuỗi hiện tại KHÔNG
-// thể bằng chuỗi đã lưu tuần trước — so thô là **mọi tuần đã báo cáo đều bị
-// gắn cờ 🔁**, tức báo oan cả phòng vì một thay đổi của phần mềm chứ không
-// phải của họ. Đúng loại lỗi mà cả file này sinh ra để tránh.
-//
-// Luật: CHỈ so những hạng mục có ở CẢ HAI bên. Hạng mục mới thêm hoặc vừa bị
-// bỏ thì im lặng — thà bỏ sót còn hơn báo oan.
-// ---------------------------------------------------------------------
-function tachDauVet(s) {
-  const m = {};
-  for (const phan of chuoi(s).split(';')) {
-    const i = phan.indexOf('=');
-    if (i > 0) m[phan.slice(0, i)] = phan.slice(i + 1);
-  }
-  return m;
-}
-
-export function daSuaSauKhiBaoCao(snapCu, dauVetMoi) {
-  const cu = tachDauVet(snapCu);
-  if (!Object.keys(cu).length) return false; // chưa có dấu vết -> không kết luận
-  const moi = tachDauVet(dauVetMoi);
-  for (const ma of Object.keys(moi)) {
-    if (cu[ma] === undefined) continue; // hạng mục MỚI thêm -> im lặng
-    if (cu[ma] !== moi[ma]) return true;
-  }
-  return false;
-}
-
-// ---------------------------------------------------------------------
 // Dựng bảng kiểm đầy đủ cho MỘT khu vực trong MỘT tháng
 // ---------------------------------------------------------------------
-function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao) {
+function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao, dsTich) {
   const dsTuan = cacTuanCuaThang(thang);
   const banBaoCao = {};
   for (const b of dsBaoCao || []) banBaoCao[Number(b.tuan)] = b;
+  // Ô đã tích V — khoá "<tuần>|<mã hạng mục>". Không có dòng = chưa tích.
+  const daTichSet = new Set();
+  for (const x of dsTich || []) {
+    if (chuoi(x.khu_vuc) === khuVuc) daTichSet.add(Number(x.tuan) + '|' + chuoi(x.hang_muc));
+  }
 
   const tuan = dsTuan.map((t) => {
     const dauTuan = ngayKey(thang, t.tuNgay);
@@ -382,27 +356,22 @@ function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao) {
     else if (hom > cuoiTuan) thoiDiem = 'da_qua';
 
     const hangMuc = HANG_MUC.map((h) => {
-      const coDuLieu = goi.co[h.ma].has(khuVuc + '|' + t.tuan);
+      const daTich = daTichSet.has(t.tuan + '|' + h.ma);
+      // ⚠️ `goiY` KHÔNG dùng để chấm — chỉ để giao diện nhắc "web đã có số rồi,
+      // nhớ tích V". Anh Rise chốt "người tích hết, máy chỉ gợi ý" (27/08/2026).
+      const goiY = goi.co[h.ma].has(khuVuc + '|' + t.tuan);
       return {
         ma: h.ma,
         ten: tenHangMuc(h, leHoi),
         nhom: h.nhom,
-        coDuLieu,
-        trangThai: chamMotO(h.ma, t, {
-          thang, hom, coDuLieu, leHoi, mocNhatKyMs: goi.mocNhatKyMs,
-        }),
+        daTich,
+        goiY,
+        trangThai: chamMotO(h.ma, t, { thang, hom, daTich, leHoi }),
       };
     });
 
     const dem = (tt) => hangMuc.filter((x) => x.trangThai === tt).length;
     const bc = banBaoCao[t.tuan] || null;
-
-    // ⚠️⚠️ DẤU VẾT chỉ chụp "hạng mục nào ĐÃ CÓ DỮ LIỆU", CỐ Ý KHÔNG chụp
-    // trạng thái ✅/⏳/⚠️. Trạng thái đổi theo NGÀY (hôm nay 'chua', hai hôm
-    // sau tự thành 'tre' dù không ai đụng gì) — chụp nó thì cứ qua hạn là
-    // mọi khu vực đều bị gắn cờ 🔁 "đã sửa sau báo cáo". Đó là báo oan, đúng
-    // loại lỗi mà cả file này sinh ra để tránh.
-    const hienTai = hangMuc.map((x) => x.ma + '=' + (x.coDuLieu ? 1 : 0)).join(';');
 
     return {
       tuan: t.tuan,
@@ -418,19 +387,14 @@ function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao) {
       soChua: dem('chua'),
       soTre: dem('tre'),
       soApDung: hangMuc.filter(
-        (x) => x.trangThai !== 'khong_ap_dung' && x.trangThai !== 'chua_du_du_lieu'
+        (x) => x.trangThai !== 'khong_ap_dung'
       ).length,
       baoCao: bc ? {
         daBaoCao: true,
         nguoi: chuoi(bc.nguoi_bao_cao),
         thoiGianMs: Number(bc.thoi_gian_ms) || 0,
         nhan: dinhDangThoiGian(bc.thoi_gian_ms),
-        // 🔁 Số đã đổi sau khi báo cáo. Anh Rise chốt KHÔNG khoá ô, nên
-        // chuyện này xảy ra được — không phải để bắt lỗi ai, mà để anh biết
-        // bản đã gửi lên trên có còn khớp không.
-        daSuaSau: daSuaSauKhiBaoCao(bc.snap_json, hienTai),
       } : { daBaoCao: false },
-      dauVetHienTai: hienTai,
     };
   });
 
@@ -455,17 +419,71 @@ export async function getBaoCaoTuan({ db, nguoiGoi }, thang, khuVuc) {
   if (!kv) throw new Error('Thiếu Khu vực.');
   if (!duocXemKhuVuc(nguoiGoi, kv)) throw new Error(loiKhongCoQuyen(nguoiGoi, kv));
 
-  const [goi, leHoi, dsBaoCao] = await Promise.all([
+  const [goi, leHoi, dsBaoCao, dsTich] = await Promise.all([
     gomDuLieuThang(db, th),
     leHoiCuaThang(db, th),
     db.all(
-      'SELECT tuan, snap_json, nguoi_bao_cao, thoi_gian_ms FROM bao_cao_tuan'
+      'SELECT tuan, nguoi_bao_cao, thoi_gian_ms FROM bao_cao_tuan'
       + ' WHERE thang = ? AND khu_vuc = ?',
+      [th, kv]
+    ),
+    db.all(
+      'SELECT khu_vuc, tuan, hang_muc FROM bao_cao_tich WHERE thang = ? AND khu_vuc = ?',
       [th, kv]
     ),
   ]);
 
-  return dungBangKiem(th, kv, goi, leHoi, homNay(), dsBaoCao);
+  return dungBangKiem(th, kv, goi, leHoi, homNay(), dsBaoCao, dsTich);
+}
+
+/**
+ * ⭐⭐ BẬT / TẮT MỘT Ô TÍCH V  (thêm 27/08/2026)
+ *
+ * Anh Rise: "bỏ nút báo cáo thành tích V vào những hạng mục đã điểm danh hàng
+ * tuần". Trước đây chỉ có MỘT nút cho cả tuần nên không biết hạng mục nào đã
+ * xong; nay tích từng ô.
+ *
+ * ⚠️ Đây là LỜI KHAI, không phải số máy đo. Máy vẫn dò (trường `goiY`) để nhắc
+ * "web đã có số rồi, nhớ tích", nhưng KHÔNG tự tích thay — anh Rise chốt
+ * "người tích hết, máy chỉ gợi ý".
+ *
+ * ⚠️ Bỏ tích thì XOÁ dòng chứ không lưu cờ 0. "Chưa bao giờ tích" và "tích rồi
+ * bỏ" là một chuyện — đừng đẻ thêm trạng thái.
+ *
+ * ⚠️ Quyền = quyền XEM bảng kiểm (`duocXemKhuVuc`), giống nút Báo cáo. Hệ
+ * thống chỉ có MỘT cột `pham_vi`, không tách quyền xem với quyền ghi.
+ */
+export async function toggleBaoCaoTich({ db, nguoiGoi }, thang, khuVuc, tuan, hangMuc, tich) {
+  const th = kiemThangChat(thang);
+  const kv = chuoi(khuVuc);
+  if (!kv) throw new Error('Thiếu Khu vực.');
+  if (!duocXemKhuVuc(nguoiGoi, kv)) throw new Error(loiKhongCoQuyen(nguoiGoi, kv));
+
+  const soTuan = Number(tuan);
+  if (!cacTuanCuaThang(th).some((x) => x.tuan === soTuan)) {
+    throw new Error('Tháng ' + th + ' không có Tuần ' + tuan + '.');
+  }
+
+  const ma = chuoi(hangMuc);
+  if (!HANG_MUC.some((h) => h.ma === ma)) {
+    throw new Error('Không có hạng mục "' + hangMuc + '".');
+  }
+
+  if (tich) {
+    await db.run(
+      'INSERT INTO bao_cao_tich (thang, khu_vuc, tuan, hang_muc, nguoi, thoi_gian_ms)'
+      + ' VALUES (?,?,?,?,?,?)'
+      + ' ON CONFLICT (thang, khu_vuc, tuan, hang_muc) DO UPDATE SET'
+      + ' nguoi = excluded.nguoi, thoi_gian_ms = excluded.thoi_gian_ms',
+      [th, kv, soTuan, ma, chuoi(nguoiGoi && nguoiGoi.email), Date.now()]
+    );
+  } else {
+    await db.run(
+      'DELETE FROM bao_cao_tich WHERE thang=? AND khu_vuc=? AND tuan=? AND hang_muc=?',
+      [th, kv, soTuan, ma]
+    );
+  }
+  return { success: true, thang: th, khuVuc: kv, tuan: soTuan, hangMuc: ma, tich: !!tich };
 }
 
 /** Câu nhắc khi tài khoản chưa được gán khu vực nào — dùng ở 2 chỗ. */
@@ -499,13 +517,14 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
     throw new Error(NHAC_CHUA_GAN);
   }
 
-  const [goi, leHoi, dsBaoCao] = await Promise.all([
+  const [goi, leHoi, dsBaoCao, dsTich] = await Promise.all([
     gomDuLieuThang(db, th),
     leHoiCuaThang(db, th),
     db.all(
-      'SELECT khu_vuc, tuan, snap_json, nguoi_bao_cao, thoi_gian_ms FROM bao_cao_tuan WHERE thang = ?',
+      'SELECT khu_vuc, tuan, nguoi_bao_cao, thoi_gian_ms FROM bao_cao_tuan WHERE thang = ?',
       [th]
     ),
+    db.all('SELECT khu_vuc, tuan, hang_muc FROM bao_cao_tich WHERE thang = ?', [th]),
   ]);
 
   const theoKV = {};
@@ -517,7 +536,7 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
 
   const hom = homNay();
   const dong = dsKhuVuc.map((kv) => {
-    const bang = dungBangKiem(th, kv, goi, leHoi, hom, theoKV[kv] || []);
+    const bang = dungBangKiem(th, kv, goi, leHoi, hom, theoKV[kv] || [], dsTich);
     // Tổng theo hạng mục cho cả tháng — để cột bên phải nói được
     // "Giáo dục: đủ 3/5 tuần" chứ không chỉ có dấu tick từng tuần.
     const theoHangMuc = {};
@@ -525,7 +544,7 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
     for (const t of bang.tuan) {
       for (const o of t.hangMuc) {
         const g = theoHangMuc[o.ma];
-        if (o.trangThai === 'khong_ap_dung' || o.trangThai === 'chua_du_du_lieu') continue;
+        if (o.trangThai === 'khong_ap_dung') continue;
         g.apDung += 1;
         if (o.trangThai === 'du') g.du += 1;
         else if (o.trangThai === 'tre') g.tre += 1;
@@ -540,7 +559,6 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
         nhan: t.nhan,
         thoiDiem: t.thoiDiem,
         daBaoCao: !!t.baoCao.daBaoCao,
-        daSuaSau: !!t.baoCao.daSuaSau,
         nhanBaoCao: t.baoCao.nhan || '',
         soTre: t.soTre,
         soChua: t.soChua,
@@ -593,16 +611,17 @@ export async function saveBaoCaoTuan(ctx, thang, khuVuc, tuan) {
     throw new Error('Tháng ' + th + ' không có Tuần ' + tuan + '.');
   }
 
-  const [goi, leHoi, daCo] = await Promise.all([
+  const [goi, leHoi, daCo, dsTich] = await Promise.all([
     gomDuLieuThang(db, th),
     leHoiCuaThang(db, th),
     db.first('SELECT thoi_gian_ms FROM bao_cao_tuan WHERE thang=? AND khu_vuc=? AND tuan=?',
       [th, kv, soTuan]),
+    db.all('SELECT khu_vuc, tuan, hang_muc FROM bao_cao_tich WHERE thang=? AND khu_vuc=?',
+      [th, kv]),
   ]);
 
-  const bang = dungBangKiem(th, kv, goi, leHoi, homNay(), []);
+  const bang = dungBangKiem(th, kv, goi, leHoi, homNay(), [], dsTich);
   const oTuan = bang.tuan.find((x) => x.tuan === soTuan);
-  const dauVet = oTuan ? oTuan.dauVetHienTai : '';
   const bay = Date.now();
   const email = chuoi(nguoiGoi && nguoiGoi.email);
 
@@ -612,7 +631,7 @@ export async function saveBaoCaoTuan(ctx, thang, khuVuc, tuan) {
     + ' ON CONFLICT (thang, khu_vuc, tuan) DO UPDATE SET'
     + ' snap_json = excluded.snap_json, nguoi_bao_cao = excluded.nguoi_bao_cao,'
     + ' thoi_gian_ms = excluded.thoi_gian_ms',
-    [th, kv, soTuan, dauVet, email, bay]
+    [th, kv, soTuan, '', email, bay]
   );
 
   if (!daCo) {
@@ -626,8 +645,8 @@ export async function saveBaoCaoTuan(ctx, thang, khuVuc, tuan) {
       'Người báo cáo: ' + thoatHtml(email || '(không rõ)'),
       'Lúc: ' + dinhDangThoiGian(bay),
       thieu.length
-        ? 'Còn chưa nhập: ' + thoatHtml(thieu.map((x) => x.ten).join(', '))
-        : 'Đã nhập đủ mọi hạng mục.',
+        ? 'Còn chưa tích: ' + thoatHtml(thieu.map((x) => x.ten).join(', '))
+        : 'Đã tích đủ mọi hạng mục.',
     ];
     guiTelegramNgam(ctx.ctx, ctx.env, dong.join('\n'));
   }
