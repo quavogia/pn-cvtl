@@ -212,10 +212,14 @@ const dau = await page.evaluate(() =>
   [...document.querySelectorAll('#bc_noiDung thead th')].map((t) => t.textContent.trim()));
 kiem('KHÔNG lặp tên lễ hội hai lần',
   !dau.some((x) => x.includes('Lễ hội Lời (Lễ hội Lời)')), JSON.stringify(dau));
-kiem('⚠️ KHÔNG còn cột "Trudo — điểm danh công việc"',
-  !dau.some((x) => /điểm danh công việc/i.test(x)), JSON.stringify(dau));
-kiem('bảng còn ĐÚNG 7 cột: Tuần + 5 hạng mục + Xong tuần', dau.length === 7, JSON.stringify(dau));
-kiem('cột cuối là "Xong tuần"', dau[6] === 'Xong tuần', dau[6]);
+// ⚠️ Phải soi ĐÚNG TÊN CỘT, không soi cả ô tiêu đề: từ 27/08/2026 dòng chú
+// thích của cột Trudo có chứa chữ "Điểm danh công việc" một cách hợp lệ (anh
+// Rise: "trong mục trudo thì có thêm việc điểm danh công việc tin lành nữa").
+// Ca cũ soi cả textContent nên nay sẽ đỏ oan — điều bị cấm là CỘT RIÊNG.
+kiem('⚠️ KHÔNG còn CỘT RIÊNG "Trudo — điểm danh công việc"',
+  !dau.some((x) => /Trudo\s*—\s*điểm danh/i.test(x)), JSON.stringify(dau));
+kiem('bảng còn ĐÚNG 7 cột: Tuần + 5 hạng mục + Báo cáo', dau.length === 7, JSON.stringify(dau));
+kiem('cột cuối là "Báo cáo"', dau[6] === 'Báo cáo', dau[6]);
 
 // ---------------------------------------------------------------------
 console.log('\n4b) ⭐ Bấm tích V + bấm TÊN CỘT để nhảy tab');
@@ -305,28 +309,56 @@ kiem('nói rõ sổ gốc vẫn là My Memo', /My Memo/.test(chuBaoCao));
 const canNhap = await page.evaluate(() =>
   [...document.querySelectorAll('#bc_noiDung thead th .bc-canhap')].map((x) => x.textContent.trim()));
 kiem('mỗi cột đều có dòng "cần nhập gì"', canNhap.length === 5, JSON.stringify(canNhap));
-kiem('⚠️ cột Trudo liệt kê ĐỦ BA thứ: Đơn thuần · Hữu hiệu · Báp-têm',
-  /Đơn thuần/.test(canNhap[1]) && /Hữu hiệu/.test(canNhap[1]) && /Báp-têm/.test(canNhap[1]),
+kiem('⚠️ cột Trudo liệt kê ĐỦ BỐN thứ: Đơn thuần · Hữu hiệu · Báp-têm · Điểm danh CV',
+  /Đơn thuần/.test(canNhap[1]) && /Hữu hiệu/.test(canNhap[1]) && /Báp-têm/.test(canNhap[1])
+  && /Điểm danh công việc/.test(canNhap[1]),
   canNhap[1]);
 kiem('cột Thờ phượng nói rõ ≥1 lần và ≥4 lần',
   /≥1 lần/.test(canNhap[0]) && /≥4 lần/.test(canNhap[0]), canNhap[0]);
 kiem('cột Giáo dục nói rõ EDU LMS và Trực 127',
   /EDU LMS/.test(canNhap[2]) && /127/.test(canNhap[2]), canNhap[2]);
-kiem('⚠️ chú thích nói rõ Trudo nhập ở MENU, không phải tab con',
-  /menu 🏛️ Trudo/.test(chuBaoCao) && /không phải/.test(chuBaoCao));
-kiem('⚠️ nói rõ Điểm danh công việc KHÔNG thuộc bảng này',
-  /Điểm danh công việc/.test(chuBaoCao) && /chữa cháy/.test(chuBaoCao));
+kiem('⚠️ chú thích nói rõ ba thứ đầu nhập ở MENU 🏛️ Trudo',
+  /menu 🏛️ Trudo/.test(chuBaoCao));
+kiem('⚠️ và nói rõ Điểm danh công việc nhập ở TAB CON Trudo',
+  /Điểm danh công việc/.test(chuBaoCao) && /tab con Trudo/.test(chuBaoCao));
+kiem('vẫn nói rõ sổ gốc Điểm danh công việc là My Memo (chữa cháy)',
+  /chữa cháy/.test(chuBaoCao));
+
+// ⚠️⚠️ LINK PHỤ — ca đắt giá của đợt 27/08/2026 (chiều). Cột Trudo là cột DUY
+// NHẤT có hạng mục nhập ở HAI NƠI: Đơn thuần/Hữu hiệu/Báp-têm ở menu 🏛️ Trudo,
+// còn Điểm danh công việc ở tab con `kv → Trudo`. Một link không chỉ được cả
+// hai — chỉ đường thiếu thì người ta nhập 3/4 rồi tích V (bài học #70).
+const soLink = await page.evaluate(() =>
+  [...document.querySelectorAll('#bc_noiDung thead th')].map((t) => t.querySelectorAll('.bc-nhay').length));
+kiem('⚠️ CHỈ cột Trudo có link phụ, các cột khác đúng 1 link',
+  JSON.stringify(soLink) === JSON.stringify([0, 1, 2, 1, 1, 1, 0]), JSON.stringify(soLink));
+
+await page.evaluate(() => { showPanel('kv'); selectKVSubTab('baocao'); });
+await page.waitForTimeout(1000);
+await page.evaluate(() =>
+  document.querySelectorAll('#bc_noiDung thead th')[2].querySelectorAll('.bc-nhay')[1].click());
+await page.waitForTimeout(900);
+const denCV = await page.evaluate(() => ({
+  panel: [...document.querySelectorAll('.panel')].filter((p) => p.classList.contains('active'))
+    .map((p) => p.id)[0] || '',
+  tabCon: kvActiveSubTab,
+}));
+kiem('⚠️ bấm link phụ "→ Điểm danh CV" -> mở TAB CON Trudo (không phải menu)',
+  denCV.panel === 'panel-kv' && denCV.tabCon === 'trudo', JSON.stringify(denCV));
+
+await page.evaluate(() => { showPanel('kv'); selectKVSubTab('baocao'); });
+await page.waitForTimeout(1000);
 
 // ---------------------------------------------------------------------
-console.log('\n5) ⭐ Nút "Xong tuần" + Gỡ');
-await page.locator('#bc_noiDung button:has-text("Xong tuần")').first().click();
+console.log('\n5) ⭐ Nút "Báo cáo" + Gỡ');
+await page.locator('#bc_noiDung button:has-text("Báo cáo")').first().click();
 await page.waitForTimeout(1000);
-kiem('bấm xong CSDL có 1 dòng "xong tuần"',
+kiem('bấm xong CSDL có 1 dòng báo cáo',
   sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tuan').get().n === 1);
-// ⚠️ Ô tích V và dấu "xong tuần" là HAI bảng riêng — bấm Xong tuần KHÔNG được
-// tự tích hộ, và gỡ Xong tuần KHÔNG được xoá ô đã tích.
+// ⚠️ Ô tích V và dấu "đã báo cáo" là HAI bảng riêng — bấm Báo cáo KHÔNG được
+// tự tích hộ, và gỡ báo cáo KHÔNG được xoá ô đã tích.
 const soTichTruoc = sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tich').get().n;
-kiem('⚠️ bấm "Xong tuần" KHÔNG tự tích hộ hạng mục nào',
+kiem('⚠️ bấm "Báo cáo" KHÔNG tự tích hộ hạng mục nào',
   sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tich').get().n === soTichTruoc);
 
 await vaoVai(CHU, [], true);
@@ -334,9 +366,9 @@ await page.evaluate(() => { selectKV('K Thành'); selectKVSubTab('baocao'); });
 await page.waitForTimeout(1100);
 await page.locator('#bc_noiDung button:has-text("Gỡ")').first().click();
 await page.waitForTimeout(1000);
-kiem('Admin gỡ được dấu "xong tuần"',
+kiem('Admin gỡ được dấu "đã báo cáo"',
   sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tuan').get().n === 0);
-kiem('⚠️ gỡ "xong tuần" KHÔNG xoá ô đã tích V',
+kiem('⚠️ gỡ báo cáo KHÔNG xoá ô đã tích V',
   sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tich').get().n === soTichTruoc,
   'trước ' + soTichTruoc + ', sau ' + sqlite.prepare('SELECT COUNT(*) n FROM bao_cao_tich').get().n);
 
