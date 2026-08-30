@@ -11,7 +11,7 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE INDEX IF NOT EXISTS ix_nkdt_ngay ON nhat_ky_don_thuan (ngay, khu_vuc)",
   "CREATE TABLE IF NOT EXISTS muc_tieu_kv ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, mt_don_thuan INTEGER NOT NULL DEFAULT 0, mt_huu_hieu INTEGER NOT NULL DEFAULT 0, mt_bt INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc) )",
   "CREATE TABLE IF NOT EXISTS muc_tieu_ca_nhan ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, mt_don_thuan INTEGER NOT NULL DEFAULT 0, mt_huu_hieu INTEGER NOT NULL DEFAULT 0, mt_bt INTEGER NOT NULL DEFAULT 0, mt_tt127_ngay INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, ten) )",
-  "CREATE TABLE IF NOT EXISTS tp_tho_phuong ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, loai TEXT NOT NULL, tuan INTEGER NOT NULL, so_luong INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, loai, tuan) )",
+  "CREATE TABLE IF NOT EXISTS tp_tho_phuong ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, loai TEXT NOT NULL, tuan INTEGER NOT NULL, so_luong INTEGER NOT NULL DEFAULT 0, tu_dong INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (thang, khu_vuc, loai, tuan) )",
   "CREATE TABLE IF NOT EXISTS tp_bao_cao ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, nhom TEXT NOT NULL, thoi_gian TEXT NOT NULL, thoi_gian_ms INTEGER NOT NULL, snap_1lan INTEGER NOT NULL DEFAULT 0, snap_4lan INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, tuan, nhom) )",
   "CREATE TABLE IF NOT EXISTS giao_duc_thanh_vien ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, tuan INTEGER NOT NULL, edu_lms TEXT, tt127_ngay INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, ten, tuan) )",
   "CREATE INDEX IF NOT EXISTS ix_gdtv_thang_kv ON giao_duc_thanh_vien (thang, khu_vuc)",
@@ -74,4 +74,10 @@ export const CAU_LENH_NANG_CAP = [
   // có thể đã có cột đó rồi, bỏ lệnh đi thì hai bên lệch nhau.
   "ALTER TABLE le_hoi_cau_hinh ADD COLUMN loai TEXT NOT NULL DEFAULT 'loi'",
   'ALTER TABLE le_hoi_cau_hinh ADD COLUMN cach_tinh TEXT',
+  // Cột "tu_dong" của TP (30/08/2026) — đánh dấu ô nào máy tự điền (được tự
+  // sửa lại sau qua dongBoTPTuDiemDanh) và ô nào đã gõ tay (khoá vĩnh viễn).
+  // DEFAULT 1 khi thêm cột: các ô cũ coi như "máy tự điền" -> lần đồng bộ đầu
+  // tiên sẽ tự sửa lại cho đúng theo Điểm danh mới nhất (đúng ý anh Rise: hai
+  // ô đang sai — K Đức Tuần 5 và TT Châu Tuần 1 — sẽ tự sửa theo Điểm danh).
+  'ALTER TABLE tp_tho_phuong ADD COLUMN tu_dong INTEGER NOT NULL DEFAULT 1',
 ];
