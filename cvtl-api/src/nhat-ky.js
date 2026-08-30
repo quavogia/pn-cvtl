@@ -49,7 +49,6 @@ export const VI_TRI_KHU_VUC = {
   getMocDaGhi: 1,
   getProgressBreakdown: 1,
   getSoMoc: 3,
-  getVanDongTienDo: 1,
   getXepHang: 2,
   hideCVNguoi: 0,
   huyBaoCaoTuan: 1,
