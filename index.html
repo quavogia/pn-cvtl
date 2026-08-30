@@ -1039,26 +1039,19 @@
           <p style="color:#94a3b8;margin:0;">Hiện không có lễ hội nào đang diễn ra.</p>
         </div>
 
-        <!-- ⭐ 27/08/2026 — KỲ VẬN ĐỘNG TRUYỀN ĐẠO dùng CHUNG tab con này.
-             Cùng là "lễ hội" nên để chung chỗ cho cả phòng khỏi phải nhớ hai
-             nơi; giao diện rẽ nhánh theo `loai` của cấu hình.
-             ⚠️ KHÔNG có ô nào để tích ở đây, và cố ý là như vậy: số đã nhập ở
-             Nhật ký đơn thuần + Sổ mốc rồi. Xem đầu handlers/van-dong.js. -->
+        <!-- ⭐ 30/08/2026 — KỲ VẬN ĐỘNG TRUYỀN ĐẠO dùng CHUNG tab con này,
+             giao diện rẽ nhánh theo `loai` của cấu hình.
+             ⚠️ KHÔNG có ô nào để tích, KHÔNG có gì để nhập — và cố ý là như vậy.
+             Số đã nhập ở Nhật ký đơn thuần + Sổ mốc rồi; đây chỉ là bảng 🏆 Xếp
+             hạng đã có, lọc theo khoảng ngày của kỳ. Xem đầu handlers/tru-do.js. -->
         <div id="vdContent" style="display:none;">
           <div class="card">
             <h3 style="margin:0 0 6px" id="vd_ten">—</h3>
             <p style="font-size:12px;color:#64748b;margin:0;" id="vd_moTa"></p>
-            <p style="font-size:12px;color:#b45309;margin:6px 0 0;display:none;" id="vd_canhBaoCachTinh">
-              ⚠️ Cách tính điểm trong cấu hình bị lỗi cú pháp — đang tạm dùng cách mặc định.
-            </p>
           </div>
           <div class="card">
-            <div class="toolbar"><h3 style="margin:0">Theo dõi — <span id="vd_tenKV"></span></h3></div>
-            <div id="vd_bangKV" style="color:#94a3b8;">Đang tải…</div>
-          </div>
-          <div class="card">
-            <div class="toolbar"><h3 style="margin:0">🏆 Xếp hạng cả Si-ôn</h3></div>
-            <div id="vd_xepHang" style="color:#94a3b8;">Đang tải…</div>
+            <div class="toolbar"><h3 style="margin:0">🏆 Bảng xếp hạng</h3></div>
+            <div id="vd_bang" style="color:#94a3b8;">Đang tải…</div>
           </div>
         </div>
         <div id="lhContent" style="display:none;">
@@ -1379,9 +1372,9 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   // dùng được cache; bấm "Báo cáo" là lệnh GHI nên tự xoá sạch cache, lần vẽ
   // lại bảng kiểm ngay sau đó chắc chắn lấy số mới.
   'getBaoCaoTuan', 'getBaoCaoLuoi',
-  // Kỳ vận động truyền đạo (thêm 27/08/2026). Cả hai đều CHỈ ĐỌC — kỳ vận
-  // động không có lệnh ghi nào, số lấy sẵn từ Nhật ký đơn thuần + Sổ mốc.
-  'getVanDongTienDo', 'getVanDongXepHang']);
+  // ⚠️ Kỳ vận động KHÔNG có hàm nào riêng — nó dùng chung `getXepHang` (đã khai
+  // ở trên), chỉ khoá cứng khoảng ngày theo kỳ.
+  ]);
 
 // Cache tạm ở trình duyệt cho các hàm ĐỌC (API_READ_FNS) — key là "tênHàm::tham số",
 // giá trị sống trong CACHE_TTL_MS. Mục đích: khi chuyển qua lại Khu vực/tab đã xem
@@ -4890,50 +4883,44 @@ function loadLeHoiPanel(){
 }
 
 // =====================================================================
-// KỲ VẬN ĐỘNG TRUYỀN ĐẠO — chỉ ĐỌC, không có ô nào để tích (27/08/2026)
+// KỲ VẬN ĐỘNG TRUYỀN ĐẠO  (30/08/2026)
 //
-// ⚠️⚠️ CỐ Ý KHÔNG CÓ MÀN HÌNH NHẬP LIỆU Ở ĐÂY. Ba con số của kỳ vận động đã
-// được nhập ở menu 🏛️ Trudo (Đơn thuần / Hữu hiệu / Báp-têm) rồi. Anh Rise
-// chốt 27/08/2026: "web chỉ chép con số, và chỉ chép một lần". Thêm ô nhập ở
-// đây là bắt cả phòng nhập lại lần thứ hai.
+// ⚠️⚠️ MÀN HÌNH NÀY CHỈ ĐỌC, VÀ DÙNG CHUNG BẢNG XẾP HẠNG VỚI MENU 🏛️ TRUDO.
+// Cả web chỉ có MỘT bảng xếp hạng (`getXepHang`); ở đây chỉ khác một điều là
+// khoảng ngày được khoá cứng theo kỳ vận động. Không có gì để nhập ở đây —
+// số đã nhập ở Nhật ký đơn thuần + Sổ mốc rồi.
 //
-// ⚠️ KHÔNG gộp ba tỉ lệ thành một con số. Mục tiêu Báp-têm thường chỉ 1–5
-// người nên MỘT báp-têm đã là 20–33%, trong khi mục tiêu Đơn thuần hàng trăm
-// — trung bình lại thì người 0 đơn thuần xếp trên người 32 đơn thuần. Đã tính
-// thử trên số thật 27/08/2026. Mỗi hạng mục tự mang "/ đích · %" của nó,
-// giống hệt cách đã chốt cho bảng 🏆 Thi đua cùng ngày.
+// ⚠️ WEB KHÔNG CÓ ĐIỂM. Anh Rise chốt: memo (trang web Hội Thánh) đã có sẵn
+// công thức và là sổ CHÍNH THỨC, điểm xem bên đó. Web xếp hạng theo
+// Báp-têm > Hữu hiệu > Đơn thuần, tức là thứ hạng ở đây CÓ THỂ KHÁC memo.
+//
+// ⚠️ Ai sửa về sau: đừng dựng thêm bảng riêng cho kỳ vận động, và đừng thêm
+// lại một thang điểm. Hai bảng hoặc hai thang là sớm muộn có hai con số cho
+// cùng một người, rồi cả phòng mất thời gian cãi xem tin cái nào.
 // =====================================================================
 
-// ⚠️ Danh sách cột do MÁY CHỦ trả về (trường `hangMuc`), KHÔNG gõ cứng ở đây.
-// Bảng điểm Hội Thánh ban hành 27/08/2026 thêm hai hạng mục "Báp-têm dự lễ"
-// và "Chiên bị mất"; lần sau thêm nữa thì chỉ sửa một chỗ trong van-dong.js.
+var vdKy = null;
+
 function loadVanDong_(lh){
+  vdKy = lh;
   document.getElementById('vd_ten').textContent = lh.ten;
-  document.getElementById('vd_tenKV').textContent = selectedKV || '—';
-  if (!selectedKV) return;
+  document.getElementById('vd_moTa').textContent = vdMoTa_(lh);
+  document.getElementById('vd_bang').innerHTML = '<div style="color:#94a3b8;">Đang tải…</div>';
 
-  google.script.run.withSuccessHandler(function(d){
-    veVanDongKV_(d);
-    document.getElementById('vd_moTa').textContent = vdMoTa_(d);
-    document.getElementById('vd_canhBaoCachTinh').style.display = d.cachTinhHong ? 'block' : 'none';
+  google.script.run.withSuccessHandler(function(b){
+    veVanDongBang_(b);
   }).withFailureHandler(function(err){
-    document.getElementById('vd_bangKV').innerHTML =
+    document.getElementById('vd_bang').innerHTML =
       '<div style="color:#dc2626;">' + esc(err.message) + '</div>';
-  }).getVanDongTienDo(lh.ma, selectedKV);
-
-  google.script.run.withSuccessHandler(function(d){
-    veVanDongXepHang_(d);
-  }).withFailureHandler(function(err){
-    document.getElementById('vd_xepHang').innerHTML =
-      '<div style="color:#94a3b8;">' + esc(err.message) + '</div>';
-  }).getVanDongXepHang(lh.ma);
+  }).getXepHang(lh.ngayBatDau, lh.ngayKetThuc, '');
 }
 
-/** Dòng mô tả: kỳ hạn + còn mấy ngày. Hết kỳ thì nói hẳn là đã kết thúc. */
-function vdMoTa_(d){
-  var s = 'Kỳ vận động ' + d.ngayBatDau + ' — ' + d.ngayKetThuc + '. ';
-  var conLai = vdSoNgay_(d.homNay, d.ngayKetThuc);
-  if (d.homNay < d.ngayBatDau) s += 'Chưa bắt đầu — còn ' + vdSoNgay_(d.homNay, d.ngayBatDau) + ' ngày nữa.';
+/** Dòng mô tả: kỳ hạn, còn mấy ngày, và số này lấy ở đâu ra. */
+function vdMoTa_(lh){
+  var nay = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10);
+  var s = 'Kỳ vận động ' + lh.ngayBatDau + ' — ' + lh.ngayKetThuc + '. ';
+  var conLai = vdSoNgay_(nay, lh.ngayKetThuc);
+  if (nay < lh.ngayBatDau) s += 'Chưa bắt đầu — còn ' + vdSoNgay_(nay, lh.ngayBatDau) + ' ngày nữa.';
   else if (conLai >= 0) s += 'Còn ' + conLai + ' ngày.';
   else s += 'Đã kết thúc.';
   s += ' Số lấy từ Nhật ký đơn thuần và Sổ mốc — không phải nhập lại ở đây.';
@@ -4941,165 +4928,66 @@ function vdMoTa_(d){
 }
 
 function vdSoNgay_(tu, den){
+  if (!tu || !den) return 0;
   var a = Date.UTC(+tu.slice(0,4), +tu.slice(5,7) - 1, +tu.slice(8,10));
   var b = Date.UTC(+den.slice(0,4), +den.slice(5,7) - 1, +den.slice(8,10));
   return Math.round((b - a) / 86400000);
 }
 
-/**
- * Một ô số: thực tế ở trên, "/ đích · %" ở dưới.
- * ⚠️ Chưa đặt mục tiêu thì ghi "chưa đặt MT", TUYỆT ĐỐI không ra 0% — 0% đọc
- * thành "làm mà không được gì", còn sự thật là "chưa có thước đo".
- */
-function vdO_(soThucTe, dich, pct){
-  var duoi;
-  // ⚠️ Phân biệt HAI thứ khác hẳn nhau:
-  //   dich === null  -> hạng mục KHÔNG có chỗ đặt mục tiêu (Báp-têm dự lễ,
-  //                     Chiên bị mất). Không hiện gì cả — nhắc một điều không
-  //                     ai làm gì được chỉ là nhiễu.
-  //   dich === 0     -> CÓ chỗ đặt nhưng chưa ai đặt -> "chưa đặt MT".
-  if (dich === null || dich === undefined) {
-    return '<td style="padding:8px;text-align:center;"><div class="td-so">' + soThucTe + '</div></td>';
-  }
-  if (!dich) duoi = '<span title="chưa ai đặt mục tiêu cho hạng mục này">chưa đặt MT</span>';
-  else if (pct === null || pct === undefined) duoi = '/ ' + dich;
-  else {
-    var mau = pct >= 100 ? '#16a34a' : (pct >= 50 ? '#64748b' : '#dc2626');
-    duoi = '/ ' + dich + ' · <span style="color:' + mau + ';font-weight:600;">' + pct + '%</span>';
-  }
-  return '<td style="padding:8px;text-align:center;">'
-    + '<div class="td-so">' + soThucTe + '</div>'
-    + '<div class="td-mt">' + duoi + '</div></td>';
+function vdSoDep_(n){
+  return (Math.round(Number(n) * 100) / 100).toLocaleString('vi-VN');
 }
 
-function veVanDongKV_(d){
-  var box = document.getElementById('vd_bangKV');
-  if (!d.dong.length) {
-    box.innerHTML = '<div style="color:#94a3b8;">Chưa có thành viên nào trong khu vực này '
-      + '(thêm thành viên ở tab "Giáo dục").</div>';
-    return;
-  }
-  var COT = d.hangMuc || [];
-  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:680px;">';
-  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">'
-    + '<th style="padding:8px;">Thành viên</th>';
-  for (var i = 0; i < COT.length; i++) {
-    h += '<th style="padding:8px;text-align:center;font-size:12.5px;">' + esc(COT[i].ten) + '</th>';
-  }
-  if (d.coDiem) h += '<th style="padding:8px;text-align:center;">Điểm</th>';
-  h += '</tr></thead><tbody>';
-
-  for (var r = 0; r < d.dong.length; r++) {
-    var x = d.dong[r];
-    h += '<tr style="border-bottom:1px solid #f1f5f9;"><td style="padding:8px;">' + esc(x.ten) + '</td>';
-    for (var c = 0; c < COT.length; c++) {
-      var ma = COT[c].ma;
-      h += vdO_(x[ma], x.dich[ma], x.phanTram[ma]);
-    }
-    if (d.coDiem) h += '<td style="padding:8px;text-align:center;font-weight:700;">' + x.diem + '</td>';
-    h += '</tr>';
-  }
-
-  h += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;"><td style="padding:8px;">Cả khu vực</td>';
-  for (var c2 = 0; c2 < COT.length; c2++) {
-    var ma2 = COT[c2].ma;
-    h += vdO_(d.tong[ma2], COT[c2].coDich ? d.tong.dich[ma2] : null, null);
-  }
-  if (d.coDiem) h += '<td style="padding:8px;text-align:center;">' + d.tong.diem + '</td>';
-  h += '</tr></tbody></table></div>';
-
-  // ⚠️ Hai cảnh báo dưới đây BẮT BUỘC có. Không nói ra thì số lặng lẽ biến
-  // mất khỏi bảng mà không ai biết — loại lỗi khó phát hiện nhất.
-  if (d.laKhach && d.laKhach.length) {
-    h += '<div style="margin-top:10px;padding:10px 12px;background:#fffbeb;border-left:3px solid #f59e0b;'
-      + 'border-radius:0 6px 6px 0;font-size:12.5px;color:#92400e;line-height:1.7;">'
-      + '⚠️ <b>' + d.laKhach.length + ' người có số nhưng chưa có trong danh sách thành viên</b> của khu vực này: '
-      + d.laKhach.map(function(k){ return esc(k.ten) + ' (' + k.donThuan + ' đơn thuần)'; }).join(' · ')
-      + '.<br>Tên ở Nhật ký đơn thuần lấy từ danh sách <b>Người dẫn dắt</b>, còn bảng này lấy từ danh sách '
-      + '<b>thành viên tab Giáo dục</b> — hai danh sách khác nhau. Thêm họ vào tab Giáo dục thì số sẽ vào đúng dòng.'
-      + '</div>';
-  }
-  if (d.chuaCoTen && COT.some(function(c){ return d.chuaCoTen[c.ma]; })) {
-    h += '<div style="margin-top:10px;padding:10px 12px;background:#fffbeb;border-left:3px solid #f59e0b;'
-      + 'border-radius:0 6px 6px 0;font-size:12.5px;color:#92400e;line-height:1.7;">'
-      + '⚠️ Cả Si-ôn còn <b>' + COT.map(function(c){ return d.chuaCoTen[c.ma] + ' ' + c.ten.toLowerCase(); }).join(' · ')
-      + '</b> chưa ghi tên người dẫn dắt nên '
-      + '<b>chưa vào bảng xếp hạng của ai</b>. Vẫn được tính vào tổng của phòng.'
-      + '</div>';
-  }
-
-  h += '<div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.9;">'
-    + '<b>Cách đọc ô:</b> số lớn là <b>thực tế trong kỳ</b>, dòng nhỏ là <b>/ mục tiêu · %</b>. '
-    + 'Mục tiêu lấy từ <b>Mục tiêu cá nhân tháng ' + esc(d.thangMucTieu) + '</b>; ai chưa đặt thì ghi '
-    + '<b>chưa đặt MT</b>, <b>không phải 0%</b>. '
-    + '<b>Báp-têm dự lễ</b> và <b>Chiên bị mất</b> chưa có chỗ đặt mục tiêu nên chỉ hiện con số.'
-    + '<br>⚠️ <b>ĐỪNG cộng hay lấy trung bình ba cột %.</b> Mục tiêu Báp-têm thường chỉ 1–5 người nên '
-    + '<b>một</b> báp-têm đã là 20–33%, trong khi mục tiêu Đơn thuần hàng trăm.'
-    + '<br>📌 <b>Hữu hiệu và Báp-têm đếm theo NGƯỜI</b> — hai người cùng dẫn một người thì cả hai đều được '
-    + 'tính 1, nên cộng dòng lại sẽ lớn hơn số thật của khu vực.'
-    + '<br>📌 Số ở đây lấy từ <b>Sổ mốc</b> (theo ngày đạt mốc) nên <b>có thể khác</b> bảng 🏆 Thi đua ở màn '
-    + '📊 Tổng — bảng đó đọc từ danh sách Học viên.'
-    + '</div>';
-  box.innerHTML = h;
-}
-
-function veVanDongXepHang_(d){
-  var box = document.getElementById('vd_xepHang');
-  if (!d.danhSach.length) {
+function veVanDongBang_(b){
+  var box = document.getElementById('vd_bang');
+  if (!b.danhSach.length) {
     box.innerHTML = '<div style="color:#94a3b8;">Chưa ai có số trong kỳ này.</div>';
     return;
   }
-  // Cột dùng để xếp hạng đưa lên trước và tô màu, để nhìn là biết đang xếp
-  // theo cái gì — không phải đoán.
-  var thuTuCot = (d.hangMuc || []).slice().sort(function(a, b){
-    return (a.ma === d.truongXepHang ? -1 : 0) - (b.ma === d.truongXepHang ? -1 : 0);
-  });
-
-  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:560px;">';
-  h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">'
+  var huy = ['🥇', '🥈', '🥉'];
+  var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:460px;">'
+    + '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">'
     + '<th style="padding:8px;width:52px;text-align:center;">Hạng</th>'
     + '<th style="padding:8px;">Người dẫn dắt</th>'
-    + '<th style="padding:8px;">Khu vực</th>';
-  for (var i = 0; i < thuTuCot.length; i++) {
-    var la = thuTuCot[i].ma === d.truongXepHang;
-    h += '<th style="padding:8px;text-align:center;' + (la ? 'color:#0f766e;' : '') + '">'
-      + thuTuCot[i].ten + (la ? '<br><span style="font-weight:400;font-size:10px;">xếp theo cột này</span>' : '')
-      + '</th>';
-  }
-  if (d.coDiem) h += '<th style="padding:8px;text-align:center;">Điểm</th>';
-  h += '</tr></thead><tbody>';
+    + '<th style="padding:8px;text-align:center;">Đơn thuần</th>'
+    + '<th style="padding:8px;text-align:center;">Hữu hiệu</th>'
+    // Cột đang dùng để xếp hạng được tô cho nhìn là biết, không phải đoán.
+    + '<th style="padding:8px;text-align:center;color:#0f766e;">Báp-têm'
+    + '<br><span style="font-weight:400;font-size:10px;">xếp theo cột này</span></th>'
+    + '</tr></thead><tbody>';
 
-  var huy = ['🥇', '🥈', '🥉'];
-  for (var r = 0; r < d.danhSach.length; r++) {
-    var x = d.danhSach[r];
-    // ⚠️ Huy chương CHỈ trao cho người thật sự có số ở hạng mục đang xếp.
-    // Trao 🥇 cho người 0 báp-têm trong một kỳ vận động truyền đạo là mỉa mai.
-    var nhan = (r < 3 && Number(x[d.truongXepHang]) > 0) ? huy[r] : String(x.hang);
+  for (var i = 0; i < b.danhSach.length; i++) {
+    var x = b.danhSach[i];
+    var nhan = x.hang <= 3 ? huy[x.hang - 1] : String(x.hang);
     h += '<tr style="border-bottom:1px solid #f1f5f9;">'
       + '<td style="padding:8px;text-align:center;font-size:16px;">' + nhan + '</td>'
       + '<td style="padding:8px;white-space:nowrap;">' + esc(x.ten) + '</td>'
-      + '<td style="padding:8px;white-space:nowrap;color:#64748b;">' + esc(x.khuVuc || '—') + '</td>';
-    for (var c = 0; c < thuTuCot.length; c++) {
-      var la2 = thuTuCot[c].ma === d.truongXepHang;
-      h += '<td style="padding:8px;text-align:center;' + (la2 ? 'font-weight:700;font-size:15px;' : '') + '">'
-        + x[thuTuCot[c].ma] + '</td>';
-    }
-    if (d.coDiem) h += '<td style="padding:8px;text-align:center;font-weight:600;">' + x.diem + '</td>';
-    h += '</tr>';
+      + '<td style="padding:8px;text-align:center;">' + vdSoDep_(x.donThuan) + '</td>'
+      + '<td style="padding:8px;text-align:center;">' + x.huuHieu + '</td>'
+      + '<td style="padding:8px;text-align:center;font-weight:700;font-size:15px;">' + x.bapTem + '</td>'
+      + '</tr>';
   }
+
+  var t = b.tomTat;
   h += '<tr style="border-top:2px solid #e2e8f0;font-weight:700;">'
-    + '<td style="padding:8px;"></td><td style="padding:8px;">Cả Si-ôn</td><td style="padding:8px;"></td>';
-  for (var c3 = 0; c3 < thuTuCot.length; c3++) {
-    h += '<td style="padding:8px;text-align:center;">' + d.tong[thuTuCot[c3].ma] + '</td>';
-  }
-  if (d.coDiem) h += '<td style="padding:8px;text-align:center;">' + d.tong.diem + '</td>';
-  h += '</tr></tbody></table></div>';
+    + '<td style="padding:8px;"></td><td style="padding:8px;">Cả Si-ôn</td>'
+    + '<td style="padding:8px;text-align:center;">' + t.soDonThuan + '</td>'
+    + '<td style="padding:8px;text-align:center;">' + t.soHuuHieu + '</td>'
+    + '<td style="padding:8px;text-align:center;">' + t.soBapTem + '</td>'
+    + '</tr></tbody></table></div>';
 
   h += '<div style="margin-top:10px;font-size:12px;color:#64748b;line-height:1.9;">'
-    + '⚠️ Dòng <b>Cả Si-ôn</b> lấy thẳng từ nguồn, <b>không phải cộng các dòng trên</b> — vì hai người cùng '
-    + 'dẫn một người thì cả hai đều được tính 1, cộng lại sẽ ra nhiều hơn số thật.'
-    + '<br>📌 Số này đếm những gì <b>ĐÃ NHẬP TRÊN WEB</b> trong kỳ. Ô <b>0</b> nghĩa là chưa nhập, hoặc thật '
-    + 'sự chưa có — web không phân biệt được hai điều đó.'
+    + '📌 Xếp theo <b>Báp-têm</b> trước, bằng nhau mới xét <b>Hữu hiệu</b>, rồi <b>Đơn thuần</b>. '
+    + '<b>Web không có điểm</b> — điểm xem bên memo của Hội Thánh, nên thứ hạng ở đây '
+    + '<b>có thể khác</b> thứ hạng theo điểm bên đó.'
+    + '<br>⚠️ Cột <b>Đơn thuần</b> là số lượng đã <b>chia đều</b> cho số người dẫn dắt của dòng đó. '
+    + 'Cột <b>Hữu hiệu</b> / <b>Báp-têm</b> đếm theo <b>người</b> — hai người cùng dẫn một người thì '
+    + 'cả hai đều được tính 1, nên cộng cột lại sẽ lớn hơn số thật.'
+    + '<br>⚠️ Dòng <b>Cả Si-ôn</b> vì vậy lấy thẳng từ nguồn, <b>không phải cộng các dòng trên</b>.'
+    + (t.soChuaCoNguoi > 0
+      ? '<br><span style="color:#b45309">⚠️ Có <b>' + t.soChuaCoNguoi + ' đơn thuần</b> chưa ghi tên '
+        + 'người dẫn dắt nên chưa vào dòng của ai. Vẫn được tính vào tổng của phòng.</span>'
+      : '')
     + '</div>';
   box.innerHTML = h;
 }
