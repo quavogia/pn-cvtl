@@ -1118,5 +1118,71 @@ console.log('\n⭐ KỲ VẬN ĐỘNG TRUYỀN ĐẠO — hai loại lễ hội 
     JSON.stringify(r.result.danhSach[0]));
 }
 
+// =====================================================================
+console.log('\n⭐ CỬA SỔ HIỂN THỊ — mỗi bảng xếp hạng chỉ sống đúng bằng kỳ của nó');
+{
+  // ⭐ 30/08/2026 — anh Rise chốt: "xếp hạng lễ hội truyền đạo chỉ xuất hiện
+  // vào ngày 1/9 đến ngày 30/9 thôi, còn lễ hội lời sẽ xuất hiện cho đến hết
+  // ngày 31/8". Nghĩa là hai trường `leHoiLoi` / `vanDong` mà trang Tổng quan
+  // dùng để vẽ hai thẻ xếp hạng CHỈ được trả về khi kỳ đó ĐANG DIỄN RA:
+  // không hiện trước ngày bắt đầu, tắt ngay sau ngày kết thúc.
+  //
+  // ⚠️ Banner (dòng nhắc đầu trang) thì KHÁC — vẫn báo trước kỳ sắp tới. Hai
+  // thứ này dễ bị gộp làm một; test dưới đây khoá chặt sự khác nhau đó.
+  const { sqlite, db } = moiDb();
+  const C = { db };
+  const themLoai = (ma, ten, bd, kt, loai) =>
+    sqlite.prepare(
+      `INSERT INTO le_hoi_cau_hinh (ma_le_hoi, ten_le_hoi, ngay_bat_dau, ngay_ket_thuc,
+                                    danh_sach_bai, so_lan_yeu_cau, loai)
+       VALUES (?,?,?,?,'4-6',1,?)`
+    ).run(ma, ten, bd, kt, loai);
+
+  // Cảnh thật của tháng 8: Lễ hội Lời đang chạy, kỳ vận động còn ở tương lai.
+  themLoai('loi-dang-chay', 'Lễ hội Lời', congNgay(HOM_NAY, -10), congNgay(HOM_NAY, 2), 'loi');
+  themLoai('vd-sap-toi', 'Vận động Thánh Linh', congNgay(HOM_NAY, 3), congNgay(HOM_NAY, 33), 'truyen_dao');
+
+  let r = await goi('getLeHoiBanner', [], C);
+  kiem('⚠️⚠️ kỳ vận động CHƯA tới ngày -> KHÔNG trả `vanDong` (thẻ xếp hạng ẩn)',
+    r.result?.vanDong === null, JSON.stringify(r.result?.vanDong));
+  kiem('...còn Lễ hội Lời đang chạy thì CÓ trả `leHoiLoi`',
+    r.result?.leHoiLoi?.ma === 'loi-dang-chay', JSON.stringify(r.result?.leHoiLoi));
+  kiem('...và banner vẫn báo Lễ hội Lời đang diễn ra như cũ',
+    r.result?.ma === 'loi-dang-chay' && r.result?.trangThai === 'active', JSON.stringify(r.result));
+
+  // Sang tháng 9: Lễ hội Lời đã hết, kỳ vận động vào guồng. Hai thẻ đổi vai.
+  sqlite.prepare('UPDATE le_hoi_cau_hinh SET ngay_bat_dau=?, ngay_ket_thuc=? WHERE ma_le_hoi=?')
+    .run(congNgay(HOM_NAY, -40), congNgay(HOM_NAY, -1), 'loi-dang-chay');
+  sqlite.prepare('UPDATE le_hoi_cau_hinh SET ngay_bat_dau=?, ngay_ket_thuc=? WHERE ma_le_hoi=?')
+    .run(HOM_NAY, congNgay(HOM_NAY, 29), 'vd-sap-toi');
+
+  r = await goi('getLeHoiBanner', [], C);
+  kiem('⚠️⚠️ Lễ hội Lời hết hạn -> KHÔNG trả `leHoiLoi` nữa (thẻ tự tắt)',
+    r.result?.leHoiLoi === null, JSON.stringify(r.result?.leHoiLoi));
+  kiem('...và kỳ vận động vào ngày thì CÓ trả `vanDong`',
+    r.result?.vanDong?.ma === 'vd-sap-toi', JSON.stringify(r.result?.vanDong));
+
+  // Ngày cuối cùng vẫn còn tính là trong kỳ — "cho đến HẾT ngày 31/8".
+  sqlite.prepare('UPDATE le_hoi_cau_hinh SET ngay_bat_dau=?, ngay_ket_thuc=? WHERE ma_le_hoi=?')
+    .run(congNgay(HOM_NAY, -40), HOM_NAY, 'loi-dang-chay');
+  r = await goi('getLeHoiBanner', [], C);
+  kiem('⚠️ đúng NGÀY KẾT THÚC vẫn còn hiện (bao gồm cả ngày cuối)',
+    r.result?.leHoiLoi?.ma === 'loi-dang-chay', JSON.stringify(r.result?.leHoiLoi));
+
+  // Cả hai cùng chạy (kỳ nọ gối kỳ kia) -> trả về cả hai, không cái nào chiếm chỗ.
+  r = await goi('getLeHoiBanner', [], C);
+  kiem('⚠️ hai kỳ gối nhau -> trả về CẢ HAI, không cái nào chiếm chỗ cái nào',
+    !!r.result?.leHoiLoi && !!r.result?.vanDong, JSON.stringify(r.result));
+
+  // Không kỳ nào đang chạy nhưng còn kỳ sắp tới: banner vẫn có, hai thẻ đều tắt.
+  sqlite.prepare('UPDATE le_hoi_cau_hinh SET ngay_bat_dau=?, ngay_ket_thuc=?')
+    .run(congNgay(HOM_NAY, 5), congNgay(HOM_NAY, 15));
+  r = await goi('getLeHoiBanner', [], C);
+  kiem('⚠️ chưa kỳ nào tới ngày -> banner vẫn nhắc "sắp diễn ra"...',
+    r.result?.trangThai === 'upcoming', JSON.stringify(r.result));
+  kiem('...nhưng CẢ HAI thẻ xếp hạng đều tắt (không xem trước số liệu)',
+    r.result?.leHoiLoi === null && r.result?.vanDong === null, JSON.stringify(r.result));
+}
+
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
 process.exit(hong ? 1 : 0);
