@@ -1,11 +1,15 @@
 // =====================================================================
-// Kiểm thử OFFLINE cho src/handlers/tru-do.js — sổ mốc Trụ đỡ,
-// công thức điểm và bảng khen thưởng:
+// Kiểm thử OFFLINE cho src/handlers/tru-do.js — sổ mốc Trụ đỡ và
+// bảng xếp hạng:
 //     node scripts/kiem-thu-tru-do.mjs
 //
+// ⭐⭐ 30/08/2026 — WEB KHÔNG CÒN ĐIỂM, KHÔNG CÒN CÔNG THỨC NÀO. Điểm xem bên
+// memo của Hội Thánh. Phần 3b canh không cho ai khai lại một thang điểm —
+// xem lý do ở đầu src/handlers/tru-do.js.
+//
 // Trọng tâm ba thứ dễ sai nhất:
-//   1. Luật MỖI NGƯỜI CHỈ GHI SỔ MỘT LẦN cho mỗi mốc (chống thổi phồng điểm)
-//   2. Điểm chia đều đúng cho số người dẫn dắt, kể cả khi trùng tên
+//   1. Luật MỖI NGƯỜI CHỈ GHI SỔ MỘT LẦN cho mỗi mốc (chống thổi phồng số ca)
+//   2. Cột Đơn thuần chia đều cho người dẫn dắt, Hữu hiệu/Báp-têm thì KHÔNG
 //   3. Chốt kỳ rồi thì sửa sổ cũng không đổi được bảng đã trao giải
 // =====================================================================
 
@@ -68,12 +72,6 @@ function kiem(ten, dieuKien, chiTiet = '') {
 }
 function dem(sql, ...p) { return sqlite.prepare(sql).get(...p).c; }
 
-/** Lấy điểm của một người trong bảng xếp hạng. */
-function diemCua(bang, ten) {
-  const x = (bang?.danhSach || []).find((y) => y.ten === ten);
-  return x ? x.diem : null;
-}
-
 console.log('\n=== KIỂM THỬ TRỤ ĐỠ — sổ mốc, điểm, khen thưởng (offline) ===\n');
 
 // =====================================================================
@@ -130,8 +128,11 @@ console.log('\n2) Dữ liệu vào sổ phải hợp lệ');
 }
 
 // =====================================================================
-console.log('\n3) Công thức điểm — chia đều cho người dẫn dắt');
+console.log('\n3) Đếm số ca — cột Đơn thuần chia đều, Hữu hiệu/Báp-têm thì không');
 {
+  // ⭐⭐ 30/08/2026 — WEB KHÔNG CÒN TÍNH ĐIỂM. Anh Rise chốt: memo của Hội
+  // Thánh đã có công thức và là sổ chính thức. Cả phần kiểm thử công thức
+  // điểm cũ (1/100/1000 rồi 1/50/500) đã bỏ theo.
   taoCSDL();
   await goi('addSoMoc', [{ moc: 'bap_tem', ngay: '2026-08-07', ten: 'Cô Loan', khuVuc: 'Đ Uyên',
     ndd1: 'N Thị Ngân', ndd2: 'P Ngọc Đức', ndd3: 'V Hoàng Long' }]);
@@ -143,29 +144,28 @@ console.log('\n3) Công thức điểm — chia đều cho người dẫn dắt'
     ['2026-07-19', 'K Thành', 1, 'P Thị Thành', 'N Thị Ngân']);
 
   const b = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
-  // ⚠️ Thang điểm ĐỔI 27/08/2026 theo bảng Hội Thánh: hữu hiệu 100 -> 50,
-  // báp-têm 1000 -> 500. Số ca KHÔNG đổi, chỉ điểm đổi.
-  //   (500 + 50) / 3 = 183,333... -> làm tròn 183,33
-  kiem('1 báp-têm + 1 hữu hiệu chia 3 -> 183,33 mỗi người',
-    diemCua(b, 'P Ngọc Đức') === 183.33, JSON.stringify(b?.danhSach));
-  kiem('người vừa có mốc vừa có đơn thuần cộng đúng (183,33 + 0,5)',
-    diemCua(b, 'N Thị Ngân') === 183.83, 'thực tế: ' + diemCua(b, 'N Thị Ngân'));
-  kiem('5 đơn thuần 1 người -> 5 điểm', diemCua(b, 'N X Kiều My') === 5);
-  kiem('1 đơn thuần 2 người -> 0,5 điểm', diemCua(b, 'P Thị Thành') === 0.5);
-
-  kiem('tổng điểm toàn phòng khớp số ca thật (500+50+5+1)',
-    b.tomTat.tongDiem === 556, 'thực tế: ' + b.tomTat.tongDiem);
   kiem('đếm đúng số ca đơn thuần (5+1)', b.tomTat.soDonThuan === 6);
   kiem('đếm đúng 1 hữu hiệu', b.tomTat.soHuuHieu === 1);
   kiem('đếm đúng 1 báp-têm', b.tomTat.soBapTem === 1);
 
   const ngan = b.danhSach.find((x) => x.ten === 'N Thị Ngân');
-  kiem('cột số ca KHÔNG chia — mỗi người vẫn tính 1 ca báp-têm', ngan.bapTem === 1);
+  kiem('⚠️ cột số ca KHÔNG chia — mỗi người dẫn dắt vẫn tính trọn 1 báp-têm', ngan.bapTem === 1);
   kiem('cột số ca hữu hiệu cũng là 1', ngan.huuHieu === 1);
-  kiem('cột Đơn thuần hiện SỐ LƯỢNG đã chia (1 chia 2 = 0,5) chứ không phải số dòng',
+  kiem('⚠️ cột Đơn thuần hiện SỐ LƯỢNG đã chia (1 chia 2 = 0,5) chứ không phải số dòng',
     ngan.donThuan === 0.5, 'thực tế: ' + ngan.donThuan);
   kiem('người dẫn dắt một mình nhận trọn số lượng',
     b.danhSach.find((x) => x.ten === 'N X Kiều My').donThuan === 5);
+
+  // ⚠️⚠️ KHÔNG CÒN ĐIỂM Ở BẤT KỲ ĐÂU. Bảng chỉ đếm số ca.
+  kiem('⚠️⚠️ KHÔNG có trường điểm nào trong từng dòng',
+    b.danhSach.every((x) => x.diem === undefined), JSON.stringify(b.danhSach[0]));
+  kiem('⚠️⚠️ tóm tắt cũng KHÔNG có tổng điểm', b.tomTat.tongDiem === undefined,
+    JSON.stringify(b.tomTat));
+  kiem('⚠️ xếp theo Báp-têm > Hữu hiệu > Đơn thuần',
+    b.danhSach[0].bapTem === 1, JSON.stringify(b.danhSach.map((x) => x.ten)));
+  kiem('...bằng báp-têm thì mới xét tiếp Hữu hiệu rồi Đơn thuần',
+    b.danhSach[3].ten === 'N X Kiều My' && b.danhSach[3].donThuan === 5,
+    JSON.stringify(b.danhSach.map((x) => [x.ten, x.bapTem, x.huuHieu, x.donThuan])));
 
   // Lỗi anh Rise phát hiện 13/08/2026: dòng 100 đơn thuần của 2 người hiện "1".
   await db.run('INSERT INTO nhat_ky_don_thuan (ngay, khu_vuc, don_thuan, ndd1, ndd2) VALUES (?,?,?,?,?)',
@@ -173,8 +173,6 @@ console.log('\n3) Công thức điểm — chia đều cho người dẫn dắt'
   const b2 = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
   const duc = b2.danhSach.find((x) => x.ten === 'L H Đức');
   kiem('100 đơn thuần chia 2 -> cột Đơn thuần là 50', duc.donThuan === 50, 'thực tế: ' + duc.donThuan);
-  kiem('100 đơn thuần chia 2 -> 50 điểm', duc.diem === 50, 'thực tế: ' + duc.diem);
-  kiem('cột Đơn thuần và điểm khớp nhau (1 đơn thuần = 1 điểm)', duc.donThuan === duc.diem);
   kiem('tổng đơn thuần toàn phòng vẫn đếm đủ 106', b2.tomTat.soDonThuan === 106,
     'thực tế: ' + b2.tomTat.soDonThuan);
 
@@ -187,64 +185,59 @@ console.log('\n3) Công thức điểm — chia đều cho người dẫn dắt'
 }
 
 // =====================================================================
-console.log('\n3b) ⭐ HAI MỐC MỚI — Báp-têm dự lễ & Chiên bị mất (27/08/2026)');
+console.log('\n3b) ⚠️⚠️ MÃ NGUỒN: không thang điểm, và giao diện không mất hàm');
 {
-  // Bảng điểm Hội Thánh ban hành cho kỳ "Vận động Thánh Linh Lễ Lều Tạm":
-  //   đơn thuần 1 · hữu hiệu 50 · báp-têm 500 · BT dự lễ 1000 · chiên bị mất 500
-  taoCSDL();
-  const { DIEM_MOC } = await import(join(goc, 'src/handlers/tru-do.js'));
-  kiem('thang điểm đúng bảng Hội Thánh ban hành',
-    DIEM_MOC.don_thuan === 1 && DIEM_MOC.huu_hieu === 50 && DIEM_MOC.bap_tem === 500
-    && DIEM_MOC.bap_tem_du_le === 1000 && DIEM_MOC.chien_bi_mat === 500,
-    JSON.stringify(DIEM_MOC));
+  // Anh Rise chốt bỏ hẳn công thức điểm khỏi web. Ca này canh không cho ai
+  // lặng lẽ khai lại — web tự tính mà lệch memo thì web luôn là bên sai, và
+  // cả phòng mất thời gian cãi xem tin bảng nào (bài học #33).
+  const src = readFileSync(join(goc, 'src/handlers/tru-do.js'), 'utf8');
+  const ui = readFileSync(join(goc, '..', 'trudo-ui.js'), 'utf8');
+  // ⚠️ Soi ĐÚNG CHỖ (bài học #71): chữ "DIEM_MOC" CÓ trong file — ở chú thích
+  // kể lại nó đã bị xoá. Cấm cả chữ thì ca này đỏ oan. Thứ bị cấm là KHAI lại.
+  kiem('⚠️⚠️ KHÔNG khai lại bảng DIEM_MOC', !/(const|let|var)\s+DIEM_MOC/.test(src));
+  // ⚠️ Chỉ cấm số KHÁC 0: `soCa: { don_thuan: 0, huu_hieu: 0, bap_tem: 0 }` là ô
+  // ĐẾM, hoàn toàn hợp lệ. Cấm cả số 0 thì ca này đỏ oan (bài học #71).
+  kiem('⚠️ KHÔNG có thang điểm cứng nào trong mã',
+    !/huu_hieu:\s*[1-9]/.test(src) && !/bap_tem:\s*[1-9]/.test(src));
+  kiem('⚠️ KHÔNG còn đọc bảng điểm nào — web không có điểm', !/van_dong_diem/.test(src));
+  kiem('⚠️⚠️ giao diện Trudo cũng KHÔNG khai lại bảng DIEM', !/const DIEM = \{/.test(ui));
+  kiem('⚠️ giao diện không còn câu "mỗi ca N điểm"', !/điểm chia đều cho người dẫn dắt/.test(ui));
 
-  kiem('ghi được mốc "Báp-têm dự lễ"',
-    !(await goi('addSoMoc', [{ moc: 'bap_tem_du_le', ngay: '2026-09-20', ten: 'Cô M',
-      khuVuc: 'K My', ndd1: 'Chị Một' }])).error);
-  kiem('ghi được mốc "Chiên bị mất"',
-    !(await goi('addSoMoc', [{ moc: 'chien_bi_mat', ngay: '2026-09-21', ten: 'Cô N',
-      khuVuc: 'K My', ndd1: 'Chị Hai' }])).error);
-  kiem('mốc bịa vẫn bị chặn',
-    !!(await goi('addSoMoc', [{ moc: 'khong_co_that', ten: 'X', khuVuc: 'K My' }])).error);
-
-  // ⭐ Anh Rise chốt: "Báp-têm dự lễ CỘNG THÊM vào báp-têm" — một người vừa
-  // báp-têm vừa dự lễ được 500 + 1000 = 1500, ghi HAI dòng sổ riêng.
-  await goi('addSoMoc', [{ moc: 'bap_tem', ngay: '2026-09-19', ten: 'Cô P',
-    khuVuc: 'K My', ndd1: 'Chị Ba' }]);
-  await goi('addSoMoc', [{ moc: 'bap_tem_du_le', ngay: '2026-09-22', ten: 'Cô P',
-    khuVuc: 'K My', ndd1: 'Chị Ba' }]);
-
-  const b = (await goi('getXepHang', ['2026-09-01', '2026-09-30', ''])).result;
-  kiem('⭐ vừa báp-têm vừa dự lễ -> 500 + 1000 = 1500 điểm',
-    diemCua(b, 'Chị Ba') === 1500, 'thực tế: ' + diemCua(b, 'Chị Ba'));
-  const ba = b.danhSach.find((x) => x.ten === 'Chị Ba');
-  kiem('...và hiện thành HAI cột riêng, không đè nhau',
-    ba.bapTem === 1 && ba.bapTemDuLe === 1, JSON.stringify(ba));
-  kiem('Chiên bị mất được 500 điểm', diemCua(b, 'Chị Hai') === 500,
-    'thực tế: ' + diemCua(b, 'Chị Hai'));
-  kiem('BT dự lễ một mình được 1000 điểm', diemCua(b, 'Chị Một') === 1000,
-    'thực tế: ' + diemCua(b, 'Chị Một'));
-  kiem('tóm tắt đếm riêng hai mốc mới',
-    b.tomTat.soBapTemDuLe === 2 && b.tomTat.soChienBiMat === 1, JSON.stringify(b.tomTat));
-
-  // Mỗi người mỗi mốc chỉ một dòng — nhưng hai mốc KHÁC nhau thì vẫn ghi được.
-  kiem('⚠️ ghi lại cùng mốc cho cùng người -> chặn',
-    !!(await goi('addSoMoc', [{ moc: 'bap_tem_du_le', ngay: '2026-09-23', ten: 'Cô P',
-      khuVuc: 'K My', ndd1: 'Chị Ba' }])).error);
-
-  // ⚠️⚠️ Thang điểm được KHAI HAI NƠI: máy chủ (tru-do.js) để tính, và giao
-  // diện (trudo-ui.js) để hiện chữ "mỗi ca N điểm". Lệch nhau thì màn hình
-  // nói một đằng, máy chủ tính một nẻo — người dùng không có cách nào biết.
-  const nguonUI = readFileSync(join(goc, '..', 'trudo-ui.js'), 'utf8');
-  const khoiDiem = (nguonUI.match(/const DIEM = \{[\s\S]*?\};/) || [''])[0];
-  let khopUI = true;
-  const lechUI = [];
-  for (const [k, v] of Object.entries(DIEM_MOC)) {
-    if (!new RegExp(k + ':\\s*' + v + '\\b').test(khoiDiem)) { khopUI = false; lechUI.push(k + '=' + v); }
+  // ⚠️⚠️ BÀI HỌC 30/08/2026 — SUÝT ĐẨY LÊN MỘT BẢN LÀM CHẾT CẢ MENU TRUDO.
+  // Lúc gỡ khối thang điểm, đoạn cắt ăn lan sang mấy hàm dùng chung ngay bên
+  // dưới (goi/esc/ngayVN). Cả bộ kiểm thử vẫn XANH vì không ca nào mở menu
+  // Trudo, mà `esc` thì trùng tên với một hàm toàn cục của index.html nên
+  // càng khó lộ. Ba ca dưới đây canh đúng chỗ đó.
+  for (const ham of ['goi', 'esc', 'ngayVN', 'soDep']) {
+    kiem('⚠️⚠️ trudo-ui.js còn hàm dùng chung `' + ham + '` (thiếu là chết cả menu Trudo)',
+      new RegExp('function\\s+' + ham + '\\s*\\(').test(ui));
   }
-  kiem('⚠️⚠️ thang điểm ở trudo-ui.js KHỚP với DIEM_MOC của máy chủ',
-    khopUI && khoiDiem !== '', lechUI.join(', ') || 'không tìm thấy khối DIEM trong trudo-ui.js');
+
+  // Hai mốc thêm 27/08 đã gỡ 30/08 — sổ chỉ còn Hữu hiệu và Báp-têm.
+  taoCSDL();
+  kiem('⚠️ mốc "bap_tem_du_le" bị chặn khi ghi sổ',
+    !!(await goi('addSoMoc', [{ moc: 'bap_tem_du_le', ten: 'X', khuVuc: 'K My', ndd1: 'Y' }])).error);
+  kiem('⚠️ mốc "chien_bi_mat" bị chặn khi ghi sổ',
+    !!(await goi('addSoMoc', [{ moc: 'chien_bi_mat', ten: 'X', khuVuc: 'K My', ndd1: 'Y' }])).error);
+  kiem('hai mốc cũ vẫn ghi được bình thường',
+    !(await goi('addSoMoc', [{ moc: 'huu_hieu', ngay: '2026-07-01', ten: 'Z',
+      khuVuc: 'K My', ndd1: 'Y' }])).error);
+  kiem('⚠️ giao diện không còn hai tab con đó',
+    !/data-sub="btdule"/.test(ui) && !/data-sub="chien"/.test(ui));
+
+  // ⚠️ Dòng cũ còn sót trong CSDL (nếu ai đã ghi hồi 27–29/08) KHÔNG được làm
+  // hỏng bảng — chỉ lặng lẽ bị bỏ qua, chứ không ném lỗi.
+  await db.run(
+    `INSERT INTO so_moc (moc,ngay,thang,ten,khu_vuc,ndd1,ndd2,ndd3,tao_luc)
+     VALUES ('chien_bi_mat','2026-07-05','2026-07','Cũ','K My','Y','','',0)`);
+  const b = await goi('getXepHang', ['2026-01-01', '2026-12-31', '']);
+  kiem('⚠️ dòng mốc cũ còn sót -> bỏ qua, KHÔNG làm hỏng bảng', !b.error, b.error);
+  kiem('...và không bị đếm vào cột nào',
+    b.result.tomTat.soHuuHieu === 1 && b.result.tomTat.soBapTem === 0,
+    JSON.stringify(b.result.tomTat));
 }
+
+
 
 // =====================================================================
 console.log('\n4) Người dẫn dắt bị điền trùng tên trong 2 ô');
@@ -253,8 +246,8 @@ console.log('\n4) Người dẫn dắt bị điền trùng tên trong 2 ô');
   await goi('addSoMoc', [{ moc: 'bap_tem', ngay: '2026-08-07', ten: 'X', khuVuc: 'K My',
     ndd1: 'P Ngọc Đức', ndd2: 'P Ngọc Đức' }]);
   const b = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
-  kiem('trùng tên chỉ tính 1 người -> nhận trọn 500 điểm',
-    diemCua(b, 'P Ngọc Đức') === 500, 'thực tế: ' + diemCua(b, 'P Ngọc Đức'));
+  kiem('trùng tên chỉ tính 1 người -> nhận trọn 1 ca, không phải 2',
+    b.danhSach[0].soCa === 1, JSON.stringify(b.danhSach));
   kiem('chỉ có 1 người trong bảng', b.danhSach.length === 1);
   kiem('số ca vẫn là 1, không phải 2', b.danhSach[0].bapTem === 1);
 
@@ -273,11 +266,14 @@ console.log('\n5) Dòng không ghi người dẫn dắt nào');
   await db.run('INSERT INTO nhat_ky_don_thuan (ngay, khu_vuc, don_thuan) VALUES (?,?,?)',
     ['2026-08-01', 'K My', 3]);
   const b = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
-  kiem('không ai được điểm', b.danhSach.length === 0, JSON.stringify(b.danhSach));
-  kiem('điểm vẫn vào tổng của phòng', b.tomTat.tongDiem === 503);
-  kiem('báo rõ phần điểm chưa có người nhận', b.tomTat.diemChuaCoNguoi === 503,
-    'thực tế: ' + b.tomTat.diemChuaCoNguoi);
-  kiem('không bị chia cho 0 sinh ra NaN', Number.isFinite(b.tomTat.tongDiem));
+  kiem('không dòng nào thuộc về ai', b.danhSach.length === 0, JSON.stringify(b.danhSach));
+  // ⚠️ Số KHÔNG được bốc hơi: vẫn vào tổng của phòng để anh Rise nhìn ra là
+  // có chỗ nhập thiếu tên người dẫn dắt, chứ không phải chưa có ca nào.
+  kiem('⚠️ số vẫn vào tổng của phòng', b.tomTat.soBapTem === 1 && b.tomTat.soDonThuan === 3,
+    JSON.stringify(b.tomTat));
+  kiem('⚠️ báo rõ phần đơn thuần chưa có người nhận', b.tomTat.soChuaCoNguoi === 3,
+    'thực tế: ' + b.tomTat.soChuaCoNguoi);
+  kiem('không bị chia cho 0 sinh ra NaN', Number.isFinite(b.tomTat.soDonThuan));
 }
 
 // =====================================================================
@@ -316,8 +312,9 @@ console.log('\n7) Thứ hạng — cùng điểm thì cùng hạng');
     ['2026-08-01', 'K My', 5, 'N X Kiều My']);
 
   const b = (await goi('getXepHang', ['2026-01-01', '2026-12-31', ''])).result;
-  kiem('người điểm cao đứng đầu (500 chia 3 = 166,67)', b.danhSach[0].diem === 166.67);
-  kiem('ba người cùng điểm cùng hạng 1',
+  kiem('⚠️ xếp theo Báp-têm trước', b.danhSach[0].bapTem === 1,
+    JSON.stringify(b.danhSach.map((x) => [x.ten, x.bapTem])));
+  kiem('ba người cùng số cùng hạng 1',
     b.danhSach.slice(0, 3).every((x) => x.hang === 1), JSON.stringify(b.danhSach.map(x => [x.ten, x.hang])));
   kiem('người thứ tư nhảy sang hạng 4', b.danhSach[3].hang === 4);
   kiem('người ít điểm xếp cuối', b.danhSach[3].ten === 'N X Kiều My');
@@ -336,7 +333,9 @@ console.log('\n8) Tự động phát hiện vừa vượt mốc');
     (r.result?.ghiSo || []).length === 1 && r.result.ghiSo[0].moc === 'huu_hieu', JSON.stringify(r));
   kiem('đã điền sẵn người dẫn dắt', r.result.ghiSo[0].nguoiDanDat[0] === 'N Thị Ngân');
   kiem('có gợi ý ngày hôm nay', /^\d{4}-\d{2}-\d{2}$/.test(r.result.ghiSo[0].ngayGoiY));
-  kiem('kèm luôn số điểm của mốc (hữu hiệu nay là 50)', r.result.ghiSo[0].diem === 50);
+  // ⚠️ 30/08/2026 — bỏ hẳn trường `diem` khỏi gợi ý ghi sổ: web không còn
+  // thang điểm nào để nói "mốc này được N điểm".
+  kiem('⚠️ KHÔNG còn kèm số điểm của mốc', r.result.ghiSo[0].diem === undefined);
 
   r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B10', ndd1: 'N Thị Ngân' }]);
   kiem('B2 lên B10 -> KHÔNG hỏi lại', (r.result?.ghiSo || []).length === 0, JSON.stringify(r.result?.ghiSo));
@@ -449,25 +448,26 @@ console.log('\n12) Chốt kỳ khen thưởng');
 
   const daChot = (await goi('getChotKy', ['2026-08'])).result;
   kiem('đọc lại được bảng đã chốt', daChot?.danhSach?.length === 2, JSON.stringify(daChot));
-  kiem('điểm lúc chốt là 250 mỗi người (500 chia 2)', daChot.danhSach[0].diem === 250);
+  kiem('chốt đúng 2 người có ca lúc đó', daChot.danhSach.length === 2);
   kiem('lưu cả tóm tắt', daChot.tomTat?.soBapTem === 1);
   kiem('ghi lại ai chốt', daChot.nguoiChot === 'chu@gmail.com');
 
   const idDong = sqlite.prepare("SELECT id FROM so_moc WHERE ten='Cô Loan'").get().id;
   await goi('updateSoMoc', [idDong, { ndd1: 'N Thị Ngân', ndd2: 'P Ngọc Đức', ndd3: 'V Hoàng Long' }]);
   const bangMoi = (await goi('getXepHang', ['2026-08-01', '2026-08-31', ''])).result;
-  kiem('bảng tính lại ĐÃ đổi theo sổ (500 chia 3 = 166,67)', bangMoi.danhSach[0].diem === 166.67,
-    'thực tế: ' + bangMoi.danhSach[0].diem);
+  kiem('bảng tính lại ĐÃ đổi theo sổ (thêm người dẫn dắt thứ ba)',
+    bangMoi.danhSach.length === 3, 'thực tế: ' + bangMoi.danhSach.length);
   const daChot2 = (await goi('getChotKy', ['2026-08'])).result;
-  kiem('bảng ĐÃ CHỐT vẫn giữ nguyên 250 — đây là điều quan trọng nhất',
-    daChot2.danhSach[0].diem === 250, 'thực tế: ' + daChot2.danhSach[0].diem);
+  kiem('bảng ĐÃ CHỐT vẫn giữ nguyên 2 người — đây là điều quan trọng nhất',
+    daChot2.danhSach.length === 2, 'thực tế: ' + daChot2.danhSach.length);
 
   r = await goi('getDsChotKy', []);
   kiem('liệt kê được các kỳ đã chốt', r.result?.length === 1 && r.result[0].ky === '2026-08');
 
   r = await goi('chotKy', ['2026-08', '2026-08-01', '2026-08-31', ''], CHU);
   const daChot3 = (await goi('getChotKy', ['2026-08'])).result;
-  kiem('chốt lại thì cập nhật theo sổ mới', daChot3.danhSach[0].diem === 166.67);
+  kiem('chốt lại thì cập nhật theo sổ mới', daChot3.danhSach.length === 3,
+    'thực tế: ' + daChot3.danhSach.length);
   kiem('không sinh thêm dòng kỳ mới', dem('SELECT COUNT(*) c FROM chot_ky') === 1);
 
   r = await goi('xoaChotKy', ['2026-08'], CHU);
@@ -496,7 +496,7 @@ console.log('\n14) Độ phủ — chạm hết các hàm của tru-do.js');
   const thieu = canPhu.filter((t) => t !== 'mocVuaDat' && !trongDanhMuc.includes(t));
   kiem('mọi hàm đều đã nối vào danh mục (trừ hàm nội bộ)',
     thieu.length === 0, 'còn thiếu: ' + thieu.join(', '));
-  kiem('danh mục có đủ 98 hàm', trongDanhMuc.length === 98, 'thực tế: ' + trongDanhMuc.length);
+  kiem('danh mục có đủ 96 hàm', trongDanhMuc.length === 96, 'thực tế: ' + trongDanhMuc.length);
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
