@@ -1,5 +1,5 @@
 // =====================================================================
-// TRỤ ĐỠ — sổ mốc Hữu hiệu / Báp-têm, công thức điểm và bảng khen thưởng.
+// TRỤ ĐỠ — sổ mốc Hữu hiệu / Báp-têm và bảng xếp hạng.
 //
 // Ba chặng của "trụ đỡ":  Đơn thuần  ->  Hữu hiệu  ->  Báp-têm
 //
@@ -8,14 +8,28 @@
 // dắt. Sổ này ghi rồi nằm đó, chép cứng tên người và tên người dẫn dắt tại
 // thời điểm đạt mốc — báo cáo 1 năm sau vẫn đúng.
 //
-// CÔNG THỨC ĐIỂM (anh Rise chốt ngày 13/08/2026):
-//     1 Đơn thuần = 1 điểm · 1 Hữu hiệu = 100 điểm · 1 Báp-têm = 1000 điểm
-//     Điểm CHIA ĐỀU cho số người dẫn dắt.
-//     Ví dụ: 1 báp-têm có 3 người dẫn dắt -> mỗi người 1000 / 3 = 333,33.
+// ⭐⭐ 30/08/2026 — WEB KHÔNG CÒN ĐIỂM, KHÔNG CÒN CÔNG THỨC NÀO.
+// Anh Rise chốt: memo (trang web Hội Thánh) đã có sẵn công thức và là sổ
+// CHÍNH THỨC — điểm xem bên memo. Web chỉ đếm SỐ CA, và xếp hạng theo:
+//     Báp-têm  ->  Hữu hiệu  ->  Đơn thuần
+// tức là hơn ở nấc trên thì thắng, bằng nhau mới xét xuống nấc dưới.
 //
-// Nhờ chia đều, tổng điểm toàn phòng luôn khớp số ca thật, không phồng lên.
-// Cột "Đơn thuần" hiện SỐ LƯỢNG đã chia đều (1 dòng ghi 100 cho 2 người -> 50).
-// Cột "Hữu hiệu" / "Báp-têm" đếm số HỌC VIÊN nên mỗi người dẫn dắt vẫn tính 1.
+// ⚠️ Ai sửa file này về sau: đừng thêm lại một thang điểm "cho tiện". Web tự
+// tính mà lệch memo thì web luôn là bên sai — vì memo mới là cái Hội Thánh
+// công nhận. Hai con số cho một người chỉ tổ làm cả phòng cãi nhau xem tin
+// bảng nào. MỘT con số thì phải có MỘT nơi định nghĩa (bài học #33).
+//
+// ⚠️ HỆ QUẢ PHẢI BIẾT: thứ hạng ở đây KHÁC thứ hạng theo điểm của memo. Memo
+// cộng có trọng số, còn đây là so bậc thang. Người 1 báp-têm đứng trên người
+// 0 báp-têm nhưng 300 đơn thuần — theo điểm memo thì ngược lại. Không sai,
+// chỉ là hai thước đo. Bảng nào là chính thức thì memo mới là chính thức.
+//
+// Bảng xếp hạng vì vậy chỉ còn BA cột số, tất cả web tự đếm từ sổ:
+//     Đơn thuần · Hữu hiệu · Báp-têm
+//
+// Cột "Đơn thuần" hiện SỐ LƯỢNG đã chia đều cho số người dẫn dắt (1 dòng ghi
+// 100 cho 2 người -> mỗi người 50), để cộng cột lại đúng bằng số thật.
+// Cột "Hữu hiệu" / "Báp-têm" đếm số HỌC VIÊN nên mỗi người dẫn dắt tính trọn 1.
 // =====================================================================
 
 import {
@@ -23,43 +37,21 @@ import {
 } from '../tien-ich.js';
 
 /**
- * Điểm gốc của mỗi mốc, TRƯỚC khi chia cho số người dẫn dắt.
+ * Các mốc được ghi vào sổ `so_moc` (mỗi người mỗi mốc chỉ một dòng).
  *
- * ⭐⭐ 27/08/2026 — ĐỔI THANG ĐIỂM theo bảng Hội Thánh ban hành cho kỳ
- * "Vận động Thánh Linh Lễ Lều Tạm". Anh Rise chốt thang mới THAY LUÔN thang
- * cũ (1/100/1000), để cả web nói cùng một con số thay vì hai bảng hai kiểu.
- *
- * ⚠️ PHẢI BÁO CẢ PHÒNG: số điểm ở bảng 🏆 Xếp hạng của menu Trudo SẼ ĐỔI so
- * với trước. Số ca (đơn thuần / hữu hiệu / báp-têm) không đổi, chỉ điểm đổi.
- * Ai quen nhìn số cũ sẽ tưởng hỏng — đúng loại hiểu nhầm đã xảy ra hồi đổi
- * cách chia tuần (26/08).
+ * ⚠️ 30/08/2026 — GỠ hai mốc 'bap_tem_du_le' và 'chien_bi_mat' (thêm 27/08,
+ * dùng đúng ba ngày). Anh Rise chốt bảng xếp hạng chỉ còn Đơn thuần · Hữu
+ * hiệu · Báp-têm · Điểm. Dòng cũ (nếu có ai đã ghi) vẫn nằm nguyên trong CSDL
+ * chứ không bị xoá — chỉ là không còn chỗ nào đọc tới. CỐ Ý không viết lệnh
+ * xoá: xoá dữ liệu người ta đã nhập thì không lấy lại được, còn để đó thì
+ * chẳng hại ai.
  */
-export const DIEM_MOC = {
-  don_thuan: 1,
-  huu_hieu: 50,
-  bap_tem: 500,
-  // ⭐ HAI MỐC MỚI (27/08/2026), đều ghi tay vào sổ `so_moc` như hai mốc cũ.
-  //
-  // bap_tem_du_le — anh Rise chốt: "CỘNG THÊM vào báp-têm", tức một người vừa
-  //   báp-têm vừa dự lễ được 500 + 1000 = 1500. Hai dòng sổ RIÊNG, không phải
-  //   một dòng thay thế dòng kia.
-  //
-  // chien_bi_mat — anh Rise định nghĩa: "thánh đồ đã báp-têm rồi nhưng bỏ lễ
-  //   1 năm trở lên". Máy KHÔNG có cách nào tự biết điều này (web không giữ
-  //   lịch sử dự lễ theo từng người suốt một năm), nên bắt buộc ghi tay.
-  bap_tem_du_le: 1000,
-  chien_bi_mat: 500,
-};
-
-/** Các mốc được ghi vào sổ `so_moc` (mỗi người mỗi mốc chỉ một dòng). */
-const DS_MOC_SO = ['huu_hieu', 'bap_tem', 'bap_tem_du_le', 'chien_bi_mat'];
+const DS_MOC_SO = ['huu_hieu', 'bap_tem'];
 
 const TEN_MOC = {
   don_thuan: 'Đơn thuần',
   huu_hieu: 'Hữu hiệu',
   bap_tem: 'Báp-têm',
-  bap_tem_du_le: 'Báp-têm dự lễ',
-  chien_bi_mat: 'Chiên bị mất',
 };
 
 // --- Vài tiện ích nhỏ dùng chung trong file này ----------------------
@@ -300,12 +292,11 @@ export async function mocVuaDat(ctx, tienDoCu, hocVien) {
       ndd2: chuoi(hocVien?.ndd2),
       ndd3: chuoi(hocVien?.ndd3),
       nguoiDanDat: dsNguoiDanDat(hocVien),
-      diem: DIEM_MOC[m],
     }));
 }
 
 // =====================================================================
-// C. TÍNH ĐIỂM & XẾP HẠNG
+// C. XẾP HẠNG   (không còn tính điểm — xem chú thích đầu file)
 // =====================================================================
 
 /**
@@ -316,36 +307,26 @@ export async function mocVuaDat(ctx, tienDoCu, hocVien) {
  *   chứ KHÔNG phải 1 — vì một dòng nhật ký có thể ghi 100 đơn thuần, hiện "1"
  *   ở cột Đơn thuần là sai (anh Rise phát hiện 13/08/2026).
  */
-function themVao(bang, ten, moc, diem, soCaThem = 1) {
+function themVao(bang, ten, moc, soCaThem = 1) {
   const khoa = ten.toLowerCase();
   if (!bang[khoa]) {
     bang[khoa] = {
       ten,
-      // ⚠️ Dựng từ DIEM_MOC chứ KHÔNG gõ tay từng khoá: thêm mốc mới vào
-      // DIEM_MOC là ô đếm tự có, không phải nhớ sửa thêm chỗ này.
-      soCa: Object.fromEntries(Object.keys(DIEM_MOC).map((k) => [k, 0])),
-      diem: 0,
+      soCa: { don_thuan: 0, huu_hieu: 0, bap_tem: 0 },
     };
   }
   bang[khoa].soCa[moc] += soCaThem;
-  bang[khoa].diem += diem;
 }
 
 /**
- * Bảng xếp hạng gộp cả ba chặng.
+ * Bảng xếp hạng gộp cả ba chặng — MỘT bảng duy nhất của cả web.
  *
- * Cách tính, đúng như anh Rise chốt:
- *   - Đơn thuần: mỗi dòng nhật ký được (số lượng × 1) điểm, chia đều cho số
- *     người dẫn dắt của dòng đó.
- *   - Hữu hiệu / Báp-têm: mỗi dòng sổ được 100 / 1000 điểm, chia đều cho số
- *     người dẫn dắt của học viên đó.
- *   - Cột "Đơn thuần" hiện SỐ LƯỢNG đơn thuần đã chia đều (một dòng nhật ký ghi
- *     100 đơn thuần cho 2 người thì mỗi người là 50, không phải 1).
- *   - Cột "Hữu hiệu" / "Báp-têm" đếm số học viên, mỗi người dẫn dắt được tính 1,
- *     KHÔNG chia — vì đó là số người, không phải số lượng.
+ * Ba cột: Đơn thuần · Hữu hiệu · Báp-têm, web tự đếm cả ba.
  *
- * Dòng nào không ghi người dẫn dắt nào thì điểm đó không thuộc về ai — vẫn
- * được cộng vào tổng của phòng để anh Rise nhìn ra là có chỗ nhập thiếu tên.
+ * Xếp theo Báp-têm > Hữu hiệu > Đơn thuần (anh Rise chốt 30/08/2026): trong
+ * một kỳ truyền đạo thì báp-têm là đích cuối, nên ai có báp-têm đứng trên;
+ * bằng nhau mới xét tiếp Hữu hiệu rồi Đơn thuần. Bằng hết thì xếp theo tên
+ * cho thứ tự ổn định, không nhảy lung tung mỗi lần tải lại.
  */
 export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
   const { tu, den } = khoang(tuNgay, denNgay);
@@ -362,41 +343,35 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
   const [dsDT, dsMoc] = await Promise.all([db.all(sqlDT, pDT), db.all(sqlMoc, pMoc)]);
 
   const bang = {};
-  const tong = {
-    soDonThuan: 0, soHuuHieu: 0, soBapTem: 0, soBapTemDuLe: 0, soChienBiMat: 0,
-    tongDiem: 0, diemChuaCoNguoi: 0,
-  };
+  const tong = { soDonThuan: 0, soHuuHieu: 0, soBapTem: 0, soChuaCoNguoi: 0 };
 
   // --- Đơn thuần ---
   for (const r of dsDT) {
     const soLuong = soNguyen(r.don_thuan);
     if (soLuong <= 0) continue;
-    const diemDong = soLuong * DIEM_MOC.don_thuan;
     tong.soDonThuan += soLuong;
-    tong.tongDiem += diemDong;
 
     const ndd = dsNguoiDanDat(r);
-    if (!ndd.length) { tong.diemChuaCoNguoi += diemDong; continue; }
-    const moiNguoi = diemDong / ndd.length;
+    // Dòng không ghi tên ai thì số KHÔNG bốc hơi: vẫn vào tổng của phòng, và
+    // đếm riêng vào `soChuaCoNguoi` để anh Rise thấy có chỗ nhập thiếu tên.
+    if (!ndd.length) { tong.soChuaCoNguoi += soLuong; continue; }
     // Cột "Đơn thuần" đếm SỐ LƯỢNG đã chia đều, không đếm số dòng nhật ký.
-    for (const ten of ndd) themVao(bang, ten, 'don_thuan', moiNguoi, soLuong / ndd.length);
+    for (const ten of ndd) themVao(bang, ten, 'don_thuan', soLuong / ndd.length);
   }
 
   // --- Hữu hiệu & Báp-têm ---
   for (const r of dsMoc) {
-    const moc = r.moc;
-    const diemDong = DIEM_MOC[moc];
-    if (!diemDong) continue;
+    const moc = chuoi(r.moc);
+    // ⚠️ Bỏ qua mọi mốc ngoài hai mốc này — kể cả dòng cũ 'bap_tem_du_le' /
+    // 'chien_bi_mat' còn sót trong CSDL từ bản 27/08. Xem DS_MOC_SO.
+    if (moc !== 'huu_hieu' && moc !== 'bap_tem') continue;
     if (moc === 'huu_hieu') tong.soHuuHieu += 1;
-    if (moc === 'bap_tem') tong.soBapTem += 1;
-    if (moc === 'bap_tem_du_le') tong.soBapTemDuLe += 1;
-    if (moc === 'chien_bi_mat') tong.soChienBiMat += 1;
-    tong.tongDiem += diemDong;
+    else tong.soBapTem += 1;
 
     const ndd = dsNguoiDanDat(r);
-    if (!ndd.length) { tong.diemChuaCoNguoi += diemDong; continue; }
-    const moiNguoi = diemDong / ndd.length;
-    for (const ten of ndd) themVao(bang, ten, moc, moiNguoi);
+    if (!ndd.length) continue;
+    // KHÔNG chia — đây là số NGƯỜI, mỗi người dẫn dắt được tính trọn 1.
+    for (const ten of ndd) themVao(bang, ten, moc);
   }
 
   const danhSach = Object.values(bang)
@@ -405,18 +380,18 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
       donThuan: tron2(x.soCa.don_thuan),
       huuHieu: x.soCa.huu_hieu,
       bapTem: x.soCa.bap_tem,
-      bapTemDuLe: x.soCa.bap_tem_du_le,
-      chienBiMat: x.soCa.chien_bi_mat,
-      soCa: tron2(Object.values(x.soCa).reduce((a, b) => a + b, 0)),
-      diem: tron2(x.diem),
+      soCa: tron2(x.soCa.don_thuan + x.soCa.huu_hieu + x.soCa.bap_tem),
     }))
-    .sort((a, b) => (b.diem - a.diem) || a.ten.localeCompare(b.ten, 'vi'));
+    .sort((a, b) => (b.bapTem - a.bapTem) || (b.huuHieu - a.huuHieu)
+      || (b.donThuan - a.donThuan) || a.ten.localeCompare(b.ten, 'vi'));
 
-  // Hạng: cùng điểm thì cùng hạng (1,1,1,4 — không phải 1,2,3,4)
+  // Hạng: giống hệt CẢ BA cột thì cùng hạng (1,1,1,4 — không phải 1,2,3,4).
+  const khoaSo = (x) => [x.bapTem, x.huuHieu, x.donThuan].join('|');
   let hang = 0;
-  let diemTruoc = null;
+  let truoc = null;
   danhSach.forEach((x, i) => {
-    if (x.diem !== diemTruoc) { hang = i + 1; diemTruoc = x.diem; }
+    const k = khoaSo(x);
+    if (k !== truoc) { hang = i + 1; truoc = k; }
     x.hang = hang;
   });
 
@@ -429,13 +404,11 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
       soDonThuan: tong.soDonThuan,
       soHuuHieu: tong.soHuuHieu,
       soBapTem: tong.soBapTem,
-      soBapTemDuLe: tong.soBapTemDuLe,
-      soChienBiMat: tong.soChienBiMat,
-      tongDiem: tron2(tong.tongDiem),
-      diemChuaCoNguoi: tron2(tong.diemChuaCoNguoi),
-      soNguoiCoDiem: danhSach.length,
+      // Đơn thuần của những dòng không ghi tên ai — vẫn vào tổng của phòng,
+      // nhưng chưa vào dòng của ai. Nêu ra để thấy có chỗ nhập thiếu tên.
+      soChuaCoNguoi: tong.soChuaCoNguoi,
+      soNguoiCoCa: danhSach.length,
     },
-    congThuc: { ...DIEM_MOC, chiaDeuChoNguoiDanDat: true },
   };
 }
 
