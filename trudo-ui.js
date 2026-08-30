@@ -10,8 +10,28 @@
  *  tử theo id) vẫn chạy y như trước, không phải sửa gì.
  * ========================================================= */
 (function () {
-  const DIEM = { don_thuan: 1, huu_hieu: 100, bap_tem: 1000 };
-  const TEN_MOC = { huu_hieu: 'Hữu hiệu', bap_tem: 'Báp-têm' };
+  // ⭐⭐ 27/08/2026 — thang điểm MỚI theo bảng Hội Thánh ban hành cho kỳ
+  // "Vận động Thánh Linh Lễ Lều Tạm". Anh Rise chốt thay luôn thang cũ
+  // (1/100/1000) để cả web nói cùng một con số.
+  // ⚠️ PHẢI KHỚP với DIEM_MOC trong cvtl-api/src/handlers/tru-do.js — hai nơi
+  // lệch nhau thì màn hình hiện một đằng, máy chủ tính một nẻo. Bộ kiểm thử
+  // giao diện có ca đọc thẳng hai file và đối chiếu.
+  const DIEM = {
+    don_thuan: 1, huu_hieu: 50, bap_tem: 500, bap_tem_du_le: 1000, chien_bi_mat: 500,
+  };
+  const TEN_MOC = {
+    huu_hieu: 'Hữu hiệu',
+    bap_tem: 'Báp-têm',
+    bap_tem_du_le: 'Báp-têm dự lễ',
+    chien_bi_mat: 'Chiên bị mất',
+  };
+  /** Lời nhắc riêng cho từng sổ — hai mốc mới cần nói rõ nghĩa. */
+  const GIAI_THICH_MOC = {
+    bap_tem_du_le: 'Người đã báp-têm VÀ có dự Lễ Lều Tạm. Đây là mốc CỘNG THÊM: '
+      + 'ghi ở đây không thay cho dòng trong sổ Báp-têm, một người có thể có cả hai.',
+    chien_bi_mat: 'Thánh đồ đã báp-têm nhưng bỏ lễ từ 1 năm trở lên, nay đưa được trở lại. '
+      + 'Máy không tự biết được điều này nên phải ghi tay.',
+  };
 
   /** Gọi API theo kiểu Promise cho dễ đọc. */
   function goi(fn, args) {
@@ -131,11 +151,15 @@
       '<button type="button" class="kv-pill active" data-sub="donthuan">📦 Đơn thuần</button>' +
       '<button type="button" class="kv-pill" data-sub="huuhieu">🌱 Hữu hiệu</button>' +
       '<button type="button" class="kv-pill" data-sub="baptem">🕊️ Báp-têm</button>' +
+      '<button type="button" class="kv-pill" data-sub="btdule">⛺ Báp-têm dự lễ</button>' +
+      '<button type="button" class="kv-pill" data-sub="chien">🐑 Chiên bị mất</button>' +
       '<button type="button" class="kv-pill" data-sub="xephang">🏆 Xếp hạng chung</button>' +
       '</div>' +
       '<div id="trudo-sub-donthuan" class="trudo-sub active"></div>' +
       '<div id="trudo-sub-huuhieu" class="trudo-sub"></div>' +
       '<div id="trudo-sub-baptem" class="trudo-sub"></div>' +
+      '<div id="trudo-sub-btdule" class="trudo-sub"></div>' +
+      '<div id="trudo-sub-chien" class="trudo-sub"></div>' +
       '<div id="trudo-sub-xephang" class="trudo-sub"></div>';
     pAdd.parentNode.insertBefore(panel, pAdd);
 
@@ -285,6 +309,10 @@
     che.innerHTML =
       '<div class="trudo-hop">' +
       '<h3>' + (laSua ? 'Sửa dòng sổ ' : '🎉 Ghi vào sổ ') + TEN_MOC[d.moc] + '</h3>' +
+      (GIAI_THICH_MOC[d.moc]
+        ? '<div class="trudo-nho" style="background:#f8fafc;border-left:3px solid #94a3b8;padding:8px 10px;'
+          + 'border-radius:0 6px 6px 0;margin-bottom:10px;line-height:1.6">' + GIAI_THICH_MOC[d.moc] + '</div>'
+        : '') +
       '<div class="trudo-nho">Mỗi người chỉ ghi <b>một lần</b> cho mỗi mốc. ' +
       'Mốc này được <b>' + DIEM[d.moc] + ' điểm</b>, chia đều cho số người dẫn dắt.</div>' +
       '<label>Tên học viên *</label><input id="gs_ten" value="' + esc(d.ten || '') + '"' + (laSua ? ' disabled' : '') + '>' +
@@ -395,7 +423,8 @@
     } else {
       h += '<table class="trudo-bang"><thead><tr><th style="width:56px">Hạng</th><th>Người dẫn dắt</th>' +
         '<th class="trudo-giua">Đơn thuần</th><th class="trudo-giua">Hữu hiệu</th>' +
-        '<th class="trudo-giua">Báp-têm</th><th class="trudo-giua" style="width:110px">Tổng điểm</th>' +
+        '<th class="trudo-giua">Báp-têm</th><th class="trudo-giua">BT dự lễ</th>' +
+        '<th class="trudo-giua">Chiên bị mất</th><th class="trudo-giua" style="width:110px">Tổng điểm</th>' +
         '</tr></thead><tbody>' +
         b.danhSach.map(function (x) {
           const huy = x.hang === 1 ? '🥇' : (x.hang === 2 ? '🥈' : (x.hang === 3 ? '🥉' : x.hang));
@@ -403,13 +432,19 @@
             '<td class="trudo-giua">' + soDep(x.donThuan) + '</td>' +
             '<td class="trudo-giua">' + x.huuHieu + '</td>' +
             '<td class="trudo-giua">' + x.bapTem + '</td>' +
+            '<td class="trudo-giua">' + (x.bapTemDuLe || 0) + '</td>' +
+            '<td class="trudo-giua">' + (x.chienBiMat || 0) + '</td>' +
             '<td class="trudo-giua"><b style="font-size:15px">' + soDep(x.diem) + '</b></td></tr>';
         }).join('') + '</tbody></table>';
     }
     h += '<div class="trudo-tomtat">Trong khoảng đang xem: <b>' + t.soDonThuan + '</b> đơn thuần · ' +
-      '<b>' + t.soHuuHieu + '</b> hữu hiệu · <b>' + t.soBapTem + '</b> báp-têm · tổng <b>' + soDep(t.tongDiem) + ' điểm</b>.<br>' +
-      'Cách tính: 1 đơn thuần = 1 điểm · 1 hữu hiệu = 100 điểm · 1 báp-têm = 1000 điểm, ' +
-      '<b>chia đều</b> cho số người dẫn dắt.' +
+      '<b>' + t.soHuuHieu + '</b> hữu hiệu · <b>' + t.soBapTem + '</b> báp-têm · ' +
+      '<b>' + (t.soBapTemDuLe || 0) + '</b> BT dự lễ · <b>' + (t.soChienBiMat || 0) + '</b> chiên bị mất · ' +
+      'tổng <b>' + soDep(t.tongDiem) + ' điểm</b>.<br>' +
+      'Cách tính: 1 đơn thuần = 1 điểm · 1 hữu hiệu = 50 điểm · 1 báp-têm = 500 điểm · ' +
+      '1 báp-têm dự lễ = 1000 điểm · 1 chiên bị mất = 500 điểm, <b>chia đều</b> cho số người dẫn dắt.' +
+      '<br><span style="color:#b45309">⚠️ Thang điểm đổi từ 27/08/2026 theo bảng Hội Thánh ban hành — ' +
+      'số ca không đổi, chỉ điểm đổi so với trước.</span>' +
       (t.diemChuaCoNguoi > 0 ? '<br><span style="color:#b45309">⚠️ Có ' + soDep(t.diemChuaCoNguoi) +
         ' điểm chưa thuộc về ai vì dòng đó không ghi tên người dẫn dắt.</span>' : '') +
       '</div></div>';
@@ -431,8 +466,12 @@
 
     const nutXuat = o.querySelector('.trudo-xuat');
     if (nutXuat) nutXuat.onclick = function () {
-      xuatCsv('xep-hang.csv', ['Hạng', 'Người dẫn dắt', 'Đơn thuần', 'Hữu hiệu', 'Báp-têm', 'Tổng điểm'],
-        b.danhSach.map(function (x) { return [x.hang, x.ten, x.donThuan, x.huuHieu, x.bapTem, x.diem]; }));
+      xuatCsv('xep-hang.csv',
+        ['Hạng', 'Người dẫn dắt', 'Đơn thuần', 'Hữu hiệu', 'Báp-têm', 'BT dự lễ', 'Chiên bị mất', 'Tổng điểm'],
+        b.danhSach.map(function (x) {
+          return [x.hang, x.ten, x.donThuan, x.huuHieu, x.bapTem,
+            x.bapTemDuLe || 0, x.chienBiMat || 0, x.diem];
+        }));
     };
     o.querySelector('#trudoChot').onclick = async function () {
       const ky = prompt('Đặt tên cho kỳ này (ví dụ 2026-08 hoặc 2026-H1):',
@@ -494,6 +533,8 @@
   function taiTabCon() {
     if (trangThai.sub === 'huuhieu') { lamMoiChuaGhi(); veSo('huu_hieu', 'trudoSoHuuHieu'); }
     else if (trangThai.sub === 'baptem') veSo('bap_tem', 'trudo-sub-baptem');
+    else if (trangThai.sub === 'btdule') veSo('bap_tem_du_le', 'trudo-sub-btdule');
+    else if (trangThai.sub === 'chien') veSo('chien_bi_mat', 'trudo-sub-chien');
     else if (trangThai.sub === 'xephang') veXepHang();
   }
 
