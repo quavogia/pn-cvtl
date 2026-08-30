@@ -26,7 +26,6 @@ import * as thoPhuong from './handlers/tho-phuong.js';
 import * as hocVien from './handlers/hoc-vien.js';
 import * as mucTieuGiaoDuc from './handlers/muc-tieu-giao-duc.js';
 import * as daoTaoLeHoi from './handlers/dao-tao-le-hoi.js';
-import * as vanDong from './handlers/van-dong.js';
 import * as lich from './handlers/lich-lam-viec.js';
 import * as thongKeTP from './handlers/thong-ke-tp.js';
 import * as truDo from './handlers/tru-do.js';
@@ -133,13 +132,6 @@ export const DANH_MUC = {
   getLeHoiTienDoAll:       { doc: true,  fn: daoTaoLeHoi.getLeHoiTienDoAll },
   getLeHoiXepHang:         { doc: true,  fn: daoTaoLeHoi.getLeHoiXepHang },
   toggleLeHoiLan:          { doc: false, fn: daoTaoLeHoi.toggleLeHoiLan },
-
-  // ⭐ Kỳ vận động truyền đạo (27/08/2026). CHỈ ĐỌC — cố ý không có hàm ghi
-  // nào: số đã nhập ở Nhật ký đơn thuần và Sổ mốc rồi, xem handlers/van-dong.js.
-  // CỐ Ý không đặt `chuThoi` — khu vực trưởng phải xem được khu vực mình, và
-  // bảng xếp hạng thì ai có phạm vi đều xem đủ (thi đua phải nhìn thấy nhau).
-  getVanDongTienDo:        { doc: true,  fn: vanDong.getVanDongTienDo },
-  getVanDongXepHang:       { doc: true,  fn: vanDong.getVanDongXepHang },
 
   // --- Trụ đỡ: sổ mốc Hữu hiệu / Báp-têm, điểm và khen thưởng ---
   getSoMoc:                { doc: true,  fn: truDo.getSoMoc },
