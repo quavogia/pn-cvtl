@@ -64,14 +64,19 @@ sqlite.prepare(
                                 danh_sach_bai,so_lan_yeu_cau,loai)
    VALUES (?,?,?,?,'',1,'truyen_dao')`
 ).run(MA, TEN, BD, KT);
-// Lễ hội Lời để ở QUÁ KHỨ xa: nó vẫn tồn tại (để kiểm phần rẽ nhánh) nhưng
-// không tranh mất chỗ "đang diễn ra" của kỳ vận động. Phần 6 sẽ kéo nó về
-// hiện tại để kiểm rằng bản cũ vẫn chạy y như trước.
+// ⚠️ Lễ hội Lời để ở THÁNG SAU (sắp diễn ra): nó KHÔNG tranh mất chỗ "đang
+// diễn ra" của kỳ vận động ở banner. Theo luật anh Rise chốt 30/08/2026 —
+// "xếp hạng lễ hội truyền đạo chỉ xuất hiện 01/09 đến 30/09, còn lễ hội lời
+// xuất hiện cho đến hết 31/08" — thẻ xếp hạng của nó phải ẨN khi chưa tới
+// ngày. Phần 1b kéo nó về hiện tại một lúc để kiểm cảnh HAI KỲ GỐI NHAU rồi
+// trả lại; phần 7 kéo hẳn về để kiểm bản cũ vẫn chạy y như trước.
+const THANG_SAU = new Date(Date.UTC(+THANG.slice(0, 4), +THANG.slice(5, 7), 1))
+  .toISOString().slice(0, 7);
 sqlite.prepare(
   `INSERT INTO le_hoi_cau_hinh (ma_le_hoi,ten_le_hoi,ngay_bat_dau,ngay_ket_thuc,
                                 danh_sach_bai,so_lan_yeu_cau,loai)
-   VALUES ('2020-01-loi','Lễ hội Lời','2020-01-01','2020-01-30','4-6,4-7',3,'loi')`
-).run();
+   VALUES ('lehoi-loi','Lễ hội Lời',?,?,'4-6,4-7',3,'loi')`
+).run(THANG_SAU + '-05', THANG_SAU + '-20');
 
 const tv = (kv, ten) => sqlite.prepare(
   `INSERT INTO giao_duc_thanh_vien (thang,khu_vuc,ten,tuan,edu_lms,tt127_ngay)
@@ -171,6 +176,83 @@ kiem('nói rõ kỳ hạn', moTa.includes(BD) && moTa.includes(KT), moTa);
 kiem('có đếm ngày còn lại', /Còn \d+ ngày|Đã kết thúc|Chưa bắt đầu/.test(moTa), moTa);
 kiem('⚠️ nói rõ số lấy từ đâu, KHÔNG phải nhập lại ở đây',
   /Nhật ký đơn thuần/.test(moTa) && /không phải nhập lại/.test(moTa), moTa);
+
+// ---------------------------------------------------------------------
+console.log('\n1b) ⭐ Bảng xếp hạng phải hiện NGAY ĐẦU trang Tổng quan');
+{
+  // Anh Rise chốt 30/08/2026: không bắt phải vào tab mới thấy bảng.
+  await page.evaluate(() => {
+    Object.keys(_apiCache).forEach((x) => delete _apiCache[x]);
+    showPanel('stats');
+    loadStatsPanel();
+  });
+  await page.waitForTimeout(1600);
+
+  kiem('⭐ thẻ xếp hạng kỳ vận động hiện ở Tổng quan',
+    await page.locator('#vdXepHangCard').isVisible());
+  // ⚠️ Lễ hội Lời còn ở THÁNG SAU -> thẻ xếp hạng của nó phải ẨN. Anh Rise chốt
+  // 30/08/2026: mỗi bảng chỉ sống đúng bằng kỳ của nó, không xem trước số liệu
+  // của một kỳ chưa bắt đầu (bảng rỗng trông y như "cả tháng không ai làm gì").
+  kiem('⚠️ Lễ hội Lời chưa tới ngày -> thẻ xếp hạng của nó ẨN',
+    !(await page.locator('#lehoiXepHangCard').isVisible()));
+  kiem('banner vẫn ưu tiên kỳ vận động (cái ĐANG diễn ra)',
+    (await page.locator('#lehoiBannerTitle').textContent()).indexOf(TEN) >= 0,
+    await page.locator('#lehoiBannerTitle').textContent());
+  kiem('tên kỳ vận động đúng',
+    (await page.locator('#vdxh_ten').textContent()).trim() === TEN);
+  kiem('câu mời của banner đổi theo loại — không nói "nhập tiến độ phát biểu"',
+    !/nhập tiến độ phát biểu/.test(await page.locator('#lehoiBannerSub').textContent()),
+    await page.locator('#lehoiBannerSub').textContent());
+  kiem('nút banner đổi thành "Xem chi tiết"',
+    /Xem chi tiết/.test(await page.locator('#lehoiBannerNut').textContent()));
+
+  // ⚠️⚠️ Bảng ở Tổng quan phải là CÙNG MỘT bảng với màn kỳ vận động — cùng hàm
+  // máy chủ, cùng hàm vẽ. Chép lại một bảng riêng là mở đường cho hai con số.
+  const b = await page.evaluate(() =>
+    [...document.querySelectorAll('#vdxh_bang tbody tr')].map((tr) =>
+      [...tr.children].map((td) => td.textContent.trim())));
+  kiem('⚠️⚠️ bảng ở Tổng quan GIỐNG HỆT bảng ở màn kỳ vận động',
+    JSON.stringify(b) === JSON.stringify(await page.evaluate(() =>
+      [...document.querySelectorAll('#vd_bang tbody tr')].map((tr) =>
+        [...tr.children].map((td) => td.textContent.trim())))),
+    JSON.stringify(b));
+  kiem('người có Báp-têm đứng đầu', b[0][1] === 'Cô C', JSON.stringify(b[0]));
+  kiem('⚠️ KHÔNG có cột Điểm',
+    !/Điểm/.test(await page.locator('#vdxh_bang thead').textContent()));
+
+  // ⚠️⚠️ CẢNH HAI KỲ GỐI NHAU — đây chính là con bọ ngày 30/08/2026: vừa tạo kỳ
+  // vận động là bảng xếp hạng Lễ hội Lời BIẾN MẤT khỏi Tổng quan, vì thẻ bám
+  // theo lễ hội mà banner chọn (banner chỉ chọn được MỘT). Kéo Lễ hội Lời về
+  // trùng ngày với kỳ vận động: hai thẻ phải cùng hiện, không cái nào chiếm chỗ.
+  sqlite.prepare(
+    'UPDATE le_hoi_cau_hinh SET ngay_bat_dau = ?, ngay_ket_thuc = ? WHERE ma_le_hoi = ?'
+  ).run(BD, KT, 'lehoi-loi');
+  await page.evaluate(() => {
+    Object.keys(_apiCache).forEach((x) => delete _apiCache[x]);
+    showPanel('stats');
+    loadStatsPanel();
+  });
+  await page.waitForTimeout(1600);
+  kiem('⚠️⚠️ hai kỳ cùng chạy -> thẻ Lễ hội Lời KHÔNG bị kỳ vận động chiếm chỗ',
+    await page.locator('#lehoiXepHangCard').isVisible());
+  kiem('...và đúng tên Lễ hội Lời, không phải tên kỳ vận động',
+    /Lễ hội Lời/.test(await page.locator('#lhxh_tenLeHoi').textContent()),
+    await page.locator('#lhxh_tenLeHoi').textContent());
+  kiem('...thẻ kỳ vận động vẫn còn nguyên bên cạnh',
+    await page.locator('#vdXepHangCard').isVisible());
+
+  // Trả Lễ hội Lời về tháng sau để các phần sau chạy đúng bối cảnh ban đầu.
+  sqlite.prepare(
+    'UPDATE le_hoi_cau_hinh SET ngay_bat_dau = ?, ngay_ket_thuc = ? WHERE ma_le_hoi = ?'
+  ).run(THANG_SAU + '-05', THANG_SAU + '-20', 'lehoi-loi');
+
+  // Trả về tab con Lễ hội cho các phần sau chạy tiếp.
+  await page.evaluate(() => {
+    Object.keys(_apiCache).forEach((x) => delete _apiCache[x]);
+    showPanel('kv'); selectKVSubTab('lehoi');
+  });
+  await page.waitForTimeout(1200);
+}
 
 // ---------------------------------------------------------------------
 console.log('\n2) ⚠️⚠️ RẼ NHÁNH — kỳ vận động KHÔNG rơi vào lưới của Lễ hội Lời');
@@ -286,12 +368,28 @@ console.log('\n7) Lễ hội Lời cũ KHÔNG bị ảnh hưởng');
   sqlite.prepare('DELETE FROM le_hoi_cau_hinh WHERE ma_le_hoi = ?').run(MA);
   sqlite.prepare(
     'UPDATE le_hoi_cau_hinh SET ngay_bat_dau = ?, ngay_ket_thuc = ? WHERE ma_le_hoi = ?'
-  ).run(BD, KT, '2020-01-loi');
+  ).run(BD, KT, 'lehoi-loi');
   await vaoVai(CHU, [], true, 'K Thành');
   kiem('⚠️ khung kỳ vận động bị ẩn', !(await page.locator('#vdContent').isVisible()));
   kiem('khung Lễ hội Lời hiện lại bình thường', await page.locator('#lhContent').isVisible());
   kiem('bảng tiến độ Lễ hội Lời có thành viên',
     /Cô A/.test(await page.locator('#lhTienDoBody').textContent()));
+
+  // ⚠️ Chiều ngược lại ở Tổng quan: Lễ hội Lời phải lấy lại thẻ xếp hạng của
+  // mình, và thẻ kỳ vận động phải biến mất — nếu không thì trang Tổng quan sẽ
+  // hiện bảng của một kỳ đã hết, trông y như số liệu thật.
+  await page.evaluate(() => {
+    Object.keys(_apiCache).forEach((x) => delete _apiCache[x]);
+    showPanel('stats');
+    loadStatsPanel();
+  });
+  await page.waitForTimeout(1600);
+  kiem('⚠️ Tổng quan: thẻ kỳ vận động bị ẩn khi đang là Lễ hội Lời',
+    !(await page.locator('#vdXepHangCard').isVisible()));
+  kiem('...và thẻ xếp hạng Lễ hội Lời hiện lại',
+    await page.locator('#lehoiXepHangCard').isVisible());
+  kiem('nút banner trở lại "Vào nhập liệu"',
+    /Vào nhập liệu/.test(await page.locator('#lehoiBannerNut').textContent()));
 }
 
 // ---------------------------------------------------------------------
