@@ -1049,5 +1049,74 @@ console.log('\n12) Thống kê TP — thành viên giảm thờ phượng');
   }
 }
 
+// =====================================================================
+console.log('\n⭐ KỲ VẬN ĐỘNG TRUYỀN ĐẠO — hai loại lễ hội dùng chung bảng cấu hình');
+{
+  // ⭐ 30/08/2026 — cột `le_hoi_cau_hinh.loai` rẽ hai đường:
+  //   'loi'        Lễ hội Lời — bài × lần, người tự tích ô (nếp cũ, mặc định)
+  //   'truyen_dao' Kỳ vận động — KHÔNG có bài; tab con 🎉 Lễ hội hiện thẳng
+  //                bảng 🏆 Xếp hạng, lọc theo khoảng ngày của kỳ.
+  //
+  // ⚠️⚠️ CA ĐẮT GIÁ: gọi nhầm hàm của Lễ hội Lời vào một kỳ vận động phải BÁO
+  // LỖI. Không chặn thì `danhSachBai` rỗng cho ra tổng số lần yêu cầu = 0, và
+  // màn hình hiện một lưới trống trơn trông y như web hỏng — chứ không báo gì.
+  // Đó là loại lỗi im lặng khó tìm nhất.
+  const { sqlite, db } = moiDb();
+  const C = { db };
+  napThanhVien(sqlite, [['SĐ', 'A Một']]);
+  sqlite.prepare(
+    `INSERT INTO le_hoi_cau_hinh (ma_le_hoi, ten_le_hoi, ngay_bat_dau, ngay_ket_thuc,
+                                  danh_sach_bai, so_lan_yeu_cau, loai)
+     VALUES (?,?,?,?,'',1,'truyen_dao')`
+  ).run('vd-thanh-linh', 'Vận động Thánh Linh Lễ Lều Tạm',
+    congNgay(HOM_NAY, -1), congNgay(HOM_NAY, 5));
+  sqlite.prepare(
+    `INSERT INTO le_hoi_cau_hinh (ma_le_hoi, ten_le_hoi, ngay_bat_dau, ngay_ket_thuc,
+                                  danh_sach_bai, so_lan_yeu_cau)
+     VALUES (?,?,?,?,?,?)`
+  ).run('le-hoi-loi', 'Lễ hội Lời', congNgay(HOM_NAY, -10), congNgay(HOM_NAY, -5), '4-6,4-7', 3);
+
+  let r = await goi('getLeHoiTienDoAll', ['vd-thanh-linh'], C);
+  kiem('⚠️⚠️ getLeHoiTienDoAll với mã kỳ vận động -> CHẶN, không trả lưới rỗng',
+    /không có bài/.test(r.error || ''), JSON.stringify(r));
+  kiem('⚠️ câu lỗi chỉ sang hàm CÓ THẬT trong danh mục',
+    /getXepHang/.test(r.error || '') && !!DANH_MUC.getXepHang, r.error);
+
+  r = await goi('toggleLeHoiLan', ['vd-thanh-linh', 'SĐ', 'A Một', '4-6', 1, true], C);
+  kiem('⚠️ toggleLeHoiLan với mã kỳ vận động -> CHẶN', !!r.error, JSON.stringify(r));
+
+  // Chiều ngược lại: bản cũ phải chạy y như trước, không được vạ lây.
+  r = await goi('getLeHoiTienDoAll', ['le-hoi-loi'], C);
+  kiem('Lễ hội Lời vẫn chạy bình thường', !r.error, r.error);
+  r = await goi('toggleLeHoiLan', ['le-hoi-loi', 'SĐ', 'A Một', '4-6', 1, true], C);
+  kiem('...và vẫn tích ô được', !r.error, r.error);
+
+  // Dòng cũ không có cột `loai` -> mặc định 'loi', mọi lễ hội đang chạy giữ
+  // nguyên hành vi. Đây là thứ khiến bản nâng cấp không phá gì.
+  const cu = sqlite.prepare("SELECT loai FROM le_hoi_cau_hinh WHERE ma_le_hoi='le-hoi-loi'").get();
+  kiem('⚠️ dòng không khai loai -> mặc định "loi", bản cũ không đổi nghĩa',
+    cu.loai === 'loi', JSON.stringify(cu));
+
+  r = await goi('getLeHoiBanner', [], C);
+  kiem('banner trả kèm trường loai để giao diện rẽ nhánh',
+    !r.error && r.result && r.result.loai === 'truyen_dao', JSON.stringify(r.result));
+  kiem('banner kèm luôn ngày bắt đầu/kết thúc để lọc bảng xếp hạng',
+    !!r.result.ngayBatDau && !!r.result.ngayKetThuc, JSON.stringify(r.result));
+
+  // Kỳ vận động lấy số từ bảng xếp hạng chung, lọc theo đúng khoảng ngày.
+  sqlite.prepare(
+    `INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan,ndd1,ndd2,ndd3) VALUES (?,?,?,?,'','')`
+  ).run(HOM_NAY, 'SĐ', 12, 'A Một');
+  sqlite.prepare(
+    `INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan,ndd1,ndd2,ndd3) VALUES (?,?,?,?,'','')`
+  ).run(congNgay(HOM_NAY, -30), 'SĐ', 999, 'A Một');
+  r = await goi('getXepHang', [r.result.ngayBatDau, r.result.ngayKetThuc, ''], C);
+  kiem('⚠️ bảng xếp hạng lọc ĐÚNG khoảng ngày của kỳ, dòng ngoài kỳ không lọt',
+    r.result.tomTat.soDonThuan === 12, JSON.stringify(r.result.tomTat));
+  kiem('⚠️ KHÔNG còn cột điểm nào trong kết quả',
+    r.result.danhSach[0].diem === undefined && r.result.tomTat.tongDiem === undefined,
+    JSON.stringify(r.result.danhSach[0]));
+}
+
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
 process.exit(hong ? 1 : 0);
