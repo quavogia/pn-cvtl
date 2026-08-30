@@ -461,7 +461,18 @@
           <p class="lehoi-banner-title" id="lehoiBannerTitle">🎉 Lễ hội</p>
           <p class="lehoi-banner-sub" id="lehoiBannerSub"></p>
         </div>
-        <button type="button" onclick="goToLeHoi_()">Vào nhập liệu →</button>
+        <button type="button" id="lehoiBannerNut" onclick="goToLeHoi_()">Vào nhập liệu →</button>
+      </div>
+
+      <!-- ⭐ 30/08/2026 — anh Rise chốt: bảng xếp hạng kỳ vận động truyền đạo
+           phải hiện NGAY ĐẦU trang Tổng quan, không bắt vào tab mới thấy.
+           ⚠️ Đây CHÍNH LÀ bảng 🏆 Xếp hạng chung (`getXepHang`), chỉ khoá khoảng
+           ngày theo kỳ — KHÔNG phải một bảng thứ hai. Vẽ bằng cùng một hàm
+           `veVanDongBang_` với màn kỳ vận động, để hai chỗ không thể lệch nhau. -->
+      <div class="card" id="vdXepHangCard" style="display:none;">
+        <h3 style="margin:0 0 4px">🏆 Xếp hạng <span id="vdxh_ten">kỳ vận động</span></h3>
+        <p style="font-size:12px;color:#64748b;margin:0 0 12px;" id="vdxh_moTa"></p>
+        <div id="vdxh_bang" style="color:#94a3b8;">Đang tải…</div>
       </div>
 
       <div class="card">
@@ -2075,26 +2086,66 @@ function loadLeHoiBanner_(){
   google.script.run.withSuccessHandler(function(lh){
     const banner = document.getElementById('lehoiBanner');
     if (!lh) { banner.style.display = 'none'; hideLeHoiXepHang_(); return; }
+    // ⭐ Kỳ vận động truyền đạo KHÔNG có bài để phát biểu — câu mời và bảng
+    // xếp hạng đều phải khác. Rẽ nhánh theo `loai`, giống tab con 🎉 Lễ hội.
+    const laVanDong = lh.loai === 'truyen_dao';
     document.getElementById('lehoiBannerTitle').textContent = '🎉 ' + lh.ten;
+    document.getElementById('lehoiBannerNut').textContent =
+      laVanDong ? 'Xem chi tiết →' : 'Vào nhập liệu →';
     if (lh.trangThai === 'active') {
       document.getElementById('lehoiBannerSub').textContent =
-        'Đang diễn ra: ' + lh.ngayBatDau + ' — ' + lh.ngayKetThuc + '. Bấm để nhập tiến độ phát biểu.';
+        'Đang diễn ra: ' + lh.ngayBatDau + ' — ' + lh.ngayKetThuc + '. '
+        + (laVanDong ? 'Số tự chạy vào từ Nhật ký đơn thuần và Sổ mốc.'
+                     : 'Bấm để nhập tiến độ phát biểu.');
     } else {
       document.getElementById('lehoiBannerSub').textContent =
         'Sắp diễn ra: ' + lh.ngayBatDau + ' — ' + lh.ngayKetThuc + '.';
     }
     banner.style.display = 'flex';
-    loadLeHoiXepHang_(lh);
+    // ⚠️⚠️ HAI THẺ ĐỘC LẬP, KHÔNG PHỤ THUỘC BANNER.
+    // Trước đây thẻ xếp hạng bám theo lễ hội mà banner chọn, nên vừa tạo kỳ
+    // vận động tháng 9 là bảng Lễ hội Lời biến mất khỏi Tổng quan. Nay mỗi
+    // loại một thẻ, máy chủ trả riêng `leHoiLoi` và `vanDong` — và CHỈ trả về
+    // khi kỳ đó ĐANG diễn ra (anh Rise chốt 30/08/2026), nên bảng xếp hạng
+    // sống đúng bằng kỳ của nó: Lễ hội Lời tới hết 31/08, kỳ vận động 01–30/09.
+    if (lh.leHoiLoi) loadLeHoiXepHang_(lh.leHoiLoi); else hideLeHoiXepHang_();
+    if (lh.vanDong) loadVdXepHangTongQuan_(lh.vanDong); else hideVdXepHang_();
   }).withFailureHandler(function(err){
     // Không có lễ hội hoặc lỗi tải -> im lặng ẩn banner, không làm phiền
     // trang Tổng quan bằng thông báo lỗi cho 1 tính năng phụ.
     document.getElementById('lehoiBanner').style.display = 'none';
     hideLeHoiXepHang_();
+    hideVdXepHang_();
   }).getLeHoiBanner();
 }
 
 function hideLeHoiXepHang_(){
   document.getElementById('lehoiXepHangCard').style.display = 'none';
+}
+
+function hideVdXepHang_(){
+  document.getElementById('vdXepHangCard').style.display = 'none';
+}
+
+/**
+ * Bảng xếp hạng kỳ vận động, hiện ngay đầu trang Tổng quan.
+ *
+ * ⚠️ Dùng ĐÚNG hàm máy chủ (`getXepHang`) và ĐÚNG hàm vẽ (`veVanDongBang_`)
+ * của màn kỳ vận động. Chép lại một bảng riêng ở đây là mở đường cho hai chỗ
+ * nói hai con số — thứ cả web đang cố tránh (bài học #33).
+ */
+function loadVdXepHangTongQuan_(lh){
+  document.getElementById('vdxh_ten').textContent = lh.ten;
+  document.getElementById('vdxh_moTa').textContent = vdMoTa_(lh);
+  document.getElementById('vdxh_bang').innerHTML =
+    '<div style="color:#94a3b8;">Đang tải…</div>';
+  document.getElementById('vdXepHangCard').style.display = 'block';
+  google.script.run.withSuccessHandler(function(b){
+    veVanDongBang_(b, 'vdxh_bang');
+  }).withFailureHandler(function(err){
+    // Lỗi ở một thẻ phụ của Tổng quan thì ẩn đi, đừng chặn cả trang.
+    hideVdXepHang_();
+  }).getXepHang(lh.ngayBatDau, lh.ngayKetThuc, '');
 }
 
 // Bảng xếp hạng Lễ hội ở Tổng quan — toàn bộ (mọi Khu vực), ai hoàn thành đủ
@@ -4938,8 +4989,8 @@ function vdSoDep_(n){
   return (Math.round(Number(n) * 100) / 100).toLocaleString('vi-VN');
 }
 
-function veVanDongBang_(b){
-  var box = document.getElementById('vd_bang');
+function veVanDongBang_(b, oId){
+  var box = document.getElementById(oId || 'vd_bang');
   if (!b.danhSach.length) {
     box.innerHTML = '<div style="color:#94a3b8;">Chưa ai có số trong kỳ này.</div>';
     return;
