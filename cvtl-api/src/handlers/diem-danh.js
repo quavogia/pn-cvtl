@@ -136,9 +136,15 @@ export async function getDiemDanhRoster({ db }, thang) {
  * "T.K" — kết quả tự nhảy đúng ngay tại Tuần mà người đó vừa đạt đủ ngưỡng
  * cộng dồn, không cần đợi "đủ trong đúng 1 tuần" nữa.
  */
-export async function getDiemDanhTPGoiY({ db }, thang) {
-  if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
-
+/**
+ * Lõi tính toán — TÁCH RIÊNG (30/08/2026) để CHỈ MỘT chỗ nói công thức
+ * "≥1/≥4 lần". Dùng chung cho `getDiemDanhTPGoiY` (giao diện xem trước khi
+ * lưu) VÀ `dongBoTPTuDiemDanh` (tự đồng bộ lại bảng TP mỗi khi Điểm danh
+ * đổi — xem chú thích ở hàm đó). Từng phải sửa 2 lần vì công thức viết lặp
+ * ở nhiều chỗ rồi quên sửa hết (xem "SỬA LẦN 2" bên dưới) — không lặp lại
+ * lỗi đó nữa.
+ */
+async function tinhGoiYTuDiemDanh(db, thang) {
   const rows = await db.all(
     `SELECT khu_vuc, tuan, ten, COUNT(*) AS soBuoi
        FROM diem_danh
@@ -183,12 +189,74 @@ export async function getDiemDanhTPGoiY({ db }, thang) {
   return map;
 }
 
+export async function getDiemDanhTPGoiY({ db }, thang) {
+  if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
+  return tinhGoiYTuDiemDanh(db, thang);
+}
+
+/**
+ * ⭐⭐ 30/08/2026 — TỰ ĐỒNG BỘ bảng TP mỗi khi Điểm danh đổi, KHÔNG CHỜ ai mở
+ * lại tab "Nhập số liệu theo tuần".
+ *
+ * Trước bản này, "trí nhớ ô nào đang là tự động điền" (để biết ô nào được
+ * phép ghi đè, ô nào là Trưởng phòng đã tự gõ tay nên phải giữ nguyên) chỉ
+ * sống trong bộ nhớ TRÌNH DUYỆT (`window._tpAutoTrack_` trong `index.html`)
+ * — mất sạch ngay khi tải lại trang. Hậu quả (anh Rise phát hiện 30/08/2026,
+ * khu K Đức): có người vừa điểm danh đủ buổi thứ 4 trong tháng, đáng lẽ ô
+ * "≥4 lần" Tuần 5 phải nhảy từ 6 lên 7 — nhưng phiên xem trang đã tải lại từ
+ * trước đó, hệ thống "quên" mất ô đó từng là tự động, số cứ đứng yên ở 6.
+ *
+ * Bản này chuyển "trí nhớ" đó xuống cột `tu_dong` trong chính bảng
+ * `tp_tho_phuong` (xem `saveTPWeek`) — sống trên máy chủ, không phụ thuộc
+ * trình duyệt nào. Hàm dưới đây được gọi NGAY SAU MỖI LẦN lưu 1 ô Điểm danh
+ * (xem `saveDiemDanhCell`), nên số tự đúng ngay cả khi không ai đang mở tab
+ * TP. Ô nào Trưởng phòng đã tự tay gõ số khác đi (`tu_dong = 0`) thì TUYỆT
+ * ĐỐI không đụng vào — đúng tinh thần "không ghi đè số đã gõ tay" đã có từ
+ * trước, chỉ là nay nhớ được LÂU DÀI thay vì chỉ trong 1 lần tải trang.
+ *
+ * Lỗi ở bước này KHÔNG được làm hỏng việc điểm danh chính — gọi qua
+ * `ctx.waitUntil` và nuốt lỗi ở nơi gọi (`saveDiemDanhCell`).
+ */
+export async function dongBoTPTuDiemDanh({ db }, thang, khuVuc) {
+  const kv = String(khuVuc || '').trim();
+  if (!thangHopLe(thang) || !kv) return { capNhat: 0 };
+
+  const goiy = (await tinhGoiYTuDiemDanh(db, thang))[kv];
+  if (!goiy) return { capNhat: 0 };
+
+  const rows = await db.all(
+    'SELECT loai, tuan, so_luong, tu_dong FROM tp_tho_phuong WHERE thang = ? AND khu_vuc = ?',
+    [thang, kv]
+  );
+  let capNhat = 0;
+  for (const r of rows) {
+    if (Number(r.tu_dong) !== 1) continue; // ô đã bị Trưởng phòng tự gõ tay -> không đụng
+    const i = Number(r.tuan) - 1;
+    if (i < 0 || i > 4 || !goiy.hasData[i]) continue;
+    const dung = r.loai === '1lan' ? goiy.weeks1[i] : r.loai === '4lan' ? goiy.weeks4[i] : null;
+    if (dung === null || Number(r.so_luong) === dung) continue;
+    await db.run(
+      'UPDATE tp_tho_phuong SET so_luong = ? WHERE thang = ? AND khu_vuc = ? AND loai = ? AND tuan = ?',
+      [dung, thang, kv, r.loai, r.tuan]
+    );
+    capNhat++;
+  }
+  return { capNhat };
+}
+
 /**
  * Ghi một ô điểm danh.
  * Nếu tuần/nhóm buổi đó ĐÃ báo cáo thì chặn, trừ tài khoản chủ.
  * (Chặn ngay tại máy chủ nên không ai lách được bằng cách sửa trình duyệt.)
+ *
+ * ⚠️ 30/08/2026 — sau khi ghi xong, tự đồng bộ lại bảng TP (`dongBoTPTuDiemDanh`)
+ * cho đúng khu vực/tháng vừa sửa, để số ≥1/≥4 lần không bị kẹt lại số cũ (xem
+ * chú thích ở `dongBoTPTuDiemDanh`). Chạy nền qua `ctx.waitUntil` khi có (để
+ * không làm chậm thao tác điểm danh chính) — không có thì chạy đồng bộ luôn
+ * (trường hợp kiểm thử). Lỗi ở bước phụ này KHÔNG được làm hỏng việc điểm danh
+ * chính nên luôn nuốt lỗi.
  */
-export async function saveDiemDanhCell({ db, nguoiGoi }, thang, khuVuc, ten, tuan, buoi, giaTri) {
+export async function saveDiemDanhCell({ db, ctx, nguoiGoi }, thang, khuVuc, ten, tuan, buoi, giaTri) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
   const kv = String(khuVuc || '').trim();
   const tv = String(ten || '').trim();
@@ -221,6 +289,11 @@ export async function saveDiemDanhCell({ db, nguoiGoi }, thang, khuVuc, ten, tua
       [thang, kv, tv, t, b, gt]
     );
   }
+
+  const dongBo = dongBoTPTuDiemDanh({ db }, thang, kv).catch(() => {});
+  if (ctx?.waitUntil) ctx.waitUntil(dongBo);
+  else await dongBo;
+
   return { success: true };
 }
 
