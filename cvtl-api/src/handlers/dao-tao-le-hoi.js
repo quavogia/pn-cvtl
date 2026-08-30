@@ -413,7 +413,7 @@ async function layCauHinhLeHoi(db) {
 function chanNeuKhongPhaiLeHoiLoi(lh) {
   if (lh.loai && lh.loai !== 'loi') {
     throw new Error('"' + lh.ma + '" là kỳ vận động loại "' + lh.loai
-      + '", không có bài để phát biểu — dùng getVanDongTienDo thay cho hàm này.');
+      + '", không có bài để phát biểu — dùng getXepHang thay cho hàm này.');
   }
 }
 
