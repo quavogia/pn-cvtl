@@ -22,19 +22,44 @@ import {
   chuoi, soNguyen, batBuoc, chuanNgay, homNay, thangCuaNgay, laHuuHieu, laBT,
 } from '../tien-ich.js';
 
-/** Điểm gốc của mỗi mốc, TRƯỚC khi chia cho số người dẫn dắt. */
+/**
+ * Điểm gốc của mỗi mốc, TRƯỚC khi chia cho số người dẫn dắt.
+ *
+ * ⭐⭐ 27/08/2026 — ĐỔI THANG ĐIỂM theo bảng Hội Thánh ban hành cho kỳ
+ * "Vận động Thánh Linh Lễ Lều Tạm". Anh Rise chốt thang mới THAY LUÔN thang
+ * cũ (1/100/1000), để cả web nói cùng một con số thay vì hai bảng hai kiểu.
+ *
+ * ⚠️ PHẢI BÁO CẢ PHÒNG: số điểm ở bảng 🏆 Xếp hạng của menu Trudo SẼ ĐỔI so
+ * với trước. Số ca (đơn thuần / hữu hiệu / báp-têm) không đổi, chỉ điểm đổi.
+ * Ai quen nhìn số cũ sẽ tưởng hỏng — đúng loại hiểu nhầm đã xảy ra hồi đổi
+ * cách chia tuần (26/08).
+ */
 export const DIEM_MOC = {
   don_thuan: 1,
-  huu_hieu: 100,
-  bap_tem: 1000,
+  huu_hieu: 50,
+  bap_tem: 500,
+  // ⭐ HAI MỐC MỚI (27/08/2026), đều ghi tay vào sổ `so_moc` như hai mốc cũ.
+  //
+  // bap_tem_du_le — anh Rise chốt: "CỘNG THÊM vào báp-têm", tức một người vừa
+  //   báp-têm vừa dự lễ được 500 + 1000 = 1500. Hai dòng sổ RIÊNG, không phải
+  //   một dòng thay thế dòng kia.
+  //
+  // chien_bi_mat — anh Rise định nghĩa: "thánh đồ đã báp-têm rồi nhưng bỏ lễ
+  //   1 năm trở lên". Máy KHÔNG có cách nào tự biết điều này (web không giữ
+  //   lịch sử dự lễ theo từng người suốt một năm), nên bắt buộc ghi tay.
+  bap_tem_du_le: 1000,
+  chien_bi_mat: 500,
 };
 
-const DS_MOC_SO = ['huu_hieu', 'bap_tem'];   // hai mốc được ghi vào sổ so_moc
+/** Các mốc được ghi vào sổ `so_moc` (mỗi người mỗi mốc chỉ một dòng). */
+const DS_MOC_SO = ['huu_hieu', 'bap_tem', 'bap_tem_du_le', 'chien_bi_mat'];
 
 const TEN_MOC = {
   don_thuan: 'Đơn thuần',
   huu_hieu: 'Hữu hiệu',
   bap_tem: 'Báp-têm',
+  bap_tem_du_le: 'Báp-têm dự lễ',
+  chien_bi_mat: 'Chiên bị mất',
 };
 
 // --- Vài tiện ích nhỏ dùng chung trong file này ----------------------
@@ -75,7 +100,7 @@ function tron2(n) {
 function kiemTraMocSo(moc) {
   const m = chuoi(moc);
   if (!DS_MOC_SO.includes(m)) {
-    throw new Error('Mốc không hợp lệ: "' + moc + '" (chỉ nhận huu_hieu hoặc bap_tem).');
+    throw new Error('Mốc không hợp lệ: "' + moc + '" (chỉ nhận: ' + DS_MOC_SO.join(', ') + ').');
   }
   return m;
 }
@@ -296,7 +321,9 @@ function themVao(bang, ten, moc, diem, soCaThem = 1) {
   if (!bang[khoa]) {
     bang[khoa] = {
       ten,
-      soCa: { don_thuan: 0, huu_hieu: 0, bap_tem: 0 },
+      // ⚠️ Dựng từ DIEM_MOC chứ KHÔNG gõ tay từng khoá: thêm mốc mới vào
+      // DIEM_MOC là ô đếm tự có, không phải nhớ sửa thêm chỗ này.
+      soCa: Object.fromEntries(Object.keys(DIEM_MOC).map((k) => [k, 0])),
       diem: 0,
     };
   }
@@ -336,7 +363,7 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
 
   const bang = {};
   const tong = {
-    soDonThuan: 0, soHuuHieu: 0, soBapTem: 0,
+    soDonThuan: 0, soHuuHieu: 0, soBapTem: 0, soBapTemDuLe: 0, soChienBiMat: 0,
     tongDiem: 0, diemChuaCoNguoi: 0,
   };
 
@@ -362,6 +389,8 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
     if (!diemDong) continue;
     if (moc === 'huu_hieu') tong.soHuuHieu += 1;
     if (moc === 'bap_tem') tong.soBapTem += 1;
+    if (moc === 'bap_tem_du_le') tong.soBapTemDuLe += 1;
+    if (moc === 'chien_bi_mat') tong.soChienBiMat += 1;
     tong.tongDiem += diemDong;
 
     const ndd = dsNguoiDanDat(r);
@@ -376,7 +405,9 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
       donThuan: tron2(x.soCa.don_thuan),
       huuHieu: x.soCa.huu_hieu,
       bapTem: x.soCa.bap_tem,
-      soCa: tron2(x.soCa.don_thuan + x.soCa.huu_hieu + x.soCa.bap_tem),
+      bapTemDuLe: x.soCa.bap_tem_du_le,
+      chienBiMat: x.soCa.chien_bi_mat,
+      soCa: tron2(Object.values(x.soCa).reduce((a, b) => a + b, 0)),
       diem: tron2(x.diem),
     }))
     .sort((a, b) => (b.diem - a.diem) || a.ten.localeCompare(b.ten, 'vi'));
@@ -398,6 +429,8 @@ export async function getXepHang({ db }, tuNgay, denNgay, khuVuc) {
       soDonThuan: tong.soDonThuan,
       soHuuHieu: tong.soHuuHieu,
       soBapTem: tong.soBapTem,
+      soBapTemDuLe: tong.soBapTemDuLe,
+      soChienBiMat: tong.soChienBiMat,
       tongDiem: tron2(tong.tongDiem),
       diemChuaCoNguoi: tron2(tong.diemChuaCoNguoi),
       soNguoiCoDiem: danhSach.length,
