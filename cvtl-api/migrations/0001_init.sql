@@ -247,17 +247,16 @@ CREATE TABLE IF NOT EXISTS le_hoi_cau_hinh (
   --                Dùng `danh_sach_bai` + `so_lan_yeu_cau`. Đây là mặc định
   --                nên mọi dòng cũ giữ nguyên ý nghĩa, không phải sửa gì.
   --   'truyen_dao' Kỳ vận động truyền đạo (Vận động Thánh Linh Lễ Lều Tạm,
-  --                01–30/09/2026). KHÔNG có gì để tích: số tự chảy vào từ
-  --                `nhat_ky_don_thuan` và `so_moc` theo khoảng ngày.
+  --                01–30/09/2026). KHÔNG có bài để tích: tab con 🎉 Lễ hội
+  --                hiện thẳng bảng 🏆 Xếp hạng, lọc theo khoảng ngày của kỳ.
   loai          TEXT NOT NULL DEFAULT 'loi',
-  -- ⚠️⚠️ CÁCH TÍNH ĐIỂM ĐỂ LÀ DỮ LIỆU, KHÔNG NHÉT VÀO MÃ NGUỒN.
-  -- Hội Thánh ban hành bảng điểm, và bảng điểm kiểu này hay đổi giữa kỳ.
-  -- Để ở đây thì đổi cách tính = sửa MỘT DÒNG, không phải đẩy lại web.
-  -- Dạng JSON, mọi khoá đều không bắt buộc:
-  --   { "diem":    { "donThuan":1, "huuHieu":100, "bapTem":1000 },
-  --     "chiaDeu": false,
-  --     "xepTheo": ["bapTem","huuHieu","donThuan"] }
-  -- Bỏ trống -> xếp theo Báp-têm rồi Hữu hiệu rồi Đơn thuần, không hiện điểm.
+  -- ⚠️ `cach_tinh` KHÔNG CÒN DÙNG (bỏ 30/08/2026).
+  -- Cột này từng giữ JSON cách tính điểm, hồi web còn tự cộng điểm cho kỳ vận
+  -- động. Anh Rise chốt: memo của Hội Thánh đã có sẵn công thức và là sổ chính
+  -- thức, nên web bỏ hẳn điểm — chỉ đếm số ca và xếp Báp-têm > Hữu hiệu >
+  -- Đơn thuần. CỐ Ý GIỮ LẠI CỘT thay vì xoá: xoá cột trong D1 phải dựng lại cả
+  -- bảng, rủi ro hơn nhiều so với để một cột trống không ai đọc. Đừng dùng lại
+  -- nó cho việc khác — tên cột sẽ nói dối người đọc sau này.
   cach_tinh     TEXT
 );
 
