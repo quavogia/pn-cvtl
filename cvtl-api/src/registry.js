@@ -65,6 +65,7 @@ export const DANH_MUC = {
   getDiemDanhRoster:      { doc: true,  fn: diemDanh.getDiemDanhRoster },
   getDiemDanhTPGoiY:      { doc: true,  fn: diemDanh.getDiemDanhTPGoiY },
   saveDiemDanhCell:       { doc: false, fn: diemDanh.saveDiemDanhCell },
+  dongBoTPTuDiemDanh:     { doc: false, fn: diemDanh.dongBoTPTuDiemDanh },
   addDiemDanhTreEm:       { doc: false, fn: diemDanh.addDiemDanhTreEm },
   deleteDiemDanhTreEm:    { doc: false, fn: diemDanh.deleteDiemDanhTreEm },
   moveDiemDanhTreEm:      { doc: false, fn: diemDanh.moveDiemDanhTreEm },
