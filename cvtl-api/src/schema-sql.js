@@ -28,8 +28,9 @@ export const CAU_LENH_TAO_BANG = [
   // ⭐ 27/08/2026 — thêm `loai` và `cach_tinh`. Xem đầu file handlers/van-dong.js.
   //   loai      'loi'        = lễ hội phát biểu bài (Lễ hội Lời) — mặc định, giữ nguyên bản cũ
   //             'truyen_dao' = kỳ vận động truyền đạo (Vận động Thánh Linh Lễ Lều Tạm)
-  //   cach_tinh JSON cách tính điểm / cách xếp hạng. ĐỂ LÀ DỮ LIỆU, KHÔNG NHÉT VÀO MÃ —
-  //             Hội Thánh đổi bảng điểm thì sửa một dòng, không phải đẩy lại web.
+  //   cach_tinh ⚠️ KHÔNG CÒN DÙNG (bỏ 30/08/2026) — web không có điểm nữa, điểm xem bên
+  //             memo của Hội Thánh. Cố ý giữ cột chứ không xoá: xoá cột trong D1 phải dựng
+  //             lại cả bảng. Đừng dùng lại nó cho việc khác — tên cột sẽ nói dối người đọc.
   "CREATE TABLE IF NOT EXISTS le_hoi_cau_hinh ( ma_le_hoi TEXT PRIMARY KEY, ten_le_hoi TEXT NOT NULL, ngay_bat_dau TEXT, ngay_ket_thuc TEXT, danh_sach_bai TEXT, so_lan_yeu_cau INTEGER NOT NULL DEFAULT 1, loai TEXT NOT NULL DEFAULT 'loi', cach_tinh TEXT )",
   "CREATE TABLE IF NOT EXISTS le_hoi_tien_do ( ma_le_hoi TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, da_phat_bieu TEXT, ngay_hoan_thanh TEXT, PRIMARY KEY (ma_le_hoi, khu_vuc, ten) )",
   "CREATE TABLE IF NOT EXISTS phien_dang_nhap ( token TEXT PRIMARY KEY, email TEXT NOT NULL, ten TEXT, tao_luc INTEGER NOT NULL, het_han_luc INTEGER NOT NULL )",
@@ -69,6 +70,8 @@ export const CAU_LENH_NANG_CAP = [
   // Hai cột của kỳ vận động truyền đạo (27/08/2026). CSDL đã có bảng cũ thì
   // hai lệnh này thêm cột; chạy lại lần nữa sẽ báo "duplicate column name" —
   // /cai-dat coi đó là BÌNH THƯỜNG, không phải hỏng.
+  // ⚠️ `cach_tinh` nay không còn dùng nhưng VẪN PHẢI giữ lệnh này: CSDL thật
+  // có thể đã có cột đó rồi, bỏ lệnh đi thì hai bên lệch nhau.
   "ALTER TABLE le_hoi_cau_hinh ADD COLUMN loai TEXT NOT NULL DEFAULT 'loi'",
   'ALTER TABLE le_hoi_cau_hinh ADD COLUMN cach_tinh TEXT',
 ];
