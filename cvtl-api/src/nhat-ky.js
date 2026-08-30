@@ -40,6 +40,7 @@ export const VI_TRI_KHU_VUC = {
   deleteGiaoDucMember: 0,
   deleteGoalCaNhan: 1,
   deleteGoalKV: 1,
+  dongBoTPTuDiemDanh: 1,
   donDepTPKhuVuc: 0,
   getBaoCaoTuan: 1,
   getCVCongViec: 0,
