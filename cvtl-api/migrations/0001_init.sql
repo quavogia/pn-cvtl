@@ -241,7 +241,24 @@ CREATE TABLE IF NOT EXISTS le_hoi_cau_hinh (
   ngay_bat_dau  TEXT,
   ngay_ket_thuc TEXT,
   danh_sach_bai TEXT,
-  so_lan_yeu_cau INTEGER NOT NULL DEFAULT 1
+  so_lan_yeu_cau INTEGER NOT NULL DEFAULT 1,
+  -- ⭐ 27/08/2026 — HAI LOẠI LỄ HỘI DÙNG CHUNG MỘT BẢNG CẤU HÌNH
+  --   'loi'        Lễ hội Lời — mỗi bài phát biểu đủ N lần, người tự tích ô.
+  --                Dùng `danh_sach_bai` + `so_lan_yeu_cau`. Đây là mặc định
+  --                nên mọi dòng cũ giữ nguyên ý nghĩa, không phải sửa gì.
+  --   'truyen_dao' Kỳ vận động truyền đạo (Vận động Thánh Linh Lễ Lều Tạm,
+  --                01–30/09/2026). KHÔNG có gì để tích: số tự chảy vào từ
+  --                `nhat_ky_don_thuan` và `so_moc` theo khoảng ngày.
+  loai          TEXT NOT NULL DEFAULT 'loi',
+  -- ⚠️⚠️ CÁCH TÍNH ĐIỂM ĐỂ LÀ DỮ LIỆU, KHÔNG NHÉT VÀO MÃ NGUỒN.
+  -- Hội Thánh ban hành bảng điểm, và bảng điểm kiểu này hay đổi giữa kỳ.
+  -- Để ở đây thì đổi cách tính = sửa MỘT DÒNG, không phải đẩy lại web.
+  -- Dạng JSON, mọi khoá đều không bắt buộc:
+  --   { "diem":    { "donThuan":1, "huuHieu":100, "bapTem":1000 },
+  --     "chiaDeu": false,
+  --     "xepTheo": ["bapTem","huuHieu","donThuan"] }
+  -- Bỏ trống -> xếp theo Báp-têm rồi Hữu hiệu rồi Đơn thuần, không hiện điểm.
+  cach_tinh     TEXT
 );
 
 -- ---------------------------------------------------------------------
