@@ -7,10 +7,17 @@
 // dùng mẫu `scripts/kiem-thu*.mjs`, mà bộ này cần playwright (không nằm trong
 // package.json) nên sẽ làm vòng lặp đó đỏ oan. Xem thêm bài học #46.
 //
-// ⚠️⚠️ CA ĐẮT GIÁ NHẤT: phần 2. Tab con 🎉 Lễ hội nay phục vụ HAI loại lễ hội
-// dùng chung một khung. Rẽ nhánh sai thì kỳ vận động rơi vào lưới "bài × lần"
-// của Lễ hội Lời — lưới sẽ trống trơn và trông y hệt như web hỏng, chứ không
-// báo lỗi gì. Đó là loại lỗi im lặng khó tìm nhất.
+// ⚠️⚠️ HAI CA ĐẮT GIÁ NHẤT:
+//   · Phần 2 — tab con 🎉 Lễ hội phục vụ HAI loại lễ hội dùng chung một khung.
+//     Rẽ nhánh sai thì kỳ vận động rơi vào lưới "bài × lần" của Lễ hội Lời,
+//     lưới trống trơn trông y hệt web hỏng chứ không báo lỗi gì.
+//   · Phần 6 — MỞ THẬT menu 🏛️ Trudo. Ngày 30/08/2026 suýt đẩy lên một bản
+//     làm chết cả menu đó (đoạn cắt ăn lan sang hàm dùng chung trong
+//     trudo-ui.js) mà cả bộ kiểm thử vẫn xanh, vì không ca nào mở nó.
+//
+// ⭐ 30/08/2026 — màn kỳ vận động CHỈ ĐỌC và dùng CHUNG bảng xếp hạng với menu
+// 🏛️ Trudo (`getXepHang`), chỉ khoá cứng khoảng ngày theo kỳ. Ba cột số web
+// tự đếm; KHÔNG có điểm — điểm xem bên memo của Hội Thánh.
 // =====================================================================
 
 import { chromium } from 'playwright';
@@ -47,7 +54,6 @@ const THANG = HOM_NAY.slice(0, 7);
 const BD = THANG + '-01';
 const KT = THANG + '-' + String(
   new Date(Date.UTC(+THANG.slice(0, 4), +THANG.slice(5, 7), 0)).getUTCDate()).padStart(2, '0');
-const ng = (d) => THANG + '-' + d;
 const KV = ['Đ Uyên', 'K Thành', 'TT Châu', 'K My'];
 KV.forEach((k, i) => sqlite.prepare(
   "INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('khu_vuc',?,?)").run(k, i + 1));
@@ -55,13 +61,9 @@ KV.forEach((k, i) => sqlite.prepare(
 // Hai lễ hội cùng tồn tại — CỐ Ý, để kiểm đúng chỗ rẽ nhánh.
 sqlite.prepare(
   `INSERT INTO le_hoi_cau_hinh (ma_le_hoi,ten_le_hoi,ngay_bat_dau,ngay_ket_thuc,
-                                danh_sach_bai,so_lan_yeu_cau,loai,cach_tinh)
-   VALUES (?,?,?,?,'',1,'truyen_dao',?)`
-).run(MA, TEN, BD, KT, JSON.stringify({
-  diem: { donThuan: 1, huuHieu: 50, bapTem: 500, bapTemDuLe: 1000, chienBiMat: 500 },
-  chiaDeu: false,
-  xepTheo: ['diem'],
-}));
+                                danh_sach_bai,so_lan_yeu_cau,loai)
+   VALUES (?,?,?,?,'',1,'truyen_dao')`
+).run(MA, TEN, BD, KT);
 // Lễ hội Lời để ở QUÁ KHỨ xa: nó vẫn tồn tại (để kiểm phần rẽ nhánh) nhưng
 // không tranh mất chỗ "đang diễn ra" của kỳ vận động. Phần 6 sẽ kéo nó về
 // hiện tại để kiểm rằng bản cũ vẫn chạy y như trước.
@@ -74,25 +76,21 @@ sqlite.prepare(
 const tv = (kv, ten) => sqlite.prepare(
   `INSERT INTO giao_duc_thanh_vien (thang,khu_vuc,ten,tuan,edu_lms,tt127_ngay)
    VALUES (?,?,?,1,'',0)`).run(THANG, kv, ten);
-const dt = (ngay, kv, sl, ...n) => sqlite.prepare(
-  `INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan,ndd1,ndd2,ndd3) VALUES (?,?,?,?,?,?)`
-).run(ngay, kv, sl, n[0] || '', n[1] || '', n[2] || '');
-const moc = (loai, ngay, kv, ten, ...n) => sqlite.prepare(
-  `INSERT INTO so_moc (moc,ngay,thang,ten,khu_vuc,ndd1,ndd2,ndd3,tao_luc) VALUES (?,?,?,?,?,?,?,?,0)`
-).run(loai, ngay, ngay.slice(0, 7), ten, kv, n[0] || '', n[1] || '', n[2] || '');
-
 for (const [kv, t] of [['K Thành', 'Cô A'], ['K Thành', 'Cô B'], ['Đ Uyên', 'Cô C']]) tv(kv, t);
+
+// Số ca thật — ba cột Đơn thuần / Hữu hiệu / Báp-têm tự đếm từ đây.
 sqlite.prepare(
-  `INSERT INTO muc_tieu_ca_nhan (thang,khu_vuc,ten,mt_don_thuan,mt_huu_hieu,mt_bt,mt_tt127_ngay)
-   VALUES (?,'K Thành','Cô A',10,1,0,0)`).run(THANG);
-dt(ng('04'), 'K Thành', 5, 'Cô A');
-dt(ng('09'), 'K Thành', 3, 'Cô Lạ');          // tên không có trong danh sách thành viên
-dt(ng('12'), 'K Thành', 8);                    // không ghi tên ai
-moc('bap_tem', ng('15'), 'Đ Uyên', 'HV1', 'Cô C');
-moc('huu_hieu', ng('16'), 'K Thành', 'HV2', 'Cô B');
-// Hai mốc mới theo bảng điểm Hội Thánh ban hành 27/08/2026.
-moc('bap_tem_du_le', ng('18'), 'Đ Uyên', 'HV1', 'Cô C');
-moc('chien_bi_mat', ng('19'), 'K Thành', 'HV3', 'Cô A');
+  `INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan,ndd1,ndd2,ndd3)
+   VALUES (?,?,?,?,'','')`).run(THANG + '-04', 'K Thành', 30, 'Cô A');
+sqlite.prepare(
+  `INSERT INTO nhat_ky_don_thuan (ngay,khu_vuc,don_thuan,ndd1,ndd2,ndd3)
+   VALUES (?,?,?,'','','')`).run(THANG + '-06', 'K Thành', 8);   // không ghi tên ai
+sqlite.prepare(
+  `INSERT INTO so_moc (moc,ngay,thang,ten,khu_vuc,ndd1,ndd2,ndd3,tao_luc)
+   VALUES ('bap_tem',?,?,?,?,?,'','',0)`).run(THANG + '-15', THANG, 'HV1', 'Đ Uyên', 'Cô C');
+sqlite.prepare(
+  `INSERT INTO so_moc (moc,ngay,thang,ten,khu_vuc,ndd1,ndd2,ndd3,tao_luc)
+   VALUES ('huu_hieu',?,?,?,?,?,'','',0)`).run(THANG + '-16', THANG, 'HV2', 'K Thành', 'Cô B');
 
 const CHU = { email: 'chu@gmail.com', ten: 'Trưởng phòng', laChu: true, phamVi: '' };
 const KVT = { email: 'kvt@gmail.com', ten: 'KVT K Thành', laChu: false, phamVi: 'K Thành' };
@@ -171,7 +169,8 @@ kiem('tên kỳ vận động đúng',
 const moTa = await page.locator('#vd_moTa').textContent();
 kiem('nói rõ kỳ hạn', moTa.includes(BD) && moTa.includes(KT), moTa);
 kiem('có đếm ngày còn lại', /Còn \d+ ngày|Đã kết thúc|Chưa bắt đầu/.test(moTa), moTa);
-kiem('⚠️ nói rõ KHÔNG phải nhập lại ở đây', /không phải nhập lại/.test(moTa), moTa);
+kiem('⚠️ nói rõ số lấy từ đâu, KHÔNG phải nhập lại ở đây',
+  /Nhật ký đơn thuần/.test(moTa) && /không phải nhập lại/.test(moTa), moTa);
 
 // ---------------------------------------------------------------------
 console.log('\n2) ⚠️⚠️ RẼ NHÁNH — kỳ vận động KHÔNG rơi vào lưới của Lễ hội Lời');
@@ -182,105 +181,106 @@ kiem('⚠️ KHÔNG có ô tích nào của Lễ hội Lời',
 kiem('KHÔNG hiện câu "không có lễ hội nào"',
   !(await page.locator('#lhNoneCard').isVisible()));
 // ⚠️ Đây là điều làm kỳ vận động khác hẳn Lễ hội Lời: KHÔNG có gì để bấm.
-kiem('⚠️ trong khung kỳ vận động KHÔNG có nút/ô nhập nào',
-  (await page.locator('#vdContent button, #vdContent input').count()) === 0);
 
 // ---------------------------------------------------------------------
-console.log('\n3) Bảng theo dõi của khu vực');
-const bang = await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_bangKV tbody tr')].map((tr) =>
-    [...tr.children].map((td) => {
-      const so = td.querySelector('.td-so');
-      return (so ? so.textContent : td.textContent).trim();
-    })));
-kiem('2 thành viên + 1 dòng tổng', bang.length === 3, JSON.stringify(bang));
-// Tên + 5 hạng mục + Điểm = 7 cột.
-kiem('⭐ đủ 5 hạng mục theo bảng điểm Hội Thánh + cột Điểm',
-  bang[0].length === 7, JSON.stringify(bang[0]));
-kiem('Cô A có 5 đơn thuần', bang[0][0] === 'Cô A' && bang[0][1] === '5', JSON.stringify(bang[0]));
-// 5 đơn thuần (5 điểm) + 1 chiên bị mất (500 điểm) = 505.
-kiem('⭐ Cô A: 5 đơn thuần + 1 chiên bị mất -> 505 điểm',
-  bang[0][5] === '1' && bang[0][6] === '505', JSON.stringify(bang[0]));
-kiem('Cô B có 1 hữu hiệu', bang[1][0] === 'Cô B' && bang[1][2] === '1', JSON.stringify(bang[1]));
-kiem('dòng cuối là tổng khu vực', bang[2][0] === 'Cả khu vực', bang[2][0]);
+console.log('\n3) Bảng xếp hạng — MỘT bảng duy nhất, ba cột số, KHÔNG có điểm');
+{
+  const b = await page.evaluate(() =>
+    [...document.querySelectorAll('#vd_bang tbody tr')].map((tr) =>
+      [...tr.children].map((td) => td.textContent.trim())));
+  kiem('3 người + 1 dòng tổng', b.length === 4, JSON.stringify(b));
+  kiem('5 cột: Hạng · Người · Đơn thuần · Hữu hiệu · Báp-têm',
+    b[0].length === 5, JSON.stringify(b[0]));
+  const dau = await page.locator('#vd_bang thead').textContent();
+  kiem('⚠️⚠️ KHÔNG có cột Điểm nào', !/Điểm/.test(dau), dau);
+  kiem('tiêu đề nói rõ đang xếp theo cột nào', /xếp theo cột này/.test(dau));
 
-const dauKV = await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_bangKV thead th')].map((x) => x.textContent.trim()));
-kiem('tiêu đề có đủ Báp-têm dự lễ và Chiên bị mất',
-  dauKV.includes('Báp-têm dự lễ') && dauKV.includes('Chiên bị mất'), JSON.stringify(dauKV));
+  // ⚠️ Xếp bậc thang: Cô C có 1 báp-têm nên đứng đầu, dù Cô A có tới 30 đơn
+  // thuần còn Cô C thì 0. Đây CHÍNH LÀ điều anh Rise chốt 30/08/2026, và cũng
+  // chính là chỗ thứ hạng ở web khác thứ hạng theo điểm của memo.
+  kiem('⚠️ người có Báp-têm đứng đầu dù ít đơn thuần hơn hẳn',
+    b[0][0] === '🥇' && b[0][1] === 'Cô C' && b[0][4] === '1' && b[0][2] === '0',
+    JSON.stringify(b[0]));
+  kiem('⚠️ 0 báp-têm thì xét tiếp Hữu hiệu — Cô B (1 hữu hiệu) trên Cô A (0)',
+    b[1][1] === 'Cô B' && b[1][3] === '1', JSON.stringify(b[1]));
+  kiem('⚠️ Cô A 30 đơn thuần vẫn xếp cuối vì thua ở hai nấc trên',
+    b[2][1] === 'Cô A' && b[2][2] === '30', JSON.stringify(b[2]));
 
-// ⚠️ Hai hạng mục mới KHÔNG có chỗ đặt mục tiêu -> ô của chúng chỉ hiện con
-// số, KHÔNG được hiện "chưa đặt MT". Nhắc một điều không ai làm gì được là
-// nhiễu, và người ta sẽ quen bỏ qua cả những lời nhắc thật.
-const soODong0 = await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_bangKV tbody tr')[0].children]
-    .map((td) => (td.querySelector('.td-mt') ? 'CO' : 'KHONG')));
-kiem('⚠️ hai cột mới KHÔNG có dòng "chưa đặt MT"',
-  soODong0[4] === 'KHONG' && soODong0[5] === 'KHONG', JSON.stringify(soODong0));
-kiem('...nhưng ba cột cũ thì CÓ',
-  soODong0[1] === 'CO' && soODong0[2] === 'CO' && soODong0[3] === 'CO', JSON.stringify(soODong0));
+  kiem('dòng cuối là tổng cả Si-ôn', b[3][1] === 'Cả Si-ôn', b[3][1]);
+  kiem('⚠️ tổng Đơn thuần lấy từ nguồn (30 + 8 chưa ghi tên = 38)',
+    b[3][2] === '38', b[3][2]);
 
-const mt = await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_bangKV tbody tr')[0].querySelectorAll('.td-mt')]
-    .map((x) => x.textContent.trim().replace(/\s+/g, ' ')));
-kiem('đích + % hiện đúng: 5 / 10 · 50%', mt[0] === '/ 10 · 50%', JSON.stringify(mt));
-kiem('⚠️ hạng mục chưa đặt mục tiêu ghi "chưa đặt MT", KHÔNG phải 0%',
-  mt[2] === 'chưa đặt MT' && !mt.includes('0%'), JSON.stringify(mt));
-
-const chu3 = await page.locator('#vd_bangKV').textContent();
-kiem('⚠️ có cảnh báo người có số nhưng chưa trong danh sách thành viên',
-  /Cô Lạ/.test(chu3) && /chưa có trong danh sách thành viên/.test(chu3));
-kiem('⚠️ có cảnh báo số chưa ghi tên người dẫn dắt',
-  /chưa ghi tên người dẫn dắt/.test(chu3) && /8 đơn thuần/.test(chu3));
-kiem('⚠️ chú thích CẤM cộng / trung bình ba cột %',
-  /ĐỪNG cộng hay lấy trung bình/.test(chu3));
-kiem('⚠️ nói rõ Hữu hiệu và Báp-têm đếm theo NGƯỜI',
-  /đếm theo NGƯỜI/.test(chu3));
-kiem('⚠️ nói rõ số có thể KHÁC bảng Thi đua vì đọc Sổ mốc',
-  /Sổ mốc/.test(chu3) && /Thi đua/.test(chu3));
+  const chu = await page.locator('#vd_bang').textContent();
+  kiem('⚠️ chú thích nói rõ web KHÔNG có điểm, điểm xem bên memo',
+    /không có điểm/i.test(chu) && /memo/i.test(chu), chu.slice(0, 240));
+  kiem('⚠️ ...và nói rõ thứ hạng ở đây CÓ THỂ KHÁC bên memo', /có thể khác/.test(chu));
+  kiem('⚠️ chú thích cảnh báo dòng tổng không phải cộng các dòng trên',
+    /không phải cộng các dòng trên/.test(chu));
+  kiem('⚠️ cảnh báo 8 đơn thuần chưa ghi tên người dẫn dắt',
+    /8 đơn thuần/.test(chu) && /chưa ghi tên/.test(chu), chu.slice(-260));
+}
 
 // ---------------------------------------------------------------------
-console.log('\n4) Bảng xếp hạng cả Si-ôn');
-const xh = await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_xepHang tbody tr')].map((tr) =>
-    [...tr.children].map((td) => td.textContent.trim())));
-// ⚠️ 4 người chứ không phải 3: "Cô Lạ" có số nhưng chưa có trong danh sách
-// thành viên. Bảng xếp hạng CỐ Ý vẫn hiện cô ấy (khu vực để "—") — số của ai
-// thì phải thuộc về người đó, giấu đi là làm mất công sức của người thật.
-kiem('4 người + 1 dòng tổng', xh.length === 5, JSON.stringify(xh));
-kiem('⭐ Cô C: 1 báp-têm + 1 BT dự lễ = 500 + 1000 = 1500 điểm',
-  xh[0][1] === 'Cô C' && xh[0][xh[0].length - 1] === '1500', JSON.stringify(xh[0]));
-kiem('⚠️ người chưa có trong danh sách thành viên VẪN được xếp hạng',
-  xh.some((r) => r[1] === 'Cô Lạ' && r[2] === '—'), JSON.stringify(xh));
-kiem('dòng cuối là tổng cả Si-ôn', xh[4][1] === 'Cả Si-ôn', xh[4][1]);
-// ⚠️ Tìm cột theo TÊN chứ không đếm vị trí: thứ tự cột đổi theo `xepTheo`
-// (cột đang dùng để xếp hạng được đưa lên trước), gõ cứng chỉ số là ca này
-// sẽ đỏ oan ngay lần đầu anh Rise đổi bảng điểm.
-const cotDT = (await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_xepHang thead th')].map((x) => x.textContent.trim())
-)).indexOf('Đơn thuần');
-kiem('⚠️ tổng Đơn thuần lấy từ nguồn (16 = 5+3+8), tính cả phần chưa ghi tên',
-  cotDT > 0 && xh[4][cotDT] === '16', JSON.stringify(xh[4]));
-kiem('người điểm cao nhất đứng đầu và được 🥇',
-  xh[0][1] === 'Cô C' && xh[0][0] === '🥇', JSON.stringify(xh[0]));
-const dauXH = await page.evaluate(() =>
-  [...document.querySelectorAll('#vd_xepHang thead th')].map((x) => x.textContent.trim()));
-kiem('có cột Điểm khi bảng điểm đã khai', dauXH.includes('Điểm'), JSON.stringify(dauXH));
-kiem('tiêu đề có đủ 5 hạng mục', dauXH.length === 9, JSON.stringify(dauXH));
-const chu4 = await page.locator('#vd_xepHang').textContent();
-kiem('⚠️ nói rõ dòng Cả Si-ôn KHÔNG phải cộng các dòng trên',
-  /không phải cộng các dòng trên/.test(chu4));
+console.log('\n4) ⚠️⚠️ MÀN HÌNH KỲ VẬN ĐỘNG CHỈ ĐỌC — không có gì để nhập');
+{
+  // Số đã nhập ở Nhật ký đơn thuần + Sổ mốc rồi. Thêm ô nhập ở đây là bắt cả
+  // phòng nhập lại lần thứ hai — anh Rise chốt: "web chỉ chép con số một lần".
+  kiem('⚠️ KHÔNG có nút nào trong khung kỳ vận động',
+    (await page.locator('#vdContent button').count()) === 0);
+  kiem('⚠️ KHÔNG có ô nhập nào',
+    (await page.locator('#vdContent input, #vdContent textarea').count()) === 0);
+}
 
 // ---------------------------------------------------------------------
-console.log('\n5) Phân quyền');
+console.log('\n5) KVT xem được bảng xếp hạng cả Si-ôn (thi đua phải nhìn thấy nhau)');
 await vaoVai(KVT, ['K Thành'], false, 'K Thành');
-kiem('KVT xem được bảng khu vực mình',
-  /Cô A/.test(await page.locator('#vd_bangKV').textContent()));
-kiem('KVT vẫn xem được bảng xếp hạng cả Si-ôn (thi đua phải nhìn thấy nhau)',
-  /Cô C/.test(await page.locator('#vd_xepHang').textContent()));
+{
+  const chu = await page.locator('#vd_bang').textContent();
+  kiem('KVT xem được người của khu vực khác', /Cô C/.test(chu));
+  kiem('...và số ca vẫn hiện đầy đủ', /30/.test(chu));
+  kiem('⚠️ KVT cũng không có gì để nhập',
+    (await page.locator('#vdContent button, #vdContent input').count()) === 0);
+}
 
 // ---------------------------------------------------------------------
-console.log('\n6) Lễ hội Lời cũ KHÔNG bị ảnh hưởng');
+console.log('\n6) ⚠️⚠️ MỞ THẬT menu 🏛️ Trudo — bảng xếp hạng CHUNG phải vẽ được');
+await vaoVai(CHU, [], true, 'K Thành');
+{
+  // ⚠️⚠️ BÀI HỌC 30/08/2026: bản trước suýt đẩy lên đã vô tình cắt mất mấy hàm
+  // dùng chung trong trudo-ui.js (goi/esc/ngayVN) khi gỡ khối thang điểm. Cả
+  // bộ kiểm thử vẫn XANH vì không ca nào mở menu Trudo. Ca dưới đây mở THẬT.
+  await page.evaluate(() => {
+    Object.keys(_apiCache).forEach((x) => delete _apiCache[x]);
+    showPanel('trudo');
+  });
+  await page.waitForTimeout(600);
+  await page.evaluate(() => {
+    const n = [...document.querySelectorAll('#trudoPills .kv-pill')]
+      .find((x) => x.getAttribute('data-sub') === 'xephang');
+    if (n) n.click();
+  });
+  await page.waitForTimeout(1400);
+
+  const loi = loiJS.filter((x) => !/ERR_FAILED|net::/.test(x));
+  kiem('⚠️⚠️ mở menu Trudo KHÔNG sinh lỗi JavaScript nào', loi.length === 0, loi.join(' | '));
+
+  const bang = await page.evaluate(() =>
+    [...document.querySelectorAll('#trudo-sub-xephang table tbody tr')].map((tr) =>
+      [...tr.children].map((td) => td.textContent.trim())));
+  kiem('bảng 🏆 Xếp hạng chung vẽ được và có người', bang.length >= 1, JSON.stringify(bang));
+  kiem('⚠️ đúng 5 cột — KHÔNG còn cột Tổng điểm', bang[0].length === 5, JSON.stringify(bang[0]));
+  const dau = await page.locator('#trudo-sub-xephang thead').textContent();
+  kiem('⚠️⚠️ tiêu đề KHÔNG có chữ "điểm"', !/[Đđ]iểm/.test(dau), dau);
+  kiem('...và nói rõ xếp theo Báp-têm', /xếp theo cột này/.test(dau), dau);
+  kiem('⚠️ KHÔNG còn hai tab con Báp-têm dự lễ / Chiên bị mất',
+    (await page.locator('#trudoPills [data-sub="btdule"], #trudoPills [data-sub="chien"]').count()) === 0);
+
+  const chu = await page.locator('#trudo-sub-xephang').textContent();
+  kiem('chú thích nói rõ web không có điểm', /không có điểm/i.test(chu), chu.slice(0, 200));
+}
+
+// ---------------------------------------------------------------------
+console.log('\n7) Lễ hội Lời cũ KHÔNG bị ảnh hưởng');
 {
   // Xoá kỳ vận động đi để getLeHoiBanner rơi về Lễ hội Lời.
   sqlite.prepare('DELETE FROM le_hoi_cau_hinh WHERE ma_le_hoi = ?').run(MA);
@@ -295,7 +295,7 @@ console.log('\n6) Lễ hội Lời cũ KHÔNG bị ảnh hưởng');
 }
 
 // ---------------------------------------------------------------------
-console.log('\n7) Không có lỗi JavaScript nào trên trang');
+console.log('\n8) Không có lỗi JavaScript nào trên trang');
 {
   const that = loiJS.filter((x) => !/ERR_FAILED|net::/.test(x));
   kiem('trang chạy sạch, không lỗi JS', that.length === 0, that.join(' | '));
