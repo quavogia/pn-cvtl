@@ -451,16 +451,43 @@ export async function getLeHoiActive({ db }) {
  * Dùng cho banner ở trang Tổng quan: đang diễn ra thì trả lễ hội đó
  * (trangThai 'active'); không có thì trả lễ hội SẮP tới gần nhất
  * (trangThai 'upcoming'); không có cả hai -> null (giao diện ẩn banner).
+ *
+ * ⚠️⚠️ 30/08/2026 — TRẢ VỀ MỖI LOẠI MỘT CÁI, KHÔNG PHẢI CHỈ MỘT.
+ * Trước đây hàm này chỉ trả về một lễ hội. Ngay khi anh Rise tạo kỳ vận động
+ * tháng 9, nó chiếm chỗ và bảng xếp hạng Lễ hội Lời BIẾN MẤT khỏi trang Tổng
+ * quan — anh Rise phát hiện ngay hôm đó. Hai loại lễ hội chạy nối nhau thì
+ * trang Tổng quan phải hiện được đúng cái đang tới lượt.
+ *
+ * ⚠️ `leHoiLoi` / `vanDong` CHỈ trả về khi kỳ đó ĐANG DIỄN RA — anh Rise chốt
+ * 30/08/2026: "xếp hạng lễ hội truyền đạo chỉ xuất hiện 01/09 đến 30/09, còn
+ * lễ hội lời xuất hiện cho đến hết 31/08". Nghĩa là bảng xếp hạng sống đúng
+ * bằng kỳ của nó: không hiện trước ngày bắt đầu, tắt sau ngày kết thúc.
+ *
+ * Banner (dòng nhắc ở đầu trang) thì GIỮ NGUYÊN nếp cũ — vẫn báo trước cả kỳ
+ * sắp tới, để anh biết lịch chứ không phải chờ tới đúng ngày mới thấy.
  */
 export async function getLeHoiBanner({ db }) {
   const ds = await layCauHinhLeHoi(db);
   const nay = homNay();
-  const dangDienRa = ds.find((lh) => lh.ngayBatDau && lh.ngayKetThuc && nay >= lh.ngayBatDau && nay <= lh.ngayKetThuc);
+  const dangChay = (x) => x.ngayBatDau && x.ngayKetThuc && nay >= x.ngayBatDau && nay <= x.ngayKetThuc;
+
+  const dangDienRa = ds.find(dangChay);
   // Danh sách đã sắp theo ngày bắt đầu nên cái đầu tiên chính là gần nhất.
   const sapToi = ds.find((lh) => lh.ngayBatDau && lh.ngayBatDau > nay);
   const lh = dangDienRa || sapToi;
   if (!lh) return null;
-  return { ...goiCauHinhVeGiaoDien(lh), trangThai: dangDienRa ? 'active' : 'upcoming' };
+
+  const dangChayLoai = (laLoi) => {
+    const x = ds.find((y) => dangChay(y) && ((y.loai || 'loi') === 'loi') === laLoi);
+    return x ? goiCauHinhVeGiaoDien(x) : null;
+  };
+  return {
+    ...goiCauHinhVeGiaoDien(lh),
+    trangThai: dangDienRa ? 'active' : 'upcoming',
+    // Hai trường THÊM, không đụng trường cũ -> mã cũ không vỡ.
+    leHoiLoi: dangChayLoai(true),
+    vanDong: dangChayLoai(false),
+  };
 }
 
 /**
