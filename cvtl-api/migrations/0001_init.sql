@@ -117,6 +117,7 @@ CREATE TABLE IF NOT EXISTS tp_tho_phuong (
   loai      TEXT NOT NULL,         -- 1lan | 4lan
   tuan      INTEGER NOT NULL,      -- 1..5
   so_luong  INTEGER NOT NULL DEFAULT 0,
+  tu_dong   INTEGER NOT NULL DEFAULT 1, -- 1=máy tự điền (được tự sửa lại sau) | 0=đã gõ tay (khoá)
   PRIMARY KEY (thang, khu_vuc, loai, tuan)
 );
 
