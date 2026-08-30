@@ -377,7 +377,7 @@ export async function getDaoTaoViecList({ db }, khuVuc) {
 /** Đọc toàn bộ cấu hình lễ hội, sắp theo ngày bắt đầu. Bảng rỗng -> mảng rỗng. */
 async function layCauHinhLeHoi(db) {
   const rows = await db.all(
-    `SELECT ma_le_hoi, ten_le_hoi, ngay_bat_dau, ngay_ket_thuc, danh_sach_bai, so_lan_yeu_cau
+    `SELECT ma_le_hoi, ten_le_hoi, ngay_bat_dau, ngay_ket_thuc, danh_sach_bai, so_lan_yeu_cau, loai
        FROM le_hoi_cau_hinh`
   );
   const ds = [];
@@ -391,11 +391,30 @@ async function layCauHinhLeHoi(db) {
       ngayKetThuc: chuanNgay(r.ngay_ket_thuc),
       danhSachBai: tachDanhSach(r.danh_sach_bai),
       soLanYeuCau: Number(r.so_lan_yeu_cau) || LEHOI_SO_LAN_MAC_DINH,
+      // ⭐ 27/08/2026 — hai loại lễ hội dùng chung bảng cấu hình này:
+      //   'loi'        Lễ hội Lời (bài × lần, người tự tích) — mặc định
+      //   'truyen_dao' Kỳ vận động truyền đạo — số tự chảy vào, KHÔNG tích tay
+      // Giao diện đọc trường này để rẽ nhánh. Dòng cũ không có cột -> 'loi',
+      // nên mọi lễ hội đang chạy giữ nguyên hành vi.
+      loai: chuoi(r.loai) || 'loi',
     });
   }
   // Ngày dạng "yyyy-MM-dd" nên so sánh chuỗi là đúng thứ tự thời gian.
   ds.sort((a, b) => (a.ngayBatDau < b.ngayBatDau ? -1 : a.ngayBatDau > b.ngayBatDau ? 1 : 0));
   return ds;
+}
+
+/**
+ * ⚠️ Chặn gọi nhầm. Kỳ vận động truyền đạo KHÔNG có "bài" và KHÔNG có ô để
+ * tích. Không chặn thì `danhSachBai` rỗng sẽ cho ra tổng số lần yêu cầu = 0,
+ * và màn hình hiện một lưới trống trơn trông y như hỏng — loại lỗi im lặng
+ * khó tìm nhất. Thà báo một câu rõ ràng.
+ */
+function chanNeuKhongPhaiLeHoiLoi(lh) {
+  if (lh.loai && lh.loai !== 'loi') {
+    throw new Error('"' + lh.ma + '" là kỳ vận động loại "' + lh.loai
+      + '", không có bài để phát biểu — dùng getVanDongTienDo thay cho hàm này.');
+  }
 }
 
 async function timCauHinhLeHoi(db, maLeHoi) {
@@ -412,6 +431,7 @@ function goiCauHinhVeGiaoDien(lh) {
     ngayKetThuc: lh.ngayKetThuc,
     danhSachBai: lh.danhSachBai,
     soLanYeuCau: lh.soLanYeuCau,
+    loai: lh.loai,
   };
 }
 
@@ -453,6 +473,7 @@ export async function getLeHoiBanner({ db }) {
 export async function getLeHoiTienDoAll({ db }, maLeHoi) {
   const cauHinh = await timCauHinhLeHoi(db, maLeHoi);
   if (!cauHinh) throw new Error('Không tìm thấy lễ hội: ' + chuoi(maLeHoi));
+  chanNeuKhongPhaiLeHoiLoi(cauHinh);
 
   const [roster, tienDo] = await Promise.all([
     layDanhSachThanhVien(db),
@@ -552,6 +573,7 @@ export async function toggleLeHoiLan({ db }, maLeHoi, khuVuc, ten, maBai, lan, d
 
   const cauHinh = await timCauHinhLeHoi(db, ma);
   if (!cauHinh) throw new Error('Không tìm thấy lễ hội: ' + ma);
+  chanNeuKhongPhaiLeHoiLoi(cauHinh);
   const maB = chuoi(maBai);
   if (!cauHinh.danhSachBai.includes(maB)) throw new Error('Bài không thuộc lễ hội này: ' + maB);
   const soLan = Number(lan);
