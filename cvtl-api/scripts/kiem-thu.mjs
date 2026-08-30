@@ -363,6 +363,63 @@ console.log('\n3b) Gợi ý ≥1/≥4 lần phải CỘNG DỒN từ đầu thá
     kt?.hasData[0] === true && kt?.hasData[3] === true && kt?.hasData[4] === false, JSON.stringify(kt?.hasData));
 }
 
+console.log('\n3c) Tự đồng bộ bảng TP theo Điểm danh — dongBoTPTuDiemDanh (30/08/2026, sửa lỗi K Đức "≥4 lần" kẹt số cũ 6 dù Điểm danh mới đã lên 7)');
+{
+  // "M" đi đủ 4 buổi TRONG Tuần 1 -> Tuần 1: weeks1=1, weeks4=1, hasData=true.
+  // Từ Tuần 2 trở đi weeks1/weeks4 vẫn giữ 1 (cộng dồn) nhưng hasData=false vì
+  // chưa ai điểm danh thêm — đúng luật "không tự điền khi chưa có dữ liệu mới".
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'M đủ 4 buổi', 1, 'T3toi', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'M đủ 4 buổi', 1, 'CNsang', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'M đủ 4 buổi', 1, 'CNchieu', '211'], NV);
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'M đủ 4 buổi', 1, 'CNtoi', '211'], NV);
+
+  // Ô "tự động điền" (tuDong=true) nhưng SỐ ĐANG SAI (5 thay vì đúng 1) — giả
+  // lập đúng ca thật: số đã kẹt lại từ trước, Điểm danh đổi rồi mà chưa đồng bộ.
+  await goi('saveTPWeek', [TH, 'K Đức', '1lan', 1, 5, true], CHU);
+  // Ô đã bị Trưởng phòng TỰ GÕ TAY (tuDong=false) — dù số cũng sai (9) vẫn
+  // TUYỆT ĐỐI không được đụng vào.
+  await goi('saveTPWeek', [TH, 'K Đức', '4lan', 1, 9, false], CHU);
+  // Ô tự động điền của Tuần 3 — Tuần 3 CHƯA có ai điểm danh mới (hasData=false)
+  // nên dù số "sai" (42) cũng không được tự sửa — tránh tự điền khi chưa chắc.
+  await goi('saveTPWeek', [TH, 'K Đức', '1lan', 3, 42, true], CHU);
+
+  let r = await goi('dongBoTPTuDiemDanh', [TH, 'K Đức'], CHU);
+  kiem('gọi trực tiếp: chỉ đúng 1 ô được cập nhật (ô tự động, sai số, có dữ liệu mới)',
+    r.result?.capNhat === 1, JSON.stringify(r));
+
+  const layTP = (loai, tuan) => sqlite.prepare(
+    'SELECT so_luong, tu_dong FROM tp_tho_phuong WHERE thang=? AND khu_vuc=? AND loai=? AND tuan=?'
+  ).get(TH, 'K Đức', loai, tuan);
+  kiem('ô tự động Tuần 1 (1lần) được SỬA LẠI đúng 1 (từ 5)',
+    layTP('1lan', 1)?.so_luong === 1, JSON.stringify(layTP('1lan', 1)));
+  kiem('ô đã gõ tay Tuần 1 (4lần) GIỮ NGUYÊN 9, không bị đụng',
+    layTP('4lan', 1)?.so_luong === 9, JSON.stringify(layTP('4lan', 1)));
+  kiem('ô tự động Tuần 3 chưa có dữ liệu mới -> GIỮ NGUYÊN 42, không tự điền liều',
+    layTP('1lan', 3)?.so_luong === 42, JSON.stringify(layTP('1lan', 3)));
+
+  r = await goi('dongBoTPTuDiemDanh', [TH, 'Khu vực không tồn tại'], CHU);
+  kiem('khu vực lạ (chưa có Điểm danh) trả về capNhat=0, không lỗi', r.result?.capNhat === 0, JSON.stringify(r));
+
+  // ⭐ Bây giờ kiểm việc TỰ ĐỘNG kích hoạt từ saveDiemDanhCell, KHÔNG cần gọi
+  // dongBoTPTuDiemDanh tay — đúng mô hình thật: máy chủ tự sửa ngay khi Điểm
+  // danh đổi, không cần ai mở lại tab TP hay tải lại trang.
+  await goi('saveTPWeek', [TH, 'K Đức', '1lan', 1, 5, true], CHU); // làm sai lại số để kiểm lần nữa
+  const daCho = [];
+  const execCtxGia = { waitUntil(p) { daCho.push(p); } };
+  const moiTruong = { env, ctx: execCtxGia };
+  // "N" đi đủ 4 buổi trong Tuần 2 — một lượt điểm danh MỚI ở cùng khu vực,
+  // đủ để kích hoạt dongBoTPTuDiemDanh chạy nền qua ctx.waitUntil.
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'N đủ 4 buổi tuần 2', 2, 'T3toi', '211'], NV, moiTruong);
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'N đủ 4 buổi tuần 2', 2, 'CNsang', '211'], NV, moiTruong);
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'N đủ 4 buổi tuần 2', 2, 'CNchieu', '211'], NV, moiTruong);
+  await goi('saveDiemDanhCell', [TH, 'K Đức', 'N đủ 4 buổi tuần 2', 2, 'CNtoi', '211'], NV, moiTruong);
+  await Promise.all(daCho);
+  kiem('⭐ saveDiemDanhCell TỰ kích hoạt đồng bộ qua ctx.waitUntil (không cần gọi tay)',
+    layTP('1lan', 1)?.so_luong === 1, JSON.stringify(layTP('1lan', 1)));
+  kiem('...ô đã gõ tay Tuần 1 (4lần) vẫn giữ nguyên 9 suốt quá trình',
+    layTP('4lan', 1)?.so_luong === 9, JSON.stringify(layTP('4lan', 1)));
+}
+
 console.log('\n4) Báo cáo T3/T7 và khoá ô');
 {
   let r = await goi('saveTPBaoCao', [TH, 'SĐ', 3, 'T3'], NV);
@@ -416,7 +473,7 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   // "Duyệt truy cập" trong web, chỉ tài khoản chủ — thêm 17/08/2026)
   // + themKhuVucMoi/chuyenThanhVienKhuVuc (màn hình "Quản lý khu vực",
   // chỉ tài khoản chủ — thêm 19/08/2026).
-  kiem('danh mục đủ 96 hàm', ten.length === 96, 'thực tế: ' + ten.length);
+  kiem('danh mục đủ 97 hàm', ten.length === 97, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
