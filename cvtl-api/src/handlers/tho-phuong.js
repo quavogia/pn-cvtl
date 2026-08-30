@@ -108,18 +108,29 @@ export async function getTPSummary({ db }, thang) {
   });
 }
 
-export async function saveTPWeek({ db }, thang, khuVuc, loai, tuan, soLuong) {
+/**
+ * ⚠️ 30/08/2026 — tham số `tuDong` đánh dấu ô này là do MÁY tự điền (gợi ý từ
+ * Điểm danh) hay do CHÍNH TAY Trưởng phòng/nhân viên gõ. Cột `tu_dong` lưu lại
+ * lâu dài trong CSDL (không như `window._tpAutoTrack_` cũ — chỉ sống trong bộ
+ * nhớ 1 lần tải trang, mất ngay khi tải lại trang, nên KHÔNG đủ để tự sửa số
+ * liệu cũ khi Điểm danh thay đổi sau đó — đây chính là gốc của lỗi K Đức
+ * "≥4 lần" kẹt ở 6 dù Điểm danh mới đã lên 7). Ô nào `tu_dong=1` thì về sau
+ * `dongBoTPTuDiemDanh` (diem-danh.js) được phép tự cập nhật lại; ô đã gõ tay
+ * (`tu_dong=0`) thì mãi mãi không bị đụng tới nữa trừ khi tự tay gõ lại.
+ */
+export async function saveTPWeek({ db }, thang, khuVuc, loai, tuan, soLuong, tuDong) {
   if (!thangHopLe(thang)) throw new Error('Tháng không hợp lệ.');
   const kv = String(khuVuc || '').trim();
   const t = Number(tuan);
   if (!kv) throw new Error('Thiếu Khu vực.');
   if (!t || t < 1 || t > 5) throw new Error('Tuần không hợp lệ.');
   if (loai !== '1lan' && loai !== '4lan') throw new Error('Loại không hợp lệ.');
+  const td = tuDong ? 1 : 0;
 
   await db.run(
-    `INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)
-     ON CONFLICT (thang, khu_vuc, loai, tuan) DO UPDATE SET so_luong = excluded.so_luong`,
-    [thang, kv, loai, t, Number(soLuong) || 0]
+    `INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong, tu_dong) VALUES (?,?,?,?,?,?)
+     ON CONFLICT (thang, khu_vuc, loai, tuan) DO UPDATE SET so_luong = excluded.so_luong, tu_dong = excluded.tu_dong`,
+    [thang, kv, loai, t, Number(soLuong) || 0, td]
   );
   return { success: true };
 }
