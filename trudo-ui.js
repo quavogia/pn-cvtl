@@ -10,27 +10,14 @@
  *  tử theo id) vẫn chạy y như trước, không phải sửa gì.
  * ========================================================= */
 (function () {
-  // ⭐⭐ 27/08/2026 — thang điểm MỚI theo bảng Hội Thánh ban hành cho kỳ
-  // "Vận động Thánh Linh Lễ Lều Tạm". Anh Rise chốt thay luôn thang cũ
-  // (1/100/1000) để cả web nói cùng một con số.
-  // ⚠️ PHẢI KHỚP với DIEM_MOC trong cvtl-api/src/handlers/tru-do.js — hai nơi
-  // lệch nhau thì màn hình hiện một đằng, máy chủ tính một nẻo. Bộ kiểm thử
-  // giao diện có ca đọc thẳng hai file và đối chiếu.
-  const DIEM = {
-    don_thuan: 1, huu_hieu: 50, bap_tem: 500, bap_tem_du_le: 1000, chien_bi_mat: 500,
-  };
+  // ⭐⭐ 30/08/2026 — GỠ HẲN THANG ĐIỂM khỏi giao diện.
+  // Anh Rise chốt: memo (trang web Hội Thánh) đã có sẵn công thức và là sổ
+  // CHÍNH THỨC, nên điểm xem bên memo — web không tính, không hiện điểm.
+  // ⚠️ Đừng khai lại một bảng `DIEM` ở đây "cho tiện hiện chữ" — màn hình nói
+  // một thang mà nơi khác tính một thang thì người dùng không có cách nào biết.
   const TEN_MOC = {
     huu_hieu: 'Hữu hiệu',
     bap_tem: 'Báp-têm',
-    bap_tem_du_le: 'Báp-têm dự lễ',
-    chien_bi_mat: 'Chiên bị mất',
-  };
-  /** Lời nhắc riêng cho từng sổ — hai mốc mới cần nói rõ nghĩa. */
-  const GIAI_THICH_MOC = {
-    bap_tem_du_le: 'Người đã báp-têm VÀ có dự Lễ Lều Tạm. Đây là mốc CỘNG THÊM: '
-      + 'ghi ở đây không thay cho dòng trong sổ Báp-têm, một người có thể có cả hai.',
-    chien_bi_mat: 'Thánh đồ đã báp-têm nhưng bỏ lễ từ 1 năm trở lên, nay đưa được trở lại. '
-      + 'Máy không tự biết được điều này nên phải ghi tay.',
   };
 
   /** Gọi API theo kiểu Promise cho dễ đọc. */
@@ -151,15 +138,11 @@
       '<button type="button" class="kv-pill active" data-sub="donthuan">📦 Đơn thuần</button>' +
       '<button type="button" class="kv-pill" data-sub="huuhieu">🌱 Hữu hiệu</button>' +
       '<button type="button" class="kv-pill" data-sub="baptem">🕊️ Báp-têm</button>' +
-      '<button type="button" class="kv-pill" data-sub="btdule">⛺ Báp-têm dự lễ</button>' +
-      '<button type="button" class="kv-pill" data-sub="chien">🐑 Chiên bị mất</button>' +
       '<button type="button" class="kv-pill" data-sub="xephang">🏆 Xếp hạng chung</button>' +
       '</div>' +
       '<div id="trudo-sub-donthuan" class="trudo-sub active"></div>' +
       '<div id="trudo-sub-huuhieu" class="trudo-sub"></div>' +
       '<div id="trudo-sub-baptem" class="trudo-sub"></div>' +
-      '<div id="trudo-sub-btdule" class="trudo-sub"></div>' +
-      '<div id="trudo-sub-chien" class="trudo-sub"></div>' +
       '<div id="trudo-sub-xephang" class="trudo-sub"></div>';
     pAdd.parentNode.insertBefore(panel, pAdd);
 
@@ -258,7 +241,7 @@
     let h = htmlLoc(true) +
       '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">' +
       '<h3 style="margin:0">Sổ ' + TEN_MOC[moc] + '</h3>' +
-      '<span class="trudo-nho">' + ds.length + ' người · mỗi ca ' + DIEM[moc] + ' điểm chia đều cho người dẫn dắt</span>' +
+      '<span class="trudo-nho">' + ds.length + ' người</span>' +
       '<button type="button" class="trudo-nut trudo-them" style="margin-left:auto">+ Thêm thủ công</button>' +
       '</div>';
     if (!ds.length) {
@@ -291,7 +274,7 @@
     o.querySelectorAll('[data-xoa]').forEach(function (b) {
       b.onclick = async function () {
         const x = ds.find(function (y) { return String(y.row) === b.getAttribute('data-xoa'); });
-        if (!confirm('Xoá ' + x.ten + ' khỏi sổ ' + TEN_MOC[moc] + '?\n\nĐiểm của người dẫn dắt sẽ bị trừ theo.')) return;
+        if (!confirm('Xoá ' + x.ten + ' khỏi sổ ' + TEN_MOC[moc] + '?')) return;
         try { await goi('deleteSoMoc', [x.row]); showMsg('Đã xoá khỏi sổ.', true); veSo(moc, oId); lamMoiChuaGhi(); }
         catch (e) { showMsg('Lỗi xoá: ' + e.message, false); }
       };
@@ -309,12 +292,8 @@
     che.innerHTML =
       '<div class="trudo-hop">' +
       '<h3>' + (laSua ? 'Sửa dòng sổ ' : '🎉 Ghi vào sổ ') + TEN_MOC[d.moc] + '</h3>' +
-      (GIAI_THICH_MOC[d.moc]
-        ? '<div class="trudo-nho" style="background:#f8fafc;border-left:3px solid #94a3b8;padding:8px 10px;'
-          + 'border-radius:0 6px 6px 0;margin-bottom:10px;line-height:1.6">' + GIAI_THICH_MOC[d.moc] + '</div>'
-        : '') +
       '<div class="trudo-nho">Mỗi người chỉ ghi <b>một lần</b> cho mỗi mốc. ' +
-      'Mốc này được <b>' + DIEM[d.moc] + ' điểm</b>, chia đều cho số người dẫn dắt.</div>' +
+      'Ghi xong thì cột ' + TEN_MOC[d.moc] + ' ở bảng xếp hạng tăng lên.</div>' +
       '<label>Tên học viên *</label><input id="gs_ten" value="' + esc(d.ten || '') + '"' + (laSua ? ' disabled' : '') + '>' +
       '<label>Khu vực *</label><select id="gs_kv"' + (laSua ? ' disabled' : '') + '>' +
       dsKV.map(function (kv) { return '<option' + (kv === d.khuVuc ? ' selected' : '') + '>' + esc(kv) + '</option>'; }).join('') +
@@ -421,32 +400,33 @@
     if (!b.danhSach.length) {
       h += '<div class="trudo-nho" style="padding:16px 0">Chưa có dữ liệu trong khoảng thời gian này.</div>';
     } else {
+      // ⭐ 30/08/2026 — BA cột số, web tự đếm cả ba. Không còn cột Điểm:
+      // điểm là việc của memo Hội Thánh, xem đầu handlers/tru-do.js.
+      // Cột đang dùng để xếp hạng (Báp-têm) tô đậm cho nhìn là biết.
       h += '<table class="trudo-bang"><thead><tr><th style="width:56px">Hạng</th><th>Người dẫn dắt</th>' +
         '<th class="trudo-giua">Đơn thuần</th><th class="trudo-giua">Hữu hiệu</th>' +
-        '<th class="trudo-giua">Báp-têm</th><th class="trudo-giua">BT dự lễ</th>' +
-        '<th class="trudo-giua">Chiên bị mất</th><th class="trudo-giua" style="width:110px">Tổng điểm</th>' +
+        '<th class="trudo-giua" style="color:#0f766e">Báp-têm<br>' +
+        '<span style="font-weight:400;font-size:10px">xếp theo cột này</span></th>' +
         '</tr></thead><tbody>' +
         b.danhSach.map(function (x) {
           const huy = x.hang === 1 ? '🥇' : (x.hang === 2 ? '🥈' : (x.hang === 3 ? '🥉' : x.hang));
           return '<tr><td style="font-size:17px">' + huy + '</td><td><b>' + esc(x.ten) + '</b></td>' +
             '<td class="trudo-giua">' + soDep(x.donThuan) + '</td>' +
             '<td class="trudo-giua">' + x.huuHieu + '</td>' +
-            '<td class="trudo-giua">' + x.bapTem + '</td>' +
-            '<td class="trudo-giua">' + (x.bapTemDuLe || 0) + '</td>' +
-            '<td class="trudo-giua">' + (x.chienBiMat || 0) + '</td>' +
-            '<td class="trudo-giua"><b style="font-size:15px">' + soDep(x.diem) + '</b></td></tr>';
+            '<td class="trudo-giua"><b style="font-size:15px">' + x.bapTem + '</b></td></tr>';
         }).join('') + '</tbody></table>';
     }
     h += '<div class="trudo-tomtat">Trong khoảng đang xem: <b>' + t.soDonThuan + '</b> đơn thuần · ' +
-      '<b>' + t.soHuuHieu + '</b> hữu hiệu · <b>' + t.soBapTem + '</b> báp-têm · ' +
-      '<b>' + (t.soBapTemDuLe || 0) + '</b> BT dự lễ · <b>' + (t.soChienBiMat || 0) + '</b> chiên bị mất · ' +
-      'tổng <b>' + soDep(t.tongDiem) + ' điểm</b>.<br>' +
-      'Cách tính: 1 đơn thuần = 1 điểm · 1 hữu hiệu = 50 điểm · 1 báp-têm = 500 điểm · ' +
-      '1 báp-têm dự lễ = 1000 điểm · 1 chiên bị mất = 500 điểm, <b>chia đều</b> cho số người dẫn dắt.' +
-      '<br><span style="color:#b45309">⚠️ Thang điểm đổi từ 27/08/2026 theo bảng Hội Thánh ban hành — ' +
-      'số ca không đổi, chỉ điểm đổi so với trước.</span>' +
-      (t.diemChuaCoNguoi > 0 ? '<br><span style="color:#b45309">⚠️ Có ' + soDep(t.diemChuaCoNguoi) +
-        ' điểm chưa thuộc về ai vì dòng đó không ghi tên người dẫn dắt.</span>' : '') +
+      '<b>' + t.soHuuHieu + '</b> hữu hiệu · <b>' + t.soBapTem + '</b> báp-têm.' +
+      '<br>Cột <b>Đơn thuần</b> là số lượng đã <b>chia đều</b> cho số người dẫn dắt của dòng đó. ' +
+      'Cột <b>Hữu hiệu</b> / <b>Báp-têm</b> đếm theo <b>người</b> — hai người cùng dẫn một người thì ' +
+      'cả hai đều được tính 1, nên cộng cột lại sẽ lớn hơn số thật của phòng.' +
+      '<br>📌 Xếp hạng theo <b>Báp-têm</b> trước, bằng nhau mới xét <b>Hữu hiệu</b>, rồi ' +
+      '<b>Đơn thuần</b>. <b>Web không có điểm</b> — điểm xem bên memo của Hội Thánh, ' +
+      'nên thứ hạng ở đây <b>có thể khác</b> thứ hạng theo điểm bên đó.' +
+      (t.soChuaCoNguoi > 0 ? '<br><span style="color:#b45309">⚠️ Có ' + soDep(t.soChuaCoNguoi) +
+        ' đơn thuần chưa thuộc về ai vì dòng đó không ghi tên người dẫn dắt. ' +
+        'Vẫn được tính vào tổng của phòng.</span>' : '') +
       '</div></div>';
 
     if (kyDaChot.length) {
@@ -467,10 +447,9 @@
     const nutXuat = o.querySelector('.trudo-xuat');
     if (nutXuat) nutXuat.onclick = function () {
       xuatCsv('xep-hang.csv',
-        ['Hạng', 'Người dẫn dắt', 'Đơn thuần', 'Hữu hiệu', 'Báp-têm', 'BT dự lễ', 'Chiên bị mất', 'Tổng điểm'],
+        ['Hạng', 'Người dẫn dắt', 'Đơn thuần', 'Hữu hiệu', 'Báp-têm'],
         b.danhSach.map(function (x) {
-          return [x.hang, x.ten, x.donThuan, x.huuHieu, x.bapTem,
-            x.bapTemDuLe || 0, x.chienBiMat || 0, x.diem];
+          return [x.hang, x.ten, x.donThuan, x.huuHieu, x.bapTem];
         }));
     };
     o.querySelector('#trudoChot').onclick = async function () {
@@ -489,7 +468,10 @@
         try {
           const k = await goi('getChotKy', [bt.getAttribute('data-xemky')]);
           alert('Kỳ ' + k.ky + ' (chốt bởi ' + (k.nguoiChot || '?') + ')\n\n' +
-            k.danhSach.map(function (x, i) { return (i + 1) + '. ' + x.ten + ' — ' + x.diem + ' điểm'; }).join('\n'));
+            k.danhSach.map(function (x, i) {
+              return (i + 1) + '. ' + x.ten + ' — ' + x.bapTem + ' báp-têm · '
+                + x.huuHieu + ' hữu hiệu · ' + x.donThuan + ' đơn thuần';
+            }).join('\n'));
         } catch (e) { showMsg(e.message, false); }
       };
     });
@@ -533,8 +515,6 @@
   function taiTabCon() {
     if (trangThai.sub === 'huuhieu') { lamMoiChuaGhi(); veSo('huu_hieu', 'trudoSoHuuHieu'); }
     else if (trangThai.sub === 'baptem') veSo('bap_tem', 'trudo-sub-baptem');
-    else if (trangThai.sub === 'btdule') veSo('bap_tem_du_le', 'trudo-sub-btdule');
-    else if (trangThai.sub === 'chien') veSo('chien_bi_mat', 'trudo-sub-chien');
     else if (trangThai.sub === 'xephang') veXepHang();
   }
 
