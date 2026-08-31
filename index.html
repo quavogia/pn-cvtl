@@ -1750,7 +1750,7 @@ function renderTuanFilterUI_(containerId, dsTuan, dsChon, tenHamTick, tenHamNhan
     '<span style="color:#64748b;">Hiện tuần:</span>';
   dsTuan.forEach(function(t){
     const checked = dsChon.indexOf(t) >= 0;
-    html += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">' +
+    html += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">' +
       '<input type="checkbox"' + (checked ? ' checked' : '') +
       ' onchange="' + tenHamTick + '(' + t + ', this.checked)"> Tuần ' + t + '</label>';
   });
