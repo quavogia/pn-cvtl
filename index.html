@@ -856,8 +856,9 @@
               <button type="button" onclick="addTPDDMemberQuick()">+ Thêm</button>
             </div>
           </div>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng, dùng để tự động điền số liệu ≥1 lần/≥4 lần ở bảng phía trên.</p>
+          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng (tính đủ mọi Tuần, kể cả Tuần đang ẩn bớt), dùng để tự động điền số liệu ≥1 lần/≥4 lần ở bảng phía trên. Mặc định chỉ hiện Tuần đang tới — muốn xem/sửa Tuần cũ thì tích thêm ở dòng "Hiện tuần" bên dưới.</p>
           <p id="tpddEmpty" style="color:#94a3b8;font-size:13px;display:none;">Khu vực này chưa có trong danh sách Điểm danh.</p>
+          <div id="ddTuanFilterBox"></div>
           <div style="overflow-x:auto;">
             <table class="dd-table" id="tpddTable"></table>
           </div>
@@ -919,9 +920,11 @@
         <div class="card">
           <h3 style="margin:0 0 4px">Điểm danh công việc — <span id="cv_kvName">—</span></h3>
           <p style="font-size:12px;color:#64748b;margin:0 0 10px;">
-            Mỗi người 3 dòng <b>Sáng / Chiều / Tối</b>, hiện đủ <b>Tuần 1 → Tuần 6</b> (kéo ngang để xem).
+            Mỗi người 3 dòng <b>Sáng / Chiều / Tối</b>. Mặc định chỉ hiện Tuần đang tới cho gọn — muốn xem/sửa
+            Tuần khác thì tích thêm ở dòng <b>"Hiện tuần"</b> bên dưới (tích được nhiều Tuần cùng lúc).
             Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu — xoá trắng ô là bỏ.
-            Cột <b>Tổng</b> ở mỗi dòng = số ô đã nhập của buổi đó trong cả tháng; <b>số đỏ</b> = tổng cả 3 buổi.
+            Cột <b>Tổng</b> ở mỗi dòng luôn tính <b>CẢ THÁNG</b> (đủ 6 Tuần, kể cả Tuần đang ẩn bớt), không phải chỉ
+            Tuần đang hiện; <b>số đỏ</b> = tổng cả 3 buổi.
             Danh sách người lấy từ bảng <b>Điểm danh</b> của khu vực này — thêm/xoá người ở tab <b>TP</b>.
             Đổi tháng bằng ô <b>"Xem tháng"</b> ở trên cùng.
           </p>
@@ -935,6 +938,7 @@
           <p id="cvEmpty" style="color:#94a3b8;font-size:13px;display:none;">
             Bảng đang trống — thêm người bằng ô ở trên, hoặc thêm vào bảng Điểm danh ở tab "TP".
           </p>
+          <div id="cvTuanFilterBox"></div>
           <div style="overflow-x:auto;">
             <table class="cv-table" id="cvTable"></table>
           </div>
@@ -1707,6 +1711,53 @@ function renderBarChart_(container, categories, series, forcedMax){
 function currentMonthKey(){
   const d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+}
+
+// ===== Bộ lọc "chỉ hiện Tuần đang xem" cho 2 bảng rộng Điểm danh & Công việc
+// (thêm 31/08/2026, anh Rise chốt: mặc định chỉ hiện tuần liên quan, muốn xem
+// tuần cũ thì tự tích thêm — kiểu tích chọn nhiều tuần, không phải chọn 1). =====
+
+// Tuần hiện tại (theo đúng quy tắc lịch tuần thật) của một tháng — dùng làm
+// mặc định TÍCH SẴN cho bộ lọc. PHỎNG THEO công thức tuanCuaNgay() ở
+// cvtl-api/src/lich-tuan.js (Tuần bắt đầu Chủ Nhật, Tuần 1 = tuần chứa ngày 1
+// của tháng) — nhưng dùng new Date() bình thường (giờ trình duyệt) thay vì
+// Date.UTC: bên máy chủ BẮT BUỘC dùng UTC vì Cloudflare Workers chạy giờ UTC
+// trong khi anh Rise ở UTC+7, còn ở đây là ngay trong trình duyệt của anh Rise
+// nên giờ đã là giờ Việt Nam sẵn, không cần quy đổi.
+// ⚠️ Đây CHỈ để chọn sẵn 1 tuần cho đỡ phải tự tích — chọn sai (vd lúc giao
+// mùa) thì anh chỉ cần tự tích lại tuần khác, không phải lỗi dữ liệu.
+function tuanHienTaiCuaThang_(monthKey){
+  const m = /^(\d{4})-(\d{2})$/.exec(String(monthKey || ''));
+  if (!m) return 1;
+  const nam = Number(m[1]), thang = Number(m[2]);
+  const now = new Date();
+  if (now.getFullYear() !== nam || (now.getMonth() + 1) !== thang) {
+    // Đang xem tháng khác tháng hiện tại (tháng trước/tháng sau) -> không có
+    // "tuần hiện tại" thật sự, mặc định Tuần 1 cho đỡ rối.
+    return 1;
+  }
+  const ngay = now.getDate();
+  const thuNgay1 = new Date(nam, thang - 1, 1).getDay(); // 0 = Chủ nhật
+  return Math.floor((ngay + thuNgay1 - 1) / 7) + 1;
+}
+
+// Vẽ hàng checkbox + 2 nút bấm nhanh cho 1 bảng. dsTuan = mảng số tuần của
+// bảng đó (vd [1,2,3,4,5]); dsChon = mảng số tuần ĐANG được tích.
+function renderTuanFilterUI_(containerId, dsTuan, dsChon, tenHamTick, tenHamNhanh){
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13px;padding:6px 0;">' +
+    '<span style="color:#64748b;">Hiện tuần:</span>';
+  dsTuan.forEach(function(t){
+    const checked = dsChon.indexOf(t) >= 0;
+    html += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;">' +
+      '<input type="checkbox"' + (checked ? ' checked' : '') +
+      ' onchange="' + tenHamTick + '(' + t + ', this.checked)"> Tuần ' + t + '</label>';
+  });
+  html += '<button type="button" style="font-size:11px;padding:3px 8px;" onclick="' + tenHamNhanh + '(\'now\')">Chỉ tuần này</button>' +
+    '<button type="button" style="font-size:11px;padding:3px 8px;" onclick="' + tenHamNhanh + '(\'all\')">Xem tất cả</button>' +
+    '</div>';
+  box.innerHTML = html;
 }
 
 function loadDropdowns(){
@@ -3425,6 +3476,43 @@ function ddBuoiListForTuan_(tuan){
   return DD_BUOI_LIST_;
 }
 
+// ----- Bộ lọc "chỉ hiện Tuần đang xem" của bảng Điểm danh (thêm 31/08/2026) -----
+window._ddTuanChonThang = null; // tháng mà window._ddTuanChon đang áp dụng
+window._ddTuanChon = null;      // mảng số Tuần ĐANG được tích, vd [1,2]
+
+// Đảm bảo LUÔN có danh sách Tuần đang tích hợp lệ cho tháng đang xem — đổi
+// tháng thì tự đặt lại về đúng Tuần hiện tại của tháng đó; đổi Khu vực (cùng
+// tháng) thì GIỮ NGUYÊN lựa chọn đang tích, không reset.
+function ddTuanChonDamBao_(monthKey){
+  if (window._ddTuanChonThang !== monthKey || !window._ddTuanChon || !window._ddTuanChon.length) {
+    window._ddTuanChonThang = monthKey;
+    window._ddTuanChon = [Math.min(tuanHienTaiCuaThang_(monthKey), DD_TUAN_LIST_.length)];
+  }
+  return window._ddTuanChon;
+}
+
+function ddTuanToggle_(t, checked){
+  let list = (window._ddTuanChon || []).slice();
+  const idx = list.indexOf(t);
+  if (checked) {
+    if (idx < 0) { list.push(t); list.sort(function(a, b){ return a - b; }); }
+  } else if (idx >= 0 && list.length > 1) {
+    list.splice(idx, 1); // luôn phải còn ít nhất 1 Tuần được tích
+  }
+  window._ddTuanChon = list;
+  window._ddTuanChonThang = kvMonthKey();
+  renderTPDDTable_();
+}
+
+function ddTuanQuick_(kieu){
+  const monthKey = kvMonthKey();
+  window._ddTuanChonThang = monthKey;
+  window._ddTuanChon = kieu === 'now'
+    ? [Math.min(tuanHienTaiCuaThang_(monthKey), DD_TUAN_LIST_.length)]
+    : DD_TUAN_LIST_.slice();
+  renderTPDDTable_();
+}
+
 window._tpddRoster = null; // toàn bộ Nhóm trả về từ getDiemDanhRoster(monthKey)
 
 // Nạp roster Điểm danh của tháng đang xem (dùng chung khoá tháng với TP) rồi
@@ -3522,13 +3610,18 @@ function renderTPDDTable_(){
   const table = document.getElementById('tpddTable');
   const empty = document.getElementById('tpddEmpty');
   if (!table) return;
+  const monthKey = kvMonthKey();
+  const chonTuan = ddTuanChonDamBao_(monthKey);
+  renderTuanFilterUI_('ddTuanFilterBox', DD_TUAN_LIST_, chonTuan, 'ddTuanToggle_', 'ddTuanQuick_');
   const data = tpddFindGroup_();
   if (!data) { table.innerHTML = ''; empty.style.display = ''; return; }
   empty.style.display = 'none';
 
+  const tuanHien = DD_TUAN_LIST_.filter(function(t){ return chonTuan.indexOf(t) >= 0; });
+
   let theadRow1 = '<th rowspan="2"></th>';
   let theadRow2 = '';
-  DD_TUAN_LIST_.forEach(function(tuan){
+  tuanHien.forEach(function(tuan){
     const buoiList = ddBuoiListForTuan_(tuan);
     const parity = tuan % 2 === 0 ? ' dd-week-even' : ' dd-week-odd';
     theadRow1 += '<th colspan="' + buoiList.length + '" class="dd-week-sep dd-week-hdr' + parity + '">Tuần ' + tuan + '</th>';
@@ -3539,7 +3632,7 @@ function renderTPDDTable_(){
   theadRow1 += '<th rowspan="2">T.K</th>';
 
   const rows = data.thanhVien.map(function(m, i){
-    return tpddRowHtml_(m, data.nhom, i === 0, i === data.thanhVien.length - 1);
+    return tpddRowHtml_(m, data.nhom, i === 0, i === data.thanhVien.length - 1, tuanHien);
   }).join('');
   table.innerHTML = '<thead><tr>' + theadRow1 + '</tr><tr>' + theadRow2 + '</tr></thead><tbody>' +
     (rows || '<tr><td colspan="99" style="color:#94a3b8;">Chưa có ai trong danh sách điểm danh khu vực này</td></tr>') +
@@ -3976,9 +4069,9 @@ function donDepTPTatCaUI_(){
   }).donDepTPTatCaKhuVuc();
 }
 
-function tpddRowHtml_(m, nhom, isFirst, isLast){
+function tpddRowHtml_(m, nhom, isFirst, isLast, tuanHien){
   let cells = '';
-  DD_TUAN_LIST_.forEach(function(tuan){
+  (tuanHien || DD_TUAN_LIST_).forEach(function(tuan){
     const buoiList = ddBuoiListForTuan_(tuan);
     const parity = tuan % 2 === 0 ? ' dd-week-even' : ' dd-week-odd';
     buoiList.forEach(function(b, i){
@@ -5448,6 +5541,44 @@ document.getElementById('lichForm').addEventListener('submit', function(e){
 const CV_BUOI_ = [{ ma: 'sang', nhan: 'Sáng' }, { ma: 'chieu', nhan: 'Chiều' }, { ma: 'toi', nhan: 'Tối' }];
 const CV_NGAY_ = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 const CV_SO_TUAN_ = 6;
+const CV_TUAN_LIST_ = (function(){ const a = []; for (let t = 1; t <= CV_SO_TUAN_; t++) a.push(t); return a; })();
+
+// ----- Bộ lọc "chỉ hiện Tuần đang xem" của bảng Công việc (thêm 31/08/2026) -----
+// Cùng cơ chế với bảng Điểm danh (ddTuanChonDamBao_/ddTuanToggle_/ddTuanQuick_
+// ở trên) — tách riêng biến/hàm cho từng bảng để 2 bảng lọc ĐỘC LẬP nhau (tích
+// tuần ở bảng này không ảnh hưởng bảng kia, đúng như 2 bảng vốn tách biệt).
+window._cvTuanChonThang = null;
+window._cvTuanChon = null;
+
+function cvTuanChonDamBao_(monthKey){
+  if (window._cvTuanChonThang !== monthKey || !window._cvTuanChon || !window._cvTuanChon.length) {
+    window._cvTuanChonThang = monthKey;
+    window._cvTuanChon = [Math.min(tuanHienTaiCuaThang_(monthKey), CV_SO_TUAN_)];
+  }
+  return window._cvTuanChon;
+}
+
+function cvTuanToggle_(t, checked){
+  let list = (window._cvTuanChon || []).slice();
+  const idx = list.indexOf(t);
+  if (checked) {
+    if (idx < 0) { list.push(t); list.sort(function(a, b){ return a - b; }); }
+  } else if (idx >= 0 && list.length > 1) {
+    list.splice(idx, 1); // luôn phải còn ít nhất 1 Tuần được tích
+  }
+  window._cvTuanChon = list;
+  window._cvTuanChonThang = kvMonthKey();
+  renderCVTable_(window._cvData);
+}
+
+function cvTuanQuick_(kieu){
+  const monthKey = kvMonthKey();
+  window._cvTuanChonThang = monthKey;
+  window._cvTuanChon = kieu === 'now'
+    ? [Math.min(tuanHienTaiCuaThang_(monthKey), CV_SO_TUAN_)]
+    : CV_TUAN_LIST_.slice();
+  renderCVTable_(window._cvData);
+}
 
 function loadCVCongViec_(){
   const ten = document.getElementById('cv_kvName');
@@ -5465,10 +5596,15 @@ function renderCVTable_(d){
   const table = document.getElementById('cvTable');
   const empty = document.getElementById('cvEmpty');
   if (!table) return;
+  const monthKey = kvMonthKey();
+  const chonTuan = cvTuanChonDamBao_(monthKey);
+  renderTuanFilterUI_('cvTuanFilterBox', CV_TUAN_LIST_, chonTuan, 'cvTuanToggle_', 'cvTuanQuick_');
   const ds = (d && d.thanhVien) || [];
   empty.style.display = ds.length ? 'none' : '';
   renderCVAnBox_((d && d.dsAn) || []);
   if (!ds.length) { table.innerHTML = ''; return; }
+
+  const tuanHien = CV_TUAN_LIST_.filter(function(t){ return chonTuan.indexOf(t) >= 0; });
 
   // Hàng tiêu đề 1: gộp 7 ngày thành 1 ô "Tuần n" (giống sheet).
   // Hàng tiêu đề 2: CN, T2 ... T7 của từng tuần.
@@ -5476,12 +5612,12 @@ function renderCVTable_(d){
            '<th class="cv-fix2" rowspan="2">Họ và Tên</th>' +
            '<th class="cv-fix3" rowspan="2">Thời Gian</th>';
   let h2 = '';
-  for (let t = 1; t <= CV_SO_TUAN_; t++) {
+  tuanHien.forEach(function(t){
     h1 += '<th class="cv-tuan-hdr cv-tuan-dau" colspan="7">Tuần ' + t + '</th>';
     CV_NGAY_.forEach(function(n, i){
       h2 += '<th' + (i === 0 ? ' class="cv-tuan-dau"' : '') + '>' + n + '</th>';
     });
-  }
+  });
   h1 += '<th rowspan="2" class="cv-tuan-dau">Tổng</th><th rowspan="2">Tổng<br>người</th>';
 
   let body = '';
@@ -5504,7 +5640,7 @@ function renderCVTable_(d){
                 '</span></td>';
       }
       body += '<td class="cv-fix3">' + b.nhan + '</td>';
-      for (let t = 1; t <= CV_SO_TUAN_; t++) {
+      tuanHien.forEach(function(t, tIdx){
         CV_NGAY_.forEach(function(n, j){
           const khoa = t + '-' + n;
           const val = (tv.o && tv.o[b.ma] && tv.o[b.ma][khoa]) || '';
@@ -5513,13 +5649,18 @@ function renderCVTable_(d){
           // Điểm danh (ddCellKeyNav): bảng này có ô rowspan="3" nên dòng đầu
           // của mỗi người có nhiều <td> hơn 2 dòng sau — lấy theo chỉ số cột
           // sẽ nhảy lệch ô khi bấm lên/xuống.
+          // ⚠️ data-c dùng tIdx (VỊ TRÍ đang hiển thị trong danh sách Tuần đã
+          // lọc), KHÔNG dùng (t-1) (số Tuần thật) — nếu không, khi chỉ hiện
+          // vài Tuần thì các cột không còn liền kề 0,1,2... nữa, phím mũi tên
+          // trái/phải sẽ "nhảy hụt" giữa các ô. data-tuan vẫn giữ đúng số
+          // Tuần thật t để saveCVCellUI_ lưu đúng chỗ.
           body += '<td class="cv-ngay' + (j === 0 ? ' cv-tuan-dau' : '') + '">' +
             '<input type="text" value="' + esc(val) + '" data-ten="' + tenAttr +
             '" data-buoi="' + b.ma + '" data-tuan="' + t + '" data-ngay="' + n +
-            '" data-r="' + (i * CV_BUOI_.length + k) + '" data-c="' + ((t - 1) * 7 + j) + '"' +
+            '" data-r="' + (i * CV_BUOI_.length + k) + '" data-c="' + (tIdx * 7 + j) + '"' +
             ' onchange="saveCVCellUI_(this)" onkeydown="cvCellKeyNav(event)"></td>';
         });
-      }
+      });
       body += '<td class="cv-tong cv-tuan-dau" data-cv-tong="' + tenAttr + '|' + b.ma + '">' +
               (tv.tongBuoi ? tv.tongBuoi[b.ma] : 0) + '</td>';
       if (dau) {
