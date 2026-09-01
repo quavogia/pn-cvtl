@@ -492,7 +492,7 @@
     const o = document.getElementById('btBanner');
     if (!o) return;
     let d;
-    try { d = await goi('getBapTemBanner', [(document.getElementById('kvMonth') || {}).value || '']); }
+    try { d = await goi('getBapTemBanner', [typeof currentMonthKey === 'function' ? currentMonthKey() : '']); }
     catch (e) { o.style.display = 'none'; return; }
     if (!d || !d.soNguoi) { o.style.display = 'none'; return; }
     const th = d.thang.split('-');
