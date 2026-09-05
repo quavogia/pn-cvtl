@@ -2678,7 +2678,7 @@ var BC_NOI = {
   },
   giao_duc: {
     di: 'kv:edu', o: 'tab con Giáo dục',
-    nhap: 'EDU LMS · Trực 127'
+    nhap: 'EDU LMS · Trực 127 · Trường học SB · Giáo dục 1-1'
   },
   dao_tao: {
     di: 'kv:daotao', o: 'tab con Đào tạo',
@@ -2689,6 +2689,10 @@ var BC_NOI = {
     nhap: 'số lần phát biểu'
   }
 };
+
+// ⭐ 05/09/2026 — Anh Rise: ẩn tạm cột "Lễ hội" ở Bảng kiểm tuần vì đây
+// chính là chỗ nhập Trudo — truyền đạo rồi, để tránh trùng lặp.
+var BC_AN_TAM = { le_hoi: true };
 
 /**
  * Vẽ MỘT ô tích V.
@@ -2776,6 +2780,7 @@ function veBaoCaoPanel_(d){
   h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
   h += '<th style="padding:8px;white-space:nowrap;">Tuần</th>';
   for (var i = 0; i < hm.length; i++) {
+    if (BC_AN_TAM[hm[i].ma]) continue;
     // ⭐ TÊN CỘT bấm được -> nhảy sang ĐÚNG nơi nhập. Ô bên dưới để tích V nên
     // đường nhảy chuyển lên đây, một link cho cả cột.
     // ⚠️ Dòng nhỏ bên dưới LIỆT KÊ ĐỦ những thứ phải nhập — anh Rise chốt
@@ -2815,6 +2820,7 @@ function veBaoCaoPanel_(d){
       + (laTuanNay ? ' <span style="color:#2563eb;font-size:11px;">← tuần này</span>' : '')
       + '</td>';
     for (var j = 0; j < w.hangMuc.length; j++) {
+      if (BC_AN_TAM[w.hangMuc[j].ma]) continue;
       h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j], w.tuan, choSua) + '</td>';
     }
     h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcNutBaoCao_(d, w) + '</td>';
@@ -2823,8 +2829,16 @@ function veBaoCaoPanel_(d){
   h += '</tbody></table></div>';
 
   // Dòng tóm tắt: chỉ đếm những gì THẬT SỰ quá hạn, không đếm "chưa tới hạn".
+  // ⭐ 05/09/2026 — Cột "Lễ hội" đang ẩn tạm (xem BC_AN_TAM) nên không đếm
+  // ô quá hạn của nó vào tổng, kẻo báo "còn quá hạn" mà không thấy đâu để tích.
   var tongTre = 0;
-  for (var k = 0; k < d.tuan.length; k++) tongTre += d.tuan[k].soTre;
+  for (var k = 0; k < d.tuan.length; k++) {
+    for (var m = 0; m < d.tuan[k].hangMuc.length; m++) {
+      var hmTre = d.tuan[k].hangMuc[m];
+      if (BC_AN_TAM[hmTre.ma]) continue;
+      if (hmTre.trangThai === 'tre') tongTre++;
+    }
+  }
   if (tongTre > 0) {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;color:#991b1b;">'
       + '⚠️ Còn <b>' + tongTre + '</b> ô <b>quá hạn mà chưa tích</b> trong tháng này.</div>';
@@ -2862,6 +2876,7 @@ function bamBaoCaoTuan_(tuan){
     for (var i = 0; i < d.tuan.length; i++) if (d.tuan[i].tuan === tuan) w = d.tuan[i];
     if (w) {
       for (var j = 0; j < w.hangMuc.length; j++) {
+        if (BC_AN_TAM[w.hangMuc[j].ma]) continue;
         var tt = w.hangMuc[j].trangThai;
         if (tt === 'tre' || tt === 'chua') thieu.push(w.hangMuc[j].ten);
       }
