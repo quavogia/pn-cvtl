@@ -10,11 +10,11 @@
 //                             (được chọn theo tên) từ Khu vực này sang Khu
 //                             vực khác (mới hoặc đã có sẵn).
 //
-// ⚠️ CHỈ 12 BẢNG "THEO TỪNG NGƯỜI" (có cả cột khu_vuc lẫn ten, nhận diện
+// ⚠️ CHỈ 13 BẢNG "THEO TỪNG NGƯỜI" (có cả cột khu_vuc lẫn ten, nhận diện
 // đúng MỘT người) mới được chuyển: hoc_vien, muc_tieu_ca_nhan,
 // giao_duc_thanh_vien, diem_danh, diem_danh_roster, diem_danh_ghi_chu,
 // dao_tao_tien_do, dao_tao_viec_giao, le_hoi_tien_do, so_moc, cv_cong_viec,
-// cv_nguoi.
+// cv_nguoi, le_trong_the_diem_danh (thêm 06/09/2026).
 //
 // 6 BẢNG "TỔNG HỢP CẢ KHU VỰC" (không gắn với riêng ai) CỐ Ý KHÔNG đụng tới:
 // tp_bao_cao, muc_tieu_kv, nhat_ky_don_thuan, chot_ky, le_hoi_cau_hinh.
@@ -59,6 +59,9 @@ const BANG_THEO_NGUOI = [
   // cũng phải theo người sang khu vực mới, nếu không họ sẽ "hiện lại" ở khu
   // vực cũ hoặc biến mất ở khu vực mới.
   { bang: 'cv_nguoi',            coCotId: false, khoa: ['khu_vuc', 'ten'] },
+  // Điểm danh Lễ Trọng Thể (thêm 06/09/2026) — chuyển theo người, để đổi khu
+  // vực thì số đã điểm danh mùa lễ đi theo, không bị bỏ lại ở khu vực cũ.
+  { bang: 'le_trong_the_diem_danh', coCotId: false, khoa: ['khu_vuc', 'ten', 'ma_mua', 'ma_buoi'] },
 ];
 
 /** Chuyển toàn bộ dòng của 1 người trong 1 bảng, trả về số dòng đã chuyển / bỏ qua. */
