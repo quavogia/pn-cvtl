@@ -98,6 +98,15 @@
   .kv-subpanel{display:none;}
   .kv-subpanel.active{display:block;}
 
+  /* ---------- Sub-tab con BÊN TRONG tab TP (thêm 06/09/2026): "📅 Theo tuần"
+     và "📋 Lễ Trọng Thể" — dùng riêng class để KHÔNG bị lẫn với .kv-subpanel
+     (nếu dùng chung, mỗi lần đổi Khu vực pill ngoài cùng thì đoạn
+     document.querySelectorAll('.kv-subpanel')... sẽ vô tình xoá luôn trạng
+     thái active của 2 tab con này, làm cả 2 card đều biến mất). ---------- */
+  .tp-innerpanel{display:none;}
+  .tp-innerpanel.active{display:block;}
+  .tp-badge-moi{display:inline-block;font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:4px;vertical-align:middle;}
+
   /* ---------- Card riêng từng Khu vực: TP (Thờ phượng) — dạng bảng gọn kiểu
      Excel, mỗi card 1 Khu vực, 2 hàng (≥1 lần / ≥4 lần) x cột Tuần 1-5. ---------- */
   .tp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:18px;}
@@ -814,53 +823,82 @@
 
       <!-- ---- Sub-tab: TP (Thờ phượng) — scoped theo 1 Khu vực đang chọn ---- -->
       <div id="kvsub-tp" class="kv-subpanel active">
-        <div class="card">
-          <div class="toolbar">
-            <h3 style="margin:0">TP — <span id="tp_kvName">—</span> (tháng <span id="tp_monthLabel"></span>)</h3>
-            <div style="display:flex;gap:10px;align-items:center;">
-              <span id="tp_saveIndicator" style="font-size:12px;color:#16a34a;display:none;">✓ Đã lưu</span>
-              <div class="kv-pills">
-                <button type="button" class="kv-pill active" id="tpViewWeek" onclick="setTPView_('week')">Xem theo tuần</button>
-                <button type="button" class="kv-pill" id="tpViewMonth" onclick="setTPView_('month')">Xem theo tháng</button>
+        <div class="kv-pills" id="tpInnerTabs" style="margin-bottom:14px;">
+          <button type="button" class="kv-pill active" data-tpsub="tuan" onclick="selectTPInnerSubTab('tuan')">📅 Theo tuần</button>
+          <button type="button" class="kv-pill" data-tpsub="ltt" onclick="selectTPInnerSubTab('ltt')">📋 Lễ Trọng Thể<span class="tp-badge-moi">MỚI</span></button>
+        </div>
+
+        <!-- ---- Tab con: Theo tuần (3 card cũ, KHÔNG đổi gì bên trong) ---- -->
+        <div id="tpsub-tuan" class="tp-innerpanel active">
+          <div class="card">
+            <div class="toolbar">
+              <h3 style="margin:0">TP — <span id="tp_kvName">—</span> (tháng <span id="tp_monthLabel"></span>)</h3>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <span id="tp_saveIndicator" style="font-size:12px;color:#16a34a;display:none;">✓ Đã lưu</span>
+                <div class="kv-pills">
+                  <button type="button" class="kv-pill active" id="tpViewWeek" onclick="setTPView_('week')">Xem theo tuần</button>
+                  <button type="button" class="kv-pill" id="tpViewMonth" onclick="setTPView_('month')">Xem theo tháng</button>
+                </div>
+              </div>
+            </div>
+            <p id="tpPastNotice" style="font-size:12px;color:#dc2626;margin:0 0 10px;display:none;">⚠️ Đang xem tháng đã qua — chỉ xem được, không thể sửa số liệu TP của tháng cũ.</p>
+            <!-- ⚠️ KHỐI NÀY BẮT BUỘC PHẢI CÓ. Hai nút "Báo cáo T3 / T7" từng nằm
+                 ngay trong bảng dưới đây; gỡ đi mà không để lại gì thì người quen
+                 tay sẽ tưởng web hỏng và đi tìm khắp nơi. Khối này nói rõ việc
+                 báo cáo đã chuyển đi đâu và bấm được từ đây. -->
+            <div id="tpNhacBaoCao" class="bc-nhac" style="display:none;"></div>
+            <div class="chart-split">
+              <div>
+                <div class="chart-split-title" style="color:#2563eb;">≥1 lần</div>
+                <div id="tpChart1"></div>
+              </div>
+              <div>
+                <div class="chart-split-title" style="color:#f59e0b;">≥4 lần</div>
+                <div id="tpChart2"></div>
               </div>
             </div>
           </div>
-          <p id="tpPastNotice" style="font-size:12px;color:#dc2626;margin:0 0 10px;display:none;">⚠️ Đang xem tháng đã qua — chỉ xem được, không thể sửa số liệu TP của tháng cũ.</p>
-          <!-- ⚠️ KHỐI NÀY BẮT BUỘC PHẢI CÓ. Hai nút "Báo cáo T3 / T7" từng nằm
-               ngay trong bảng dưới đây; gỡ đi mà không để lại gì thì người quen
-               tay sẽ tưởng web hỏng và đi tìm khắp nơi. Khối này nói rõ việc
-               báo cáo đã chuyển đi đâu và bấm được từ đây. -->
-          <div id="tpNhacBaoCao" class="bc-nhac" style="display:none;"></div>
-          <div class="chart-split">
-            <div>
-              <div class="chart-split-title" style="color:#2563eb;">≥1 lần</div>
-              <div id="tpChart1"></div>
+          <div class="card">
+            <h3>Nhập số liệu theo tuần</h3>
+            <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ số trực tiếp, rời ô là tự lưu. "≥1 lần"/"≥4 lần" = số người đã thờ phượng từ 1/4 lần trở lên tính từ đầu tháng, cột "Tổng" lấy số lớn nhất đã nhập (không cộng dồn) — di chuột vào ô Tổng để xem số của tháng trước.</p>
+            <table class="tp-table" id="tpEditTable"></table>
+          </div>
+
+          <div class="card">
+            <div class="toolbar">
+              <h3 style="margin:0 0 4px">Điểm danh — <span id="tpdd_kvName">—</span></h3>
+              <div style="display:flex;gap:6px;align-items:center;">
+                <input id="tpdd_newTen" placeholder="Tên thành viên mới..." style="width:auto;min-width:200px;">
+                <button type="button" onclick="addTPDDMemberQuick()">+ Thêm</button>
+              </div>
             </div>
-            <div>
-              <div class="chart-split-title" style="color:#f59e0b;">≥4 lần</div>
-              <div id="tpChart2"></div>
+            <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng (tính đủ mọi Tuần, kể cả Tuần đang ẩn bớt), dùng để tự động điền số liệu ≥1 lần/≥4 lần ở bảng phía trên. Mặc định chỉ hiện Tuần đang tới — muốn xem/sửa Tuần cũ thì tích thêm ở dòng "Hiện tuần" bên dưới.</p>
+            <p id="tpddEmpty" style="color:#94a3b8;font-size:13px;display:none;">Khu vực này chưa có trong danh sách Điểm danh.</p>
+            <div id="ddTuanFilterBox"></div>
+            <div style="overflow-x:auto;">
+              <table class="dd-table" id="tpddTable"></table>
             </div>
           </div>
-        </div>
-        <div class="card">
-          <h3>Nhập số liệu theo tuần</h3>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ số trực tiếp, rời ô là tự lưu. "≥1 lần"/"≥4 lần" = số người đã thờ phượng từ 1/4 lần trở lên tính từ đầu tháng, cột "Tổng" lấy số lớn nhất đã nhập (không cộng dồn) — di chuột vào ô Tổng để xem số của tháng trước.</p>
-          <table class="tp-table" id="tpEditTable"></table>
         </div>
 
-        <div class="card">
-          <div class="toolbar">
-            <h3 style="margin:0 0 4px">Điểm danh — <span id="tpdd_kvName">—</span></h3>
-            <div style="display:flex;gap:6px;align-items:center;">
-              <input id="tpdd_newTen" placeholder="Tên thành viên mới..." style="width:auto;min-width:200px;">
-              <button type="button" onclick="addTPDDMemberQuick()">+ Thêm</button>
+        <!-- ---- Tab con: Điểm danh Lễ Trọng Thể (thêm 06/09/2026) ----
+             Riêng theo Khu vực + thành viên của đúng Khu vực đó (roster dùng
+             chung diem_danh_roster, giống bảng Điểm danh ở tab "Theo tuần").
+             Lịch mùa lễ (buổi nào, ngày nào, thuộc cụm A/B/C nào) do anh Rise
+             nạp bằng SQL vào le_trong_the_cau_hinh — KHÔNG có màn hình cấu
+             hình riêng, thêm mùa mới chỉ cần thêm dòng SQL, không sửa code. -->
+        <div id="tpsub-ltt" class="tp-innerpanel">
+          <div class="card">
+            <div class="toolbar">
+              <h3 style="margin:0 0 4px">Điểm danh Lễ Trọng Thể — <span id="ltt_kvName">—</span></h3>
+              <div id="ltt_muaLabel" style="font-size:12px;color:#64748b;"></div>
             </div>
-          </div>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Mỗi Tuần có đủ 4 buổi: Tối (Thứ 3) + Sáng/Chiều/Tối (Thứ 7). "T.K" = tổng số buổi đã điểm danh cộng dồn trong tháng (tính đủ mọi Tuần, kể cả Tuần đang ẩn bớt), dùng để tự động điền số liệu ≥1 lần/≥4 lần ở bảng phía trên. Mặc định chỉ hiện Tuần đang tới — muốn xem/sửa Tuần cũ thì tích thêm ở dòng "Hiện tuần" bên dưới.</p>
-          <p id="tpddEmpty" style="color:#94a3b8;font-size:13px;display:none;">Khu vực này chưa có trong danh sách Điểm danh.</p>
-          <div id="ddTuanFilterBox"></div>
-          <div style="overflow-x:auto;">
-            <table class="dd-table" id="tpddTable"></table>
+            <p style="font-size:12px;color:#64748b;margin:0 0 10px;">Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu (ô trống = chưa điểm danh). Cột "Tổng" luôn đếm đủ cả mùa, kể cả khi đang ẩn bớt cụm ở bộ lọc bên dưới. Hàng "Tổng người" cuối bảng = số người đã điểm danh của từng buổi.</p>
+            <p id="lttEmpty" style="color:#94a3b8;font-size:13px;display:none;">Chưa có lịch Lễ Trọng Thể nào được cấu hình cho mùa này.</p>
+            <div id="lttClusterFilterBox"></div>
+            <div style="overflow-x:auto;">
+              <table class="dd-table" id="lttTable"></table>
+            </div>
           </div>
         </div>
       </div>
@@ -3204,6 +3242,20 @@ function loadTPPanel(){
   }).withFailureHandler(function(err){}).getDiemDanhTPGoiY(monthKey);
 
   loadTPDiemDanh_();
+  loadLeTrongThe_();
+}
+
+// Đổi qua lại giữa 2 tab con BÊN TRONG tab TP: "📅 Theo tuần" (3 card cũ) và
+// "📋 Lễ Trọng Thể" (mới). Dữ liệu của cả 2 tab con đã được tải sẵn cùng lúc
+// trong loadTPPanel() ở trên (giống cách 3 card cũ vẫn luôn tải cùng nhau dù
+// đang xem cụm nào) — bấm đổi tab con chỉ đổi hiển thị, không tải lại gì.
+let tpInnerSubTab = 'tuan';
+function selectTPInnerSubTab(name){
+  tpInnerSubTab = name;
+  document.querySelectorAll('#kvsub-tp .tp-innerpanel').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('tpsub-' + name).classList.add('active');
+  document.querySelectorAll('#tpInnerTabs .kv-pill').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelector('#tpInnerTabs .kv-pill[data-tpsub="' + name + '"]').classList.add('active');
 }
 
 // Tự động điền số ≥1/≥4 lần từ Điểm danh vào các ô Tuần đang = 0 (chưa nhập
@@ -4206,6 +4258,235 @@ function refreshTPAutoFillAfterDD_(monthKey, nhom){
     window._ddTPGoiY = map;
     autoFillTPFromGoiY_(monthKey, nhom, window._tpCurrentData, map, isPastMonthTP_(monthKey));
   }).withFailureHandler(function(){}).getDiemDanhTPGoiY(monthKey);
+}
+
+// =====================================================================
+// ĐIỂM DANH LỄ TRỌNG THỂ (thêm 06/09/2026) — tab con "📋 Lễ Trọng Thể" bên
+// trong tab TP. Roster dùng CHUNG diem_danh_roster (không có danh sách
+// riêng) — giống hệt cách "Điểm danh công việc" (cv_cong_viec) tái dùng
+// roster này. Lịch mùa (buổi nào, ngày nào, cụm A/B/C nào) do máy chủ tự
+// chọn "mùa gần nhất" nếu không truyền mã mùa — xem chonMuaHienTai_ ở
+// src/handlers/le-trong-the.js. Mỗi Khu vực có bảng RIÊNG (đổi Khu vực
+// pill ngoài cùng thì loadTPPanel() gọi lại loadLeTrongThe_() cho đúng
+// Khu vực đang chọn).
+// =====================================================================
+window._lttData = null;         // kết quả getLeTrongThe(...) của Khu vực đang xem
+window._lttMaMua = '';          // '' = để máy chủ tự chọn mùa hiện tại
+window._lttCumChon = null;      // mảng tên cụm (tenCum) đang được tích hiện
+window._lttMuaChonThang = null; // mã mùa mà _lttCumChon đang áp dụng theo
+
+function loadLeTrongThe_(){
+  const nhan = document.getElementById('ltt_kvName');
+  if (nhan) nhan.textContent = selectedKV || '—';
+  if (!selectedKV) { renderLTTTable_(null); return; }
+  const kv = selectedKV;
+  google.script.run.withSuccessHandler(function(d){
+    if (kv !== selectedKV) return; // đã đổi Khu vực khác trong lúc đang tải — bỏ qua
+    renderLTTTable_(d);
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi tải Điểm danh Lễ Trọng Thể: ' + err.message, false);
+  }).getLeTrongThe(kv, window._lttMaMua || '');
+}
+
+// Danh sách tên cụm (tenCum) theo ĐÚNG thứ tự xuất hiện trong lịch (đã sắp
+// theo thu_tu từ máy chủ) — không hard-code A/B/C ở đây, cụm nào/tên gì là
+// do dòng SQL nạp lịch mùa quyết định hết.
+function lttDanhSachCum_(buoi){
+  const seen = {}; const list = [];
+  (buoi || []).forEach(function(b){
+    if (!seen[b.tenCum]) { seen[b.tenCum] = true; list.push(b.tenCum); }
+  });
+  return list;
+}
+
+// Đảm bảo LUÔN có danh sách cụm đang tích hợp lệ cho đúng mùa đang xem —
+// đổi mùa thì mặc định hiện lại tất cả cụm; cùng mùa thì giữ nguyên lựa
+// chọn đang tích (chỉ bỏ bớt cụm không còn tồn tại nếu lịch mùa đổi).
+function lttCumChonDamBao_(d){
+  const maMua = d ? d.maMua : '';
+  const dsCum = lttDanhSachCum_(d ? d.buoi : []);
+  if (window._lttMuaChonThang !== maMua || !window._lttCumChon) {
+    window._lttMuaChonThang = maMua;
+    window._lttCumChon = dsCum.slice();
+  } else {
+    window._lttCumChon = window._lttCumChon.filter(function(c){ return dsCum.indexOf(c) >= 0; });
+    if (!window._lttCumChon.length) window._lttCumChon = dsCum.slice();
+  }
+  return window._lttCumChon;
+}
+
+function renderLTTClusterFilterUI_(dsCum, dsChon){
+  const box = document.getElementById('lttClusterFilterBox');
+  if (!box) return;
+  if (dsCum.length <= 1) { box.innerHTML = ''; return; } // chỉ 1 cụm thì khỏi cần lọc
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13px;padding:6px 0;">' +
+    '<span style="color:#64748b;">Hiện:</span>';
+  dsCum.forEach(function(c){
+    const checked = dsChon.indexOf(c) >= 0;
+    html += '<label style="display:inline-flex;align-items:center;gap:4px;cursor:pointer;white-space:nowrap;">' +
+      '<input type="checkbox"' + (checked ? ' checked' : '') +
+      ' onchange="lttCumToggle_(\'' + esc(c).replace(/'/g, "\\'") + '\', this.checked)"> ' + esc(c) + '</label>';
+  });
+  html += '<button type="button" style="font-size:11px;padding:3px 8px;" onclick="lttCumQuick_(\'sap\')">Chỉ buổi sắp tới</button>' +
+    '<button type="button" style="font-size:11px;padding:3px 8px;" onclick="lttCumQuick_(\'all\')">Xem tất cả</button>' +
+    '</div>';
+  box.innerHTML = html;
+}
+
+function lttCumToggle_(c, checked){
+  let list = (window._lttCumChon || []).slice();
+  const idx = list.indexOf(c);
+  if (checked) { if (idx < 0) list.push(c); }
+  else if (idx >= 0 && list.length > 1) list.splice(idx, 1); // luôn phải còn ít nhất 1 cụm được tích
+  window._lttCumChon = list;
+  renderLTTTable_(window._lttData);
+}
+
+function lttCumQuick_(kieu){
+  const d = window._lttData;
+  if (!d) return;
+  if (kieu === 'all') {
+    window._lttCumChon = lttDanhSachCum_(d.buoi);
+  } else {
+    // "Chỉ buổi sắp tới": chỉ hiện cụm có ít nhất 1 buổi từ hôm nay trở đi;
+    // nếu cả mùa đã qua hết thì coi như hiện tất cả, tránh bảng trống trơn.
+    const homNay = new Date().toISOString().slice(0, 10);
+    const cumSapToi = {};
+    (d.buoi || []).forEach(function(b){ if (b.ngay >= homNay) cumSapToi[b.tenCum] = true; });
+    const list = lttDanhSachCum_(d.buoi).filter(function(c){ return cumSapToi[c]; });
+    window._lttCumChon = list.length ? list : lttDanhSachCum_(d.buoi);
+  }
+  renderLTTTable_(d);
+}
+
+// Rút ngày ISO ("2026-09-12") thành "12/9" gọn để làm nhãn cột.
+function lttNgayNgan_(iso){
+  if (!iso || iso.length < 10) return '';
+  const d = Number(iso.slice(8, 10));
+  const m = Number(iso.slice(5, 7));
+  return (isNaN(d) || isNaN(m)) ? '' : (d + '/' + m);
+}
+
+function renderLTTTable_(d){
+  const table = document.getElementById('lttTable');
+  const empty = document.getElementById('lttEmpty');
+  const muaLabel = document.getElementById('ltt_muaLabel');
+  const filterBox = document.getElementById('lttClusterFilterBox');
+  if (!table) return;
+  window._lttData = d;
+
+  if (!d || !d.coDuLieu) {
+    table.innerHTML = '';
+    if (muaLabel) muaLabel.textContent = '';
+    if (filterBox) filterBox.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  if (muaLabel) muaLabel.textContent = 'Mùa: ' + d.tenMua + ' (' + d.tongSoBuoi + ' buổi)';
+
+  const dsCum = lttDanhSachCum_(d.buoi);
+  const dsChon = lttCumChonDamBao_(d);
+  renderLTTClusterFilterUI_(dsCum, dsChon);
+
+  const buoiHien = d.buoi.filter(function(b){ return dsChon.indexOf(b.tenCum) >= 0; });
+
+  // Header hàng 1: gộp theo Cụm (colspan = số buổi đang hiện của cụm đó).
+  // Header hàng 2: mỗi buổi 1 cột, nhãn = ngày ngắn + nhãn buổi (VD "12/9 /
+  // Tối") — di chuột vào để xem tên sự kiện đầy đủ + giờ.
+  let h1 = '<th rowspan="2"></th>';
+  let h2 = '';
+  let i = 0;
+  while (i < buoiHien.length) {
+    const cum = buoiHien[i].tenCum;
+    let j = i;
+    while (j < buoiHien.length && buoiHien[j].tenCum === cum) j++;
+    h1 += '<th colspan="' + (j - i) + '" class="dd-week-sep dd-week-hdr">' + esc(cum) + '</th>';
+    for (let k = i; k < j; k++) {
+      const b = buoiHien[k];
+      const chuThich = esc(b.tenSuKien) + (b.gio ? ' · ' + esc(b.gio) : '');
+      h2 += '<th' + (k === i ? ' class="dd-week-sep"' : '') + ' title="' + chuThich + '">' +
+        lttNgayNgan_(b.ngay) + '<br>' + esc(b.nhan) + '</th>';
+    }
+    i = j;
+  }
+  h1 += '<th rowspan="2">Tổng</th>';
+
+  const rows = d.thanhVien.map(function(m){ return lttRowHtml_(m, buoiHien); }).join('');
+
+  // Hàng "Tổng người" cuối bảng — máy chủ đã đếm sẵn (tongCum), không cần
+  // tính lại trên trình duyệt.
+  let footCells = '';
+  buoiHien.forEach(function(b, idx){
+    footCells += '<td class="' + (idx === 0 ? 'dd-week-sep' : '') + '" style="font-weight:700;color:var(--primary);">' +
+      ((d.tongCum && d.tongCum[b.maBuoi]) || 0) + '</td>';
+  });
+  const tfoot = '<tr><td style="font-weight:700;color:#64748b;">Tổng người</td>' + footCells + '<td class="dd-tk"></td></tr>';
+
+  table.innerHTML = '<thead><tr>' + h1 + '</tr><tr>' + h2 + '</tr></thead><tbody>' +
+    (rows || '<tr><td colspan="99" style="color:#94a3b8;">Chưa có ai trong danh sách điểm danh khu vực này</td></tr>') +
+    '</tbody><tfoot>' + tfoot + '</tfoot>';
+}
+
+function lttRowHtml_(m, buoiHien){
+  const kvSafe = esc(selectedKV);
+  const maMua = esc((window._lttData && window._lttData.maMua) || '');
+  let cells = '';
+  buoiHien.forEach(function(b, idx){
+    const val = (m.o && m.o[b.maBuoi]) || '';
+    cells += '<td class="' + (idx === 0 ? 'dd-week-sep' : '') + '"><input type="text" value="' + esc(val) +
+      '" data-kv="' + kvSafe + '" data-ten="' + esc(m.ten) + '" data-mua="' + maMua + '" data-buoi="' + esc(b.maBuoi) +
+      '" onchange="saveLTTCell(this)" onkeydown="ddCellKeyNav(event)"></td>';
+  });
+  return '<tr><td>' + esc(m.ten) + '</td>' + cells + '<td class="dd-tk ltt-tk">' + (m.tong || 0) + '</td></tr>';
+}
+
+// Tự lưu ngay khi rời 1 ô (blur/Enter), giống hệt saveTPDDCell — nhấp nháy
+// xanh + tự cộng lại Tổng trên trình duyệt ngay, máy chủ trả về số Tổng
+// THẬT (đếm đủ cả mùa, không phụ thuộc cụm đang ẩn/hiện) để đồng bộ lại,
+// phòng trường hợp 2 người cùng sửa cho cùng 1 người trong lúc này.
+function saveLTTCell(inputEl){
+  const kv = inputEl.dataset.kv;
+  const ten = inputEl.dataset.ten;
+  const maMua = inputEl.dataset.mua;
+  const maBuoi = inputEl.dataset.buoi;
+  const giaTri = inputEl.value;
+
+  inputEl.classList.add('saved');
+  setTimeout(function(){ inputEl.classList.remove('saved'); }, 700);
+
+  const d = window._lttData;
+  if (d && d.thanhVien) {
+    const m = d.thanhVien.find(function(x){ return x.ten === ten; });
+    if (m) {
+      const v = giaTri.trim();
+      if (v) m.o[maBuoi] = v; else delete m.o[maBuoi];
+      let tong = 0;
+      d.buoi.forEach(function(b){ if ((m.o[b.maBuoi] || '') !== '') tong++; });
+      m.tong = tong;
+      const row = inputEl.closest('tr');
+      if (row) { const tk = row.querySelector('.ltt-tk'); if (tk) tk.textContent = tong; }
+    }
+  }
+
+  google.script.run.withSuccessHandler(function(res){
+    if (kv !== selectedKV) return;
+    const dd = window._lttData;
+    if (dd && dd.thanhVien && res && typeof res.tong === 'number') {
+      const m = dd.thanhVien.find(function(x){ return x.ten === ten; });
+      if (m) {
+        m.tong = res.tong;
+        const row = inputEl.closest('tr');
+        if (row && document.body.contains(row)) {
+          const tk = row.querySelector('.ltt-tk');
+          if (tk) tk.textContent = res.tong;
+        }
+      }
+    }
+  }).withFailureHandler(function(err){
+    showMsg('Lỗi lưu Điểm danh Lễ Trọng Thể: ' + err.message + ' — đang tải lại để đồng bộ.', false);
+    loadLeTrongThe_();
+  }).saveLeTrongThe(kv, ten, maMua, maBuoi, giaTri);
 }
 
 // Tính lại T.K ngay trên trình duyệt (giống hệt cách backend diemDanhTongKet_
