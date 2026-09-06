@@ -33,6 +33,7 @@ import * as khuVuc from './handlers/khu-vuc.js';
 import * as congViec from './handlers/cong-viec.js';
 import * as troLy from './handlers/tro-ly.js';
 import * as baoCao from './handlers/bao-cao.js';
+import * as leTrongThe from './handlers/le-trong-the.js';
 import * as nhatKy from './nhat-ky.js';
 
 export const DANH_MUC = {
@@ -198,6 +199,16 @@ export const DANH_MUC = {
   saveBaoCaoTuan:          { doc: false, fn: baoCao.saveBaoCaoTuan },
   // Gỡ báo cáo thì chỉ Trưởng phòng / Admin — giống nút "Hủy báo cáo" cũ.
   huyBaoCaoTuan:           { doc: false, chuThoi: true, fn: baoCao.huyBaoCaoTuan },
+
+  // --- Điểm danh Lễ Trọng Thể (06/09/2026, xem handlers/le-trong-the.js) ---
+  // Tab con riêng trong tab TP, cạnh "Theo tuần" — anh Rise duyệt bản phác
+  // thảo Artifact bản 11 trước khi viết mã. CỐ Ý KHÔNG đặt `chuThoi` — cả
+  // khu vực cùng điểm danh được, giống hệt bảng "Điểm danh" (Thứ 3 & Thứ 7).
+  getLeTrongThe:           { doc: true,  fn: leTrongThe.getLeTrongThe },
+  saveLeTrongThe:          { doc: false, fn: leTrongThe.saveLeTrongThe },
+  // Danh sách mọi mùa đã cấu hình — chưa dùng ở giao diện, để dành nếu sau
+  // này cần màn hình chọn mùa (hiện tự chọn mùa qua chonMuaHienTai_).
+  getLeTrongTheMuaList:    { doc: true,  fn: leTrongThe.getLeTrongTheMuaList },
 };
 
 export const DANH_SACH_DOC = new Set(
