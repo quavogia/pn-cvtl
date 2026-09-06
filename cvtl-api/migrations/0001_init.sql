@@ -473,3 +473,48 @@ CREATE TABLE IF NOT EXISTS bao_cao_tich (
   PRIMARY KEY (thang, khu_vuc, tuan, hang_muc)
 );
 CREATE INDEX IF NOT EXISTS ix_bcti_thang ON bao_cao_tich (thang);
+
+-- ---------------------------------------------------------------------
+-- 25) le_trong_the_cau_hinh + le_trong_the_diem_danh — ĐIỂM DANH LỄ TRỌNG
+--     THỂ  (thêm 06/09/2026, xem đầu file handlers/le-trong-the.js)
+--
+-- Anh Rise báo "Lễ Trọng Thể Mùa Thu 2026": 6 buổi lễ lớn gộp thành 24 buổi
+-- nhỏ, cần điểm danh RIÊNG theo từng khu vực, tách thành 1 tab con riêng
+-- trong tab TP (cạnh "Theo tuần"). Chốt qua nhiều bản phác thảo Artifact
+-- (bản 1 → 11) trước khi viết mã.
+--
+-- Hai bảng, đúng tinh thần le_hoi_cau_hinh + le_hoi_tien_do:
+--   le_trong_the_cau_hinh  — LỊCH của mùa lễ, CHUNG toàn Si-ôn, mỗi buổi nhỏ
+--                            1 dòng. CHỈ sửa bằng SQL tay (giống Lễ hội,
+--                            KHÔNG có màn hình cấu hình riêng).
+--   le_trong_the_diem_danh — SỐ đã điểm danh, RIÊNG theo từng khu vực, ô
+--                            trống = xoá dòng (giống hệt cv_cong_viec).
+--
+-- ⚠️ "Mùa hiện tại" tự chọn từ chính ngày tháng trong le_trong_the_cau_hinh
+--    (chonMuaHienTai_) — thêm mùa mới chỉ cần thêm dòng SQL, không sửa mã.
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS le_trong_the_cau_hinh (
+  ma_mua        TEXT NOT NULL,
+  ten_mua       TEXT NOT NULL,
+  ma_buoi       TEXT NOT NULL,
+  thu_tu        INTEGER NOT NULL DEFAULT 0,
+  ma_su_kien    TEXT NOT NULL,
+  ten_su_kien   TEXT NOT NULL,
+  cum           TEXT NOT NULL,
+  ten_cum       TEXT NOT NULL,
+  ngay          TEXT NOT NULL,
+  nhan          TEXT NOT NULL,
+  gio           TEXT,
+  PRIMARY KEY (ma_mua, ma_buoi)
+);
+CREATE INDEX IF NOT EXISTS ix_ltt_ch_mua ON le_trong_the_cau_hinh (ma_mua, thu_tu);
+
+CREATE TABLE IF NOT EXISTS le_trong_the_diem_danh (
+  khu_vuc       TEXT NOT NULL,
+  ten           TEXT NOT NULL,
+  ma_mua        TEXT NOT NULL,
+  ma_buoi       TEXT NOT NULL,
+  gia_tri       TEXT NOT NULL,
+  PRIMARY KEY (khu_vuc, ten, ma_mua, ma_buoi)
+);
+CREATE INDEX IF NOT EXISTS ix_lttdd_kv_mua ON le_trong_the_diem_danh (khu_vuc, ma_mua);
