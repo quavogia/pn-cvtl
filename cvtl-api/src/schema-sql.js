@@ -12,7 +12,7 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE TABLE IF NOT EXISTS muc_tieu_kv ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, mt_don_thuan INTEGER NOT NULL DEFAULT 0, mt_huu_hieu INTEGER NOT NULL DEFAULT 0, mt_bt INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc) )",
   "CREATE TABLE IF NOT EXISTS muc_tieu_ca_nhan ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, mt_don_thuan INTEGER NOT NULL DEFAULT 0, mt_huu_hieu INTEGER NOT NULL DEFAULT 0, mt_bt INTEGER NOT NULL DEFAULT 0, mt_tt127_ngay INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, ten) )",
   "CREATE TABLE IF NOT EXISTS tp_tho_phuong ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, loai TEXT NOT NULL, tuan INTEGER NOT NULL, so_luong INTEGER NOT NULL DEFAULT 0, tu_dong INTEGER NOT NULL DEFAULT 1, PRIMARY KEY (thang, khu_vuc, loai, tuan) )",
-  "CREATE TABLE IF NOT EXISTS tp_bao_cao ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, nhom TEXT NOT NULL, thoi_gian TEXT NOT NULL, thoi_gian_ms INTEGER NOT NULL, snap_1lan INTEGER NOT NULL DEFAULT 0, snap_4lan INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, tuan, nhom) )",
+  "CREATE TABLE IF NOT EXISTS tp_bao_cao ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, nhom TEXT NOT NUL, thoi_gian TEXT NOT NULL, thoi_gian_ms INTEGER NOT NULL, snap_1lan INTEGER NOT NULL DEFAULT 0, snap_4lan INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, tuan, nhom) )",
   "CREATE TABLE IF NOT EXISTS giao_duc_thanh_vien ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, tuan INTEGER NOT NULL, edu_lms TEXT, tt127_ngay INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (thang, khu_vuc, ten, tuan) )",
   "CREATE INDEX IF NOT EXISTS ix_gdtv_thang_kv ON giao_duc_thanh_vien (thang, khu_vuc)",
   "CREATE TABLE IF NOT EXISTS diem_danh ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, tuan INTEGER NOT NULL, buoi TEXT NOT NULL, gia_tri TEXT NOT NULL, PRIMARY KEY (thang, khu_vuc, ten, tuan, buoi) )",
@@ -26,7 +26,7 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE TABLE IF NOT EXISTS dao_tao_viec_giao ( id INTEGER PRIMARY KEY AUTOINCREMENT, khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, noi_dung TEXT NOT NULL, ngay_giao TEXT, han_hoan_thanh TEXT, trang_thai TEXT )",
   "CREATE INDEX IF NOT EXISTS ix_dtvg_kv ON dao_tao_viec_giao (khu_vuc, ten)",
   // ⭐ 27/08/2026 — thêm `loai` và `cach_tinh`. Xem đầu file handlers/van-dong.js.
-  //   loai      'loi'        = lễ hội phát biểu bài (Lễ hội Lời) — mặc định, giữ nguyên bản cũ
+  //   loai      'loi'        = lễ hội phát biểu bài (Lễ hội Lời) — mặ� định, giữ nguyên bẺ�n cũ
   //             'truyen_dao' = kỳ vận động truyền đạo (Vận động Thánh Linh Lễ Lều Tạm)
   //   cach_tinh ⚠️ KHÔNG CÒN DÙNG (bỏ 30/08/2026) — web không có điểm nữa, điểm xem bên
   //             memo của Hội Thánh. Cố ý giữ cột chứ không xoá: xoá cột trong D1 phải dựng
@@ -49,7 +49,16 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE INDEX IF NOT EXISTS ix_bct_thang ON bao_cao_tuan (thang)",
   // Mỗi ô tích V là một dòng (27/08/2026). Không có dòng = chưa tích.
   "CREATE TABLE IF NOT EXISTS bao_cao_tich ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, hang_muc TEXT NOT NULL, nguoi TEXT, thoi_gian_ms INTEGER NOT NULL, PRIMARY KEY (thang, khu_vuc, tuan, hang_muc) )",
-  "CREATE INDEX IF NOT EXISTS ix_bcti_thang ON bao_cao_tich (thang)"
+  "CREATE INDEX IF NOT EXISTS ix_bcti_thang ON bao_cao_tich (thang)",
+  // Điểm danh Lễ Trọng Thể (06/09/2026) — xem đầu file handlers/le-trong-the.js.
+  // `le_trong_the_cau_hinh` = LỊCH của mùa lễ, CHUNG toàn Si-ôn, chỉ sửa bằng
+  // SQL tay (giống hệt `le_hoi_cau_hinh`) — mỗi buổi lễ nhỏ 1 dòng.
+  "CREATE TABLE IF NOT EXISTS le_trong_the_cau_hinh ( ma_mua TEXT NOT NULL, ten_mua TEXT NOT NULL, ma_buoi TEXT NOT NULL, thu_tu INTEGER NOT NULL DEFAULT 0, ma_su_kien TEXT NOT NULL, ten_su_kien TEXT NOT NULL, cum TEXT NOT NULL, ten_cum TEXT NOT NULL, ngay TEXT NOT NULL, nhan TEXT NOT NULL, gio TEXT, PRIMARY KEY (ma_mua, ma_buoi) )",
+  "CREATE INDEX IF NOT EXISTS ix_ltt_ch_mua ON le_trong_the_cau_hinh (ma_mua, thu_tu)",
+  // `le_trong_the_diem_danh` = SỐ đã điểm danh, RIÊNG theo từng khu vực, ô
+  // trống = xoá dòng (giống hệt `cv_cong_viec`).
+  "CREATE TABLE IF NOT EXISTS le_trong_the_diem_danh ( khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, ma_mua TEXT NOT NULL, ma_buoi TEXT NOT NULL, gia_tri TEXT NOT NULL, PRIMARY KEY (khu_vuc, ten, ma_mua, ma_buoi) )",
+  "CREATE INDEX IF NOT EXISTS ix_lttdd_kv_mua ON le_trong_the_diem_danh (khu_vuc, ma_mua)"
 ];
 
 // =====================================================================
