@@ -73,36 +73,38 @@
     const st = document.createElement('style');
     st.textContent =
       '.trudo-sub{display:none}.trudo-sub.active{display:block}' +
-      '.trudo-loc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 14px}' +
-      '.trudo-loc .nhan{font-size:12px;color:#94a3b8}' +
-      '.trudo-nut{border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 13px;' +
-      'font-size:13px;color:#64748b;cursor:pointer}' +
-      '.trudo-nut.on{background:#0f172a;border-color:#0f172a;color:#fff;font-weight:600}' +
-      '.trudo-bang{width:100%;border-collapse:collapse;font-size:14px}' +
-      '.trudo-bang th{text-align:left;color:#64748b;font-size:11.5px;text-transform:uppercase;' +
+      '.trudo-loc{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 16px}' +
+      '.trudo-loc .nhan{font-size:12.5px;color:#64748b;font-weight:600}' +
+      '.trudo-nut{border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:6px 14px;' +
+      'font-size:13px;font-weight:500;color:#475569;cursor:pointer;transition:all .15s ease}' +
+      '.trudo-nut:hover{background:#f8fafc;border-color:#cbd5e1;color:#0f172a}' +
+      '.trudo-nut.on{background:#0f172a;border-color:#0f172a;color:#fff;font-weight:600;box-shadow:0 2px 5px rgba(15,23,42,.25)}' +
+      '.trudo-bang{width:100%;border-collapse:collapse;font-size:13.5px}' +
+      '.trudo-bang th{text-align:left;color:#475569;font-size:11.5px;font-weight:700;text-transform:uppercase;' +
       'padding:0 9px 8px;border-bottom:2px solid #e2e8f0}' +
       '.trudo-bang td{padding:10px 9px;border-bottom:1px solid #f1f5f9;vertical-align:top}' +
       '.trudo-bang tr:last-child td{border-bottom:none}' +
       '.trudo-giua{text-align:center}' +
       '.trudo-tomtat{margin-top:12px;padding-top:11px;border-top:1px dashed #e2e8f0;' +
       'color:#64748b;font-size:12.5px}' +
-      '.trudo-chua{background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:13px 16px;margin-bottom:14px}' +
+      '.trudo-chua{background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:13px 16px;margin-bottom:14px;box-shadow:0 1px 2px rgba(0,0,0,.04)}' +
       '.trudo-chua b{color:#b45309}' +
       '.trudo-chip{display:inline-block;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;' +
-      'border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}' +
-      '.bt-dai{background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fcd34d;' +
-      'border-radius:12px;padding:16px 20px;margin-bottom:14px}' +
-      '.bt-dai .bt-tieu{font-weight:800;color:#b45309;font-size:16px;margin-bottom:12px}' +
-      '.bt-nguoi{background:#fff;border:1px solid #fde68a;border-radius:10px;padding:11px 14px;margin-top:9px}' +
-      '.trudo-che{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;' +
+      'border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;margin:2px 4px 2px 0}' +
+      '.bt-dai{background:linear-gradient(135deg,#fffbeb 0%,#fef3c7 100%);border:1px solid #fcd34d;' +
+      'border-radius:12px;padding:16px 20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(251,191,36,.15)}' +
+      '.bt-dai .bt-tieu{font-weight:800;color:#b45309;font-size:16px;margin-bottom:12px;display:flex;align-items:center;gap:6px}' +
+      '.bt-nguoi{background:#fff;border:1px solid #fde68a;border-radius:10px;padding:12px 16px;margin-top:10px;box-shadow:0 1px 3px rgba(0,0,0,.04)}' +
+      '.trudo-che{position:fixed;inset:0;background:rgba(15,23,42,.6);backdrop-filter:blur(4px);z-index:9999;' +
       'display:flex;align-items:center;justify-content:center;padding:16px}' +
-      '.trudo-hop{background:#fff;border-radius:14px;padding:20px 22px;max-width:520px;width:100%;' +
-      'max-height:90vh;overflow:auto;box-shadow:0 12px 40px rgba(0,0,0,.3)}' +
-      '.trudo-hop h3{margin:0 0 14px}' +
-      '.trudo-hop label{display:block;font-size:12.5px;color:#64748b;margin:9px 0 3px}' +
-      '.trudo-hop input,.trudo-hop select{width:100%;padding:8px 10px;border:1px solid #e2e8f0;' +
-      'border-radius:8px;font-size:14px;font-family:inherit}' +
-      '.trudo-hop .hang{display:flex;gap:9px;justify-content:flex-end;margin-top:16px}' +
+      '.trudo-hop{background:#fff;border-radius:14px;padding:22px 24px;max-width:520px;width:100%;' +
+      'max-height:90vh;overflow:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,.1),0 8px 10px -6px rgba(0,0,0,.1);border:1px solid #e2e8f0}' +
+      '.trudo-hop h3{margin:0 0 14px;font-size:17px;font-weight:700;color:#0f172a}' +
+      '.trudo-hop label{display:block;font-size:12.5px;font-weight:600;color:#475569;margin:9px 0 3px}' +
+      '.trudo-hop input,.trudo-hop select{width:100%;padding:8px 11px;border:1px solid #e2e8f0;' +
+      'border-radius:7px;font-size:14px;font-family:inherit;color:#1e293b}' +
+      '.trudo-hop input:focus,.trudo-hop select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12)}' +
+      '.trudo-hop .hang{display:flex;gap:9px;justify-content:flex-end;margin-top:18px}' +
       '.trudo-nho{font-size:12px;color:#94a3b8}';
     document.head.appendChild(st);
   }
@@ -120,7 +122,7 @@
     nutMoi.type = 'button';
     nutMoi.className = 'nav-btn';
     nutMoi.setAttribute('data-panel', 'trudo');
-    nutMoi.innerHTML = '<span class="nav-icon">🏛️</span> Trudo';
+    nutMoi.innerHTML = '<span class="nav-icon"><i data-lucide="landmark">🏛️</i></span> Trudo';
     nutMoi.onclick = function () { showPanel('trudo'); };
     nav.parentNode.insertBefore(nutMoi, nav.nextSibling);
 
@@ -135,10 +137,10 @@
     panel.innerHTML =
       '<h1>Trudo</h1>' +
       '<div class="kv-pills" id="trudoPills" style="margin-bottom:14px">' +
-      '<button type="button" class="kv-pill active" data-sub="donthuan">📦 Đơn thuần</button>' +
-      '<button type="button" class="kv-pill" data-sub="huuhieu">🌱 Hữu hiệu</button>' +
-      '<button type="button" class="kv-pill" data-sub="baptem">🕊️ Báp-têm</button>' +
-      '<button type="button" class="kv-pill" data-sub="xephang">🏆 Xếp hạng chung</button>' +
+      '<button type="button" class="kv-pill active" data-sub="donthuan"><i data-lucide="book-open" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">📦</i> Đơn thuần</button>' +
+      '<button type="button" class="kv-pill" data-sub="huuhieu"><i data-lucide="sprout" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">🌱</i> Hữu hiệu</button>' +
+      '<button type="button" class="kv-pill" data-sub="baptem"><i data-lucide="award" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">🕊️</i> Báp-têm</button>' +
+      '<button type="button" class="kv-pill" data-sub="xephang"><i data-lucide="trophy" style="width:14px;height:14px;display:inline-block;vertical-align:middle;margin-right:4px;">🏆</i> Xếp hạng chung</button>' +
       '</div>' +
       '<div id="trudo-sub-donthuan" class="trudo-sub active"></div>' +
       '<div id="trudo-sub-huuhieu" class="trudo-sub"></div>' +
@@ -171,6 +173,9 @@
       document.querySelectorAll('.trudo-sub').forEach(function (x) { x.classList.remove('active'); });
       document.getElementById('trudo-sub-' + trangThai.sub).classList.add('active');
       taiTabCon();
+      if (window.lucide && typeof window.lucide.createIcons === 'function') {
+        try { window.lucide.createIcons(); } catch (err) {}
+      }
     });
 
     // --- Dải chúc mừng Báp-têm ở đầu trang Tổng quan ---
@@ -182,6 +187,9 @@
       dai.style.display = 'none';
       const h1 = pStats.querySelector('h1');
       pStats.insertBefore(dai, h1 ? h1.nextSibling : pStats.firstChild);
+    }
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      try { window.lucide.createIcons(); } catch (err) {}
     }
     return true;
   }

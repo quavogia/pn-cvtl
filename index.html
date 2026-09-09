@@ -4,45 +4,76 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CVTL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://unpkg.com/lucide@latest"></script>
 <style>
-  :root{--primary:#2563eb;--bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--sidebar:#0f172a;--sidebar-hover:#1e293b;}
+  :root{
+    --primary:#2563eb;
+    --primary-hover:#1d4ed8;
+    --primary-light:#eff6ff;
+    --bg:#f8fafc;
+    --card-bg:#ffffff;
+    --border:#e2e8f0;
+    --border-hover:#cbd5e1;
+    --text:#0f172a;
+    --text-muted:#64748b;
+    --sidebar:#0f172a;
+    --sidebar-hover:#1e293b;
+    --sidebar-text:#94a3b8;
+    --sidebar-text-hover:#ffffff;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,0.05);
+    --shadow:0 1px 3px 0 rgba(0,0,0,0.07), 0 1px 2px -1px rgba(0,0,0,0.04);
+    --shadow-md:0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.04);
+    --shadow-lg:0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.03);
+  }
   *{box-sizing:border-box;}
   html,body{height:100%;margin:0;}
-  body{font-family:'Segoe UI',Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:15px;}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;font-size:14.5px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
 
   /* ---------- Sidebar ---------- */
-  #sidebar{width:220px;flex-shrink:0;background:var(--sidebar);color:#fff;padding:18px 12px;}
-  #sidebar h2{font-size:15px;margin:0 0 18px 8px;font-weight:700;color:#fff;}
-  .nav-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;color:#cbd5e1;border:none;padding:10px 10px;border-radius:8px;font-size:14px;cursor:pointer;margin-bottom:4px;}
-  .nav-btn:hover{background:var(--sidebar-hover);color:#fff;}
-  .nav-btn.active{background:var(--primary);color:#fff;}
-  .nav-icon{font-size:16px;}
+  #sidebar{width:226px;flex-shrink:0;background:var(--sidebar);color:#fff;padding:20px 12px;border-right:1px solid #1e293b;}
+  #sidebar h2{font-size:14px;margin:0 0 16px 10px;font-weight:700;color:#f1f5f9;letter-spacing:0.02em;display:flex;align-items:center;gap:8px;}
+  .nav-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;color:var(--sidebar-text);border:none;padding:9px 12px;border-radius:8px;font-size:13.5px;font-weight:500;cursor:pointer;margin-bottom:3px;transition:all .15s ease;}
+  .nav-btn:hover{background:var(--sidebar-hover);color:var(--sidebar-text-hover);}
+  .nav-btn.active{background:var(--primary);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(37,99,235,.35);}
+  .nav-icon{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;font-size:16px;flex-shrink:0;}
+  .nav-icon svg.lucide{width:18px;height:18px;stroke-width:2px;}
   .nav-badge{display:inline-block;min-width:18px;height:18px;line-height:18px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:700;text-align:center;margin-left:auto;}
 
   /* ---------- Main content ---------- */
-  #main{flex:1;padding:32px 40px;overflow-y:auto;}
+  #main{flex:1;padding:30px 38px;overflow-y:auto;}
   .panel{display:none;}
   .panel.active{display:block;}
-  h1{font-size:28px;margin:0 0 22px;}
-  h3{margin:0 0 16px;font-size:19px;}
-  .card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px 26px;margin-bottom:26px;box-shadow:0 1px 3px rgba(0,0,0,.05);}
+  h1{font-size:25px;font-weight:800;color:var(--text);letter-spacing:-0.025em;margin:0 0 20px;}
+  h3{margin:0 0 14px;font-size:17.5px;font-weight:700;color:#1e293b;letter-spacing:-0.015em;}
+  .card{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:22px 24px;margin-bottom:24px;box-shadow:var(--shadow);transition:box-shadow .2s ease;}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;}
-  label{font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:5px;}
-  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:6px;font-size:15px;font-family:inherit;}
+  label{font-size:13px;font-weight:600;color:#475569;display:block;margin-bottom:6px;}
+  input,select,textarea{width:100%;padding:8px 11px;border:1px solid var(--border);border-radius:7px;font-size:14px;font-family:inherit;color:#1e293b;background:#fff;transition:border-color .15s ease,box-shadow .15s ease;}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12);}
   textarea{grid-column:1/-1;min-height:60px;resize:vertical;}
-  button{background:var(--primary);color:#fff;border:none;padding:10px 20px;border-radius:6px;font-size:15px;cursor:pointer;}
-  button:disabled{opacity:.6;cursor:not-allowed;}
+  button{background:var(--primary);color:#fff;border:none;padding:8px 16px;border-radius:7px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s ease;display:inline-flex;align-items:center;justify-content:center;gap:6px;}
+  button:hover:not(:disabled){background:var(--primary-hover);box-shadow:0 2px 5px rgba(37,99,235,.25);}
+  button:active:not(:disabled){transform:scale(.98);}
+  button:disabled{opacity:.55;cursor:not-allowed;}
   button.secondary{background:#64748b;}
+  button.secondary:hover:not(:disabled){background:#475569;box-shadow:0 2px 5px rgba(100,116,139,.25);}
   button.danger{background:#dc2626;padding:6px 12px;font-size:13px;}
+  button.danger:hover:not(:disabled){background:#b91c1c;box-shadow:0 2px 5px rgba(220,38,38,.25);}
   button.edit{background:#059669;padding:6px 12px;font-size:13px;margin-right:4px;}
+  button.edit:hover:not(:disabled){background:#047857;}
   button.done{background:#0891b2;padding:6px 12px;font-size:13px;margin-right:4px;}
-  button.icon-btn{background:transparent;padding:5px 9px;font-size:16px;border:1px solid var(--border);border-radius:6px;margin-right:4px;}
-  button.icon-btn:hover{background:#f1f5f9;}
-  table{width:100%;border-collapse:collapse;font-size:14px;}
+  button.done:hover:not(:disabled){background:#0e7490;}
+  button.icon-btn{background:transparent;color:#475569;padding:5px 9px;font-size:15px;border:1px solid var(--border);border-radius:7px;margin-right:4px;}
+  button.icon-btn:hover{background:#f1f5f9;color:#0f172a;border-color:#cbd5e1;}
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
   th,td{border:1px solid var(--border);padding:8px 10px;text-align:left;}
-  th{background:#f1f5f9;}
-  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;justify-content:space-between;}
+  th{background:#f8fafc;color:#475569;font-size:12px;font-weight:700;}
+  tbody tr:hover{background:rgba(241,245,249,.45);}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;justify-content:space-between;}
   .stats-num{font-weight:700;}
   .actions{white-space:nowrap;}
   /* QUAN TRỌNG: .msg phải LUÔN nổi bật và LUÔN thấy được, kể cả khi người
@@ -53,10 +84,10 @@
      lưu thành công nhưng thực ra chưa lưu được gì. Dùng position:sticky để
      banner luôn dính ở đầu vùng nhìn thấy của #main (#main có overflow-y:auto)
      dù đang cuộn ở bất cứ đâu trong trang. */
-  .msg{font-size:14px;font-weight:600;padding:10px 14px;border-radius:6px;margin-bottom:14px;display:none;
-    position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.12);}
-  .msg.ok{background:#dcfce7;color:#166534;}
-  .msg.err{background:#fee2e2;color:#991b1b;}
+  .msg{font-size:14px;font-weight:600;padding:11px 16px;border-radius:8px;margin-bottom:16px;display:none;
+    position:sticky;top:0;z-index:100;box-shadow:var(--shadow-lg);backdrop-filter:blur(8px);border:1px solid transparent;}
+  .msg.ok{background:#ecfdf5;color:#065f46;border-color:#a7f3d0;}
+  .msg.err{background:#fef2f2;color:#991b1b;border-color:#fecaca;}
   .stat-input{width:60px;padding:4px;}
 
   /* ---------- Cột "Đánh giá" dài — thu gọn + nút Xem thêm/Thu gọn ---------- */
@@ -68,14 +99,16 @@
 
   /* ---------- Stat cards ---------- */
   .stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;}
-  .stat-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:18px;}
-  .stat-card .label{font-size:13px;color:#64748b;margin-bottom:7px;}
-  .stat-card .value{font-size:32px;font-weight:700;color:var(--primary);}
-  .stat-card .sub{font-size:13px;color:#64748b;margin-top:5px;}
+  .stat-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow-sm);transition:all .15s ease;}
+  .stat-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px);}
+  .stat-card .label{font-size:12.5px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:8px;}
+  .stat-card .value{font-size:32px;font-weight:800;color:var(--primary);letter-spacing:-0.02em;line-height:1.1;}
+  .stat-card .sub{font-size:12.5px;color:var(--text-muted);margin-top:6px;}
 
   /* ---------- Bảng xếp hạng người dẫn dắt ---------- */
-  .rank-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
-  .rank-row:first-child{border-color:#fbbf24;background:#fffbeb;}
+  .rank-row{display:flex;align-items:center;gap:14px;padding:11px 16px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;box-shadow:var(--shadow-sm);transition:border-color .15s ease;}
+  .rank-row:hover{border-color:var(--border-hover);}
+  .rank-row:first-child{border-color:#fbbf24;background:linear-gradient(135deg,#fffdf5,#ffffff);}
   .rank-medal{font-size:22px;width:30px;text-align:center;flex-shrink:0;}
   .rank-name{flex:1;font-weight:600;color:#1e293b;}
   .rank-count{color:var(--primary);font-weight:700;white-space:nowrap;}
@@ -90,9 +123,9 @@
 
   /* ---------- Khu vực pill tabs ---------- */
   .kv-pills{display:flex;gap:8px;flex-wrap:wrap;}
-  .kv-pill{background:#e2e8f0;color:#334155;border:none;padding:9px 18px;border-radius:999px;font-size:14px;cursor:pointer;}
-  .kv-pill:hover{background:#cbd5e1;}
-  .kv-pill.active{background:var(--primary);color:#fff;}
+  .kv-pill{background:#f1f5f9;color:#475569;border:1px solid var(--border);padding:7px 16px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .15s ease;}
+  .kv-pill:hover{background:#e2e8f0;color:#0f172a;}
+  .kv-pill.active{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 2px 6px rgba(37,99,235,.25);}
 
   /* ---------- Sub-tab trong "Hiện trạng khu vực" (TP / Trudo / Giáo dục) ---------- */
   .kv-subpanel{display:none;}
@@ -373,10 +406,10 @@
   #authUserRow{font-size:12px;color:#94a3b8;margin-top:16px;}
 
   /* ---------- Thanh tài khoản (đăng nhập/đăng xuất) ---------- */
-  #userBar{position:fixed;top:14px;right:20px;z-index:500;display:none;align-items:center;gap:10px;background:#fff;border:1px solid var(--border);border-radius:999px;padding:6px 8px 6px 14px;box-shadow:0 2px 8px rgba(0,0,0,.1);font-size:12.5px;color:#475569;}
+  #userBar{position:fixed;top:14px;right:20px;z-index:500;display:none;align-items:center;gap:10px;background:rgba(255,255,255,0.95);backdrop-filter:blur(8px);border:1px solid var(--border);border-radius:999px;padding:5px 8px 5px 14px;box-shadow:var(--shadow-md);font-size:12.5px;color:#334155;font-weight:500;}
   #userBar #userBarEmail{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  #userBarLogoutBtn{background:#f1f5f9;color:#334155;border:none;padding:6px 12px;border-radius:999px;font-size:12px;cursor:pointer;font-weight:600;}
-  #userBarLogoutBtn:hover{background:#fee2e2;color:#991b1b;}
+  #userBarLogoutBtn{background:#f1f5f9;color:#475569;border:1px solid var(--border);padding:5px 12px;border-radius:999px;font-size:12px;cursor:pointer;font-weight:600;transition:all .15s ease;display:inline-flex;align-items:center;gap:5px;}
+  #userBarLogoutBtn:hover{background:#fee2e2;color:#dc2626;border-color:#fecaca;}
   @media (max-width: 720px){
     /* Trên mobile, #sidebar không còn là cột dọc bên trái nữa mà biến thành
        thanh tab NẰM NGANG Ở TRÊN CÙNG (xem khối "Responsive" bên dưới) — cùng
@@ -391,17 +424,19 @@
        thanh tab, không đè lên nhau nữa. */
     #userBar{position:static;top:auto;right:auto;width:100%;justify-content:flex-end;
       border-radius:0;border:none;border-bottom:1px solid var(--border);box-shadow:none;
-      padding:8px 10px;}
-    #userBar #userBarEmail{max-width:110px;}
+      padding:8px 12px;background:#fff;}
+    #userBar #userBarEmail{max-width:130px;}
   }
 
   /* ---------- Responsive ---------- */
   @media (max-width: 720px){
     body{flex-direction:column;}
-    #sidebar{width:100%;display:flex;align-items:center;padding:10px;overflow-x:auto;}
+    #sidebar{width:100%;display:flex;align-items:center;padding:8px 10px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    #sidebar::-webkit-scrollbar{display:none;}
+    #sidebar{-ms-overflow-style:none;scrollbar-width:none;}
     #sidebar h2{display:none;}
-    .nav-btn{flex-shrink:0;width:auto;margin-bottom:0;margin-right:6px;white-space:nowrap;}
-    #main{padding:14px;}
+    .nav-btn{flex-shrink:0;width:auto;margin-bottom:0;margin-right:6px;white-space:nowrap;padding:7px 12px;font-size:13px;}
+    #main{padding:16px 14px;}
   }
 </style>
 </head>
@@ -416,21 +451,27 @@
       <div id="authGoogleBtn"></div>
       <div id="authStatus"></div>
       <div id="authUserRow" style="display:none;"></div>
+      <div id="previewLocalBox" style="margin-top:20px;padding-top:16px;border-top:1px dashed #e2e8f0;">
+        <button type="button" id="btnPreviewLocal" onclick="previewLocalUI()" style="background:#0f172a;color:#fff;border-radius:8px;padding:10px 18px;font-size:13.5px;font-weight:600;width:100%;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+          <i data-lucide="eye" style="width:16px;height:16px;">👁️</i> Xem trước giao diện (Bản thử nghiệm)
+        </button>
+        <div style="font-size:12px;color:#64748b;margin-top:6px;">Dành riêng để kiểm tra giao diện trực tiếp trên máy</div>
+      </div>
     </div>
   </div>
 
   <div id="userBar">
     <span id="userBarEmail"></span>
-    <button type="button" id="userBarLogoutBtn" onclick="dangXuat()">🚪 Đăng xuất</button>
+    <button type="button" id="userBarLogoutBtn" onclick="dangXuat()"><i data-lucide="log-out" style="width:14px;height:14px;">🚪</i> Đăng xuất</button>
   </div>
 
   <div id="sidebar">
-    <h2>📋 Học viên</h2>
-    <button type="button" class="nav-btn active" data-panel="stats" onclick="showPanel('stats')"><span class="nav-icon">📊</span> Tổng quan</button>
-    <button type="button" class="nav-btn" data-panel="add" onclick="showPanel('add')"><span class="nav-icon">📝</span> Nhập học viên</button>
-    <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon">📦</span> Đơn thuần</button>
-    <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon">🗺️</span> Hiện trạng khu vực</button>
-    <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon">🗓️</span> Lịch làm việc</button>
+    <h2><i data-lucide="clipboard-list" style="width:16px;height:16px;">📋</i> Học viên</h2>
+    <button type="button" class="nav-btn active" data-panel="stats" onclick="showPanel('stats')"><span class="nav-icon"><i data-lucide="layout-dashboard">📊</i></span> Tổng quan</button>
+    <button type="button" class="nav-btn" data-panel="add" onclick="showPanel('add')"><span class="nav-icon"><i data-lucide="user-plus">📝</i></span> Nhập học viên</button>
+    <button type="button" class="nav-btn" data-panel="donthuan" onclick="showPanel('donthuan')"><span class="nav-icon"><i data-lucide="book-open">📦</i></span> Đơn thuần</button>
+    <button type="button" class="nav-btn" data-panel="kv" onclick="showPanel('kv')"><span class="nav-icon"><i data-lucide="map-pin">🗺️</i></span> Hiện trạng khu vực</button>
+    <button type="button" class="nav-btn" data-panel="lich" onclick="showPanel('lich')"><span class="nav-icon"><i data-lucide="calendar">🗓️</i></span> Lịch làm việc</button>
     <!-- Trợ lý (thêm 24/08/2026, theo yêu cầu anh Rise: "tạo ra 1 trợ lý để
          giúp báo cáo, quản lý, đề xuất phương án phát triển cho công việc tin
          lành mà vốn là các chỉ số đang hiển thị trên web"). Trang này KHÔNG
@@ -441,20 +482,20 @@
          lên sau khi đăng nhập nếu isChuTaiKhoan_(). Giấu nút CHỈ là cho gọn
          mắt — chặn thật nằm ở máy chủ (getTroLy đặt chuThoi: true trong
          registry.js). Đừng bỏ một trong hai. -->
-    <button type="button" class="nav-btn" id="navTroLy" data-panel="troly" style="display:none;" onclick="showPanel('troly'); loadTroLy_();"><span class="nav-icon">🤖</span> Trợ lý</button>
+    <button type="button" class="nav-btn" id="navTroLy" data-panel="troly" style="display:none;" onclick="showPanel('troly'); loadTroLy_();"><span class="nav-icon"><i data-lucide="bot">🤖</i></span> Trợ lý</button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          17/08/2026: chỗ duyệt trực tiếp trong web, phòng khi tin Telegram bị
          bỏ lỡ/tắt tiếng không ai để ý. -->
     <button type="button" class="nav-btn" id="navDuyet" data-panel="duyet" style="display:none;" onclick="showPanel('duyet'); loadDuyetTruyCap(); loadApprovedAccess();">
-      <span class="nav-icon">🔑</span> Duyệt truy cập <span id="duyetBadge" class="nav-badge" style="display:none;"></span>
+      <span class="nav-icon"><i data-lucide="shield-check">🔑</i></span> Duyệt truy cập <span id="duyetBadge" class="nav-badge" style="display:none;"></span>
     </button>
     <!-- Chỉ tài khoản chủ (anh Rise) mới thấy mục này — hiện ra bằng JS
          trong showUserBar_() sau khi đăng nhập, xem isChuTaiKhoan_(). Thêm
          19/08/2026, theo yêu cầu anh Rise: tự thêm/tách Khu vực mới ngay
          trên web, không cần báo lập trình viên nữa. -->
     <button type="button" class="nav-btn" id="navKhuVuc" data-panel="khuvuc" style="display:none;" onclick="showPanel('khuvuc'); loadQuanLyKhuVuc_();">
-      <span class="nav-icon">🗺️➕</span> Quản lý khu vực
+      <span class="nav-icon"><i data-lucide="settings">🗺️➕</i></span> Quản lý khu vực
     </button>
   </div>
 
@@ -1545,6 +1586,9 @@ function showPanel(name){
   document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
   document.getElementById('panel-' + name).classList.add('active');
   document.querySelector('.nav-btn[data-panel="' + name + '"]').classList.add('active');
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    try { window.lucide.createIcons(); } catch(e){}
+  }
 }
 
 function showMsg(text, ok){
@@ -6404,6 +6448,52 @@ function hideAuthOverlay_(){
   document.getElementById('authOverlay').style.display = 'none';
 }
 
+function previewLocalUI(){
+  hideAuthOverlay_();
+  showUserBar_('rise.shine1948@gmail.com');
+  window._laChu = true;
+  window._authEmail = 'rise.shine1948@gmail.com';
+  const navTroLy = document.getElementById('navTroLy');
+  if (navTroLy) navTroLy.style.display = 'flex';
+  const navDuyet = document.getElementById('navDuyet');
+  if (navDuyet) navDuyet.style.display = 'flex';
+  const navKhuVuc = document.getElementById('navKhuVuc');
+  if (navKhuVuc) navKhuVuc.style.display = 'flex';
+  const loading = document.getElementById('loadingOverlay');
+  if (loading) loading.style.display = 'none';
+
+  // Danh sách các khu vực đầy đủ của Si-ôn
+  khuVucList = ['Đ Uyên', 'K Thành', 'TT Châu', 'K Trâm', 'K My', 'K Long', 'K Đức', 'SĐ'];
+  selectedKV = 'Đ Uyên';
+  
+  // Thiết lập tháng hiện tại cho các ô chọn tháng
+  const curM = currentMonthKey();
+  const kvMonth = document.getElementById('kvMonth');
+  if (kvMonth) kvMonth.value = curM;
+  const monthInput = document.getElementById('monthInput');
+  if (monthInput) monthInput.value = curM;
+
+  // Render các chip khu vực: 📊 Tổng, Đ Uyên, K Thành, TT Châu...
+  renderKVPills();
+
+  // Hiện tab con Báo cáo cho Admin
+  const kvSubBaoCao = document.getElementById('kvSubBaoCao');
+  if (kvSubBaoCao) kvSubBaoCao.style.display = '';
+
+  const kvSelect = document.getElementById('kvSelect');
+  if (kvSelect) fillSelect(kvSelect, khuVucList, '-- Chọn Khu vực --');
+  const donThuanKV = document.getElementById('donThuanKV');
+  if (donThuanKV) fillSelect(donThuanKV, khuVucList, '-- Chọn Khu vực --');
+  const f_to = document.getElementById('f_to');
+  if (f_to) fillSelect(f_to, khuVucList, '-- Chọn Khu vực --');
+
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    try { window.lucide.createIcons(); } catch(e){}
+  }
+  showMsg('Đang ở chế độ xem trước giao diện cục bộ (Local Preview)', true);
+}
+window.previewLocalUI = previewLocalUI;
+
 // Đăng xuất: xoá mã phiên đã lưu, tắt tự-đăng-nhập-ngầm của Google (để One Tap
 // không lập tức đăng nhập lại đúng tài khoản vừa thoát), rồi tải lại trang —
 // dùng để Trưởng phòng đăng nhập thử bằng một Gmail KHÁC (không phải mail admin)
@@ -6561,5 +6651,15 @@ if (!tryAutoLoginFromStorage_()) {
      Để riêng một file cho dễ sửa — nó tự dựng giao diện lúc trang chạy,
      KHÔNG đụng vào phần HTML phía trên. (thêm 13/08/2026) -->
 <script src="trudo-ui.js"></script>
+<script>
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    try { window.lucide.createIcons(); } catch(e){}
+  }
+  window.addEventListener('DOMContentLoaded', function(){
+    if (window.lucide && typeof window.lucide.createIcons === 'function') {
+      try { window.lucide.createIcons(); } catch(e){}
+    }
+  });
+</script>
 </body>
 </html>
