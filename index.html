@@ -258,9 +258,10 @@
   .cv-table th:first-child, .cv-table td:first-child{border-left:1px solid #e2e8f0;}
   .cv-table th.cv-tuan-hdr{background:#e0e7ff;color:#1e3a8a;font-size:12px;font-weight:800;letter-spacing:.3px;}
   .cv-table .cv-tuan-dau{border-left:2px solid #94a3b8;}
-  .cv-table input{width:100%;padding:3px 2px;font-size:12px;border:1px solid transparent;background:transparent;text-align:center;border-radius:4px;transition:background .3s;}
+  .cv-table input{width:100%;padding:3px 2px;font-size:13px;border:1px solid transparent;background:transparent;text-align:center;border-radius:4px;transition:background .2s, border-color .2s;}
   .cv-table input:focus{border-color:#2563eb;background:#fff;outline:none;}
-  .cv-table input.saved{background:#dcfce7;}
+  .cv-table input.saved{background:#bbf7d0 !important;}
+  .cv-table input.has-val{font-weight:700;color:#1e3a8a;}
   .cv-table td.cv-ngay{background:#f7fee7;min-width:52px;padding:0;}
   .cv-table td.cv-tong{font-weight:700;color:var(--primary);background:#f8fafc;min-width:52px;}
   .cv-table td.cv-tong-nguoi{font-weight:800;color:#b91c1c;font-size:14px;background:#fef2f2;min-width:56px;}
@@ -539,6 +540,95 @@
     .dd-ctrl-bar{
       flex-direction:column;
       align-items:flex-start !important;
+      gap:6px !important;
+    }
+
+    /* --- Bảng Điểm danh công việc (Trudo) trên Di Động --- */
+    .cv-table .cv-fix1{display:none !important;}
+    .cv-table .cv-fix2{
+      left:0 !important;
+      width:105px !important;
+      min-width:105px !important;
+      max-width:105px !important;
+      padding:4px 5px !important;
+      font-size:12px !important;
+      line-height:1.25 !important;
+    }
+    .cv-table .cv-fix2 .cv-ten{
+      white-space:normal !important;
+      word-break:break-word !important;
+      line-height:1.25 !important;
+      font-size:12px !important;
+    }
+    .cv-table .cv-fix3{
+      left:105px !important;
+      width:44px !important;
+      min-width:44px !important;
+      max-width:44px !important;
+      font-size:11px !important;
+      padding:2px !important;
+      box-shadow:2px 0 4px rgba(0,0,0,0.08) !important;
+    }
+    .cv-table thead th.cv-fix1{display:none !important;}
+    .cv-table thead th.cv-fix2{
+      left:0 !important;
+      width:105px !important;
+      min-width:105px !important;
+      max-width:105px !important;
+      font-size:11.5px !important;
+      padding:4px 2px !important;
+    }
+    .cv-table thead th.cv-fix3{
+      left:105px !important;
+      width:44px !important;
+      min-width:44px !important;
+      max-width:44px !important;
+      font-size:11px !important;
+      padding:4px 1px !important;
+      box-shadow:2px 0 4px rgba(0,0,0,0.08) !important;
+    }
+    .cv-table td.cv-ngay{
+      min-width:38px !important;
+      width:38px !important;
+      padding:2px 1px !important;
+    }
+    .cv-table input{
+      width:100% !important;
+      height:36px !important;
+      font-size:14px !important;
+      font-weight:600 !important;
+      border-radius:6px !important;
+      border:1px solid #cbd5e1 !important;
+      background:#fff !important;
+      padding:0 !important;
+      text-align:center !important;
+      box-sizing:border-box !important;
+      -webkit-appearance:none !important;
+    }
+    .cv-table input:focus{
+      border-color:#2563eb !important;
+      box-shadow:0 0 0 2px rgba(37,99,235,0.2) !important;
+      background:#fff !important;
+    }
+    .cv-table input.has-val{
+      font-weight:700 !important;
+      color:#1e3a8a !important;
+      background:#eff6ff !important;
+      border-color:#93c5fd !important;
+    }
+    .cv-table td.cv-tong{
+      min-width:40px !important;
+      font-size:12px !important;
+      padding:2px !important;
+    }
+    .cv-table td.cv-tong-nguoi{
+      min-width:44px !important;
+      font-size:13px !important;
+      padding:2px !important;
+    }
+    .cv-add-bar{
+      flex-direction:column;
+      align-items:stretch !important;
       gap:6px !important;
     }
   }
@@ -1121,21 +1211,25 @@
              Danh sách người DÙNG CHUNG bảng Điểm danh nên ở đây KHÔNG có ô thêm
              người; thêm/xoá người làm ở tab con "TP" như trước nay. -->
         <div class="card">
-          <h3 style="margin:0 0 4px">Điểm danh công việc — <span id="cv_kvName">—</span></h3>
-          <p style="font-size:12px;color:#64748b;margin:0 0 10px;">
-            Mỗi người 3 dòng <b>Sáng / Chiều / Tối</b>. Mặc định chỉ hiện Tuần đang tới cho gọn — muốn xem/sửa
-            Tuần khác thì tích thêm ở dòng <b>"Hiện tuần"</b> bên dưới (tích được nhiều Tuần cùng lúc).
-            Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu — xoá trắng ô là bỏ.
-            Cột <b>Tổng</b> ở mỗi dòng luôn tính <b>CẢ THÁNG</b> (đủ 6 Tuần, kể cả Tuần đang ẩn bớt), không phải chỉ
-            Tuần đang hiện; <b>số đỏ</b> = tổng cả 3 buổi.
-            Danh sách người lấy từ bảng <b>Điểm danh</b> của khu vực này — thêm/xoá người ở tab <b>TP</b>.
-            Đổi tháng bằng ô <b>"Xem tháng"</b> ở trên cùng.
-          </p>
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
-            <input type="text" id="cv_newTen" placeholder="Tên người muốn thêm..."
-                   style="width:230px;padding:6px 10px;font-size:13px;"
-                   onkeydown="if(event.key==='Enter'){event.preventDefault();addCVNguoiUI();}">
-            <button class="btn" type="button" onclick="addCVNguoiUI()">+ Thêm người</button>
+          <h3 style="margin:0 0 8px">Điểm danh công việc — <span id="cv_kvName">—</span></h3>
+          <details class="dd-huongdan">
+            <summary>💡 Hướng dẫn & quy tắc tính (bấm xem)</summary>
+            <div class="dd-huongdan-body">
+              Mỗi người 3 dòng <b>Sáng / Chiều / Tối</b>. Mặc định chỉ hiện Tuần đang tới cho gọn — muốn xem/sửa
+              Tuần khác thì chọn ở dòng <b>"Hiện tuần"</b> bên dưới (chọn được nhiều Tuần cùng lúc).
+              Gõ bất kỳ số/chữ nào rồi rời ô là tự lưu — xoá trắng ô là bỏ.
+              Cột <b>Tổng</b> ở mỗi dòng luôn tính <b>CẢ THÁNG</b> (đủ 6 Tuần, kể cả Tuần đang ẩn bớt);
+              <b>số đỏ</b> = tổng cả 3 buổi. Danh sách người lấy từ bảng <b>Điểm danh</b> của khu vực này.
+              Đổi tháng bằng ô <b>"Xem tháng"</b> ở trên cùng.
+            </div>
+          </details>
+          <div class="cv-add-bar" style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+            <div style="display:flex;gap:6px;align-items:center;flex:1;min-width:240px;">
+              <input type="text" id="cv_newTen" placeholder="Tên người muốn thêm..."
+                     style="flex:1;padding:7px 10px;font-size:13px;border:1px solid #cbd5e1;border-radius:8px;"
+                     onkeydown="if(event.key==='Enter'){event.preventDefault();addCVNguoiUI();}">
+              <button class="btn" type="button" onclick="addCVNguoiUI()" style="white-space:nowrap;padding:7px 14px;">+ Thêm</button>
+            </div>
             <span style="font-size:11px;color:#94a3b8;">chỉ thêm vào bảng này, không hiện ở bảng Điểm danh</span>
           </div>
           <p id="cvEmpty" style="color:#94a3b8;font-size:13px;display:none;">
@@ -6267,6 +6361,7 @@ function renderCVTable_(d){
         CV_NGAY_.forEach(function(n, j){
           const khoa = t + '-' + n;
           const val = (tv.o && tv.o[b.ma] && tv.o[b.ma][khoa]) || '';
+          const hasVal = (val && String(val).trim() && String(val).trim() !== '0') ? ' has-val' : '';
           // data-r / data-c = toạ độ ô trong lưới, dùng cho phím mũi tên.
           // ⚠️ BẮT BUỘC phải dùng toạ độ chứ KHÔNG dùng chỉ số cột như bảng
           // Điểm danh (ddCellKeyNav): bảng này có ô rowspan="3" nên dòng đầu
@@ -6278,10 +6373,10 @@ function renderCVTable_(d){
           // trái/phải sẽ "nhảy hụt" giữa các ô. data-tuan vẫn giữ đúng số
           // Tuần thật t để saveCVCellUI_ lưu đúng chỗ.
           body += '<td class="cv-ngay' + (j === 0 ? ' cv-tuan-dau' : '') + '">' +
-            '<input type="text" value="' + esc(val) + '" data-ten="' + tenAttr +
-            '" data-buoi="' + b.ma + '" data-tuan="' + t + '" data-ngay="' + n +
-            '" data-r="' + (i * CV_BUOI_.length + k) + '" data-c="' + (tIdx * 7 + j) + '"' +
-            ' onchange="saveCVCellUI_(this)" onkeydown="cvCellKeyNav(event)"></td>';
+            '<input type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="next" class="' + hasVal + '"' +
+            ' value="' + esc(val) + '" data-ten="' + tenAttr + '" data-buoi="' + b.ma + '" data-tuan="' + t + '" data-ngay="' + n + '"' +
+            ' data-r="' + (i * CV_BUOI_.length + k) + '" data-c="' + (tIdx * 7 + j) + '"' +
+            ' onfocus="this.select()" onchange="saveCVCellUI_(this)" onkeydown="cvCellKeyNav(event)"></td>';
         });
       });
       body += '<td class="cv-tong cv-tuan-dau" data-cv-tong="' + tenAttr + '|' + b.ma + '">' +
@@ -6398,6 +6493,8 @@ function cvCellKeyNav(e){
 // mà không phải tải lại cả bảng (bảng rất rộng, tải lại sẽ mất chỗ đang cuộn).
 function saveCVCellUI_(inp){
   const ten = inp.dataset.ten;
+  const val = (inp.value || '').trim();
+  if (val && val !== '0') inp.classList.add('has-val'); else inp.classList.remove('has-val');
   inp.classList.add('saved');
   setTimeout(function(){ inp.classList.remove('saved'); }, 700);
   google.script.run.withSuccessHandler(function(r){
@@ -6781,6 +6878,20 @@ function previewLocalUI(){
   const tpddKvName = document.getElementById('tpdd_kvName');
   if (tpddKvName) tpddKvName.textContent = selectedKV;
   renderTPDDTable_();
+
+  if (!window._cvData) {
+    window._cvData = {
+      thanhVien: [
+        { ten: 'P Thị Thành', o: { sang: {}, chieu: {}, toi: {} }, tongBuoi: { sang: 0, chieu: 0, toi: 0 }, tongNguoi: 0 },
+        { ten: 'T Thị Thanh Nguyên', o: { sang: {}, chieu: {}, toi: { '3-T2': '1' } }, tongBuoi: { sang: 0, chieu: 0, toi: 1 }, tongNguoi: 1 },
+        { ten: 'L T Thúy Vân', o: { sang: { '3-T2': '2' }, chieu: { '3-T2': '15' }, toi: { '3-T2': '1' } }, tongBuoi: { sang: 2, chieu: 15, toi: 1 }, tongNguoi: 18 }
+      ],
+      dsAn: ['Đ C Thiện Nhân', 'Đ Minh Khôi', 'Nguyễn Thị Tuyết Sương']
+    };
+  }
+  const cvKvName = document.getElementById('cv_kvName');
+  if (cvKvName) cvKvName.textContent = selectedKV;
+  renderCVTable_(window._cvData);
 
   if (window.lucide && typeof window.lucide.createIcons === 'function') {
     try { window.lucide.createIcons(); } catch(e){}
