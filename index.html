@@ -481,7 +481,8 @@
       max-width:54px !important;
       height:38px !important;
       padding:0 !important;
-      font-size:15px !important;
+      font-size:14px !important;
+      letter-spacing:-0.2px;
       font-weight:700 !important;
       border-radius:7px !important;
       border:1px solid #cbd5e1 !important;
@@ -1026,7 +1027,7 @@
             <div class="dd-ctrl-bar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
               <div id="ddTuanFilterBox" style="flex:1;min-width:200px;"></div>
               <div>
-                <button type="button" class="dd-quicktap-btn active" onclick="toggleDDQuickTap_()" title="Chạm 1 lần để điền 1 / chạm lần nữa để xóa">⚡ Chạm nhanh: BẬT</button>
+                <button type="button" class="dd-quicktap-btn active" onclick="toggleDDQuickTap_()" title="Chạm 1 lần để điền 211 / chạm lần nữa để xóa">⚡ Chạm nhanh: BẬT</button>
               </div>
             </div>
             <div style="overflow-x:auto;">
@@ -1057,7 +1058,7 @@
             <div class="dd-ctrl-bar" style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
               <div id="lttClusterFilterBox" style="flex:1;min-width:200px;"></div>
               <div>
-                <button type="button" class="dd-quicktap-btn active" onclick="toggleDDQuickTap_()" title="Chạm 1 lần để điền 1 / chạm lần nữa để xóa">⚡ Chạm nhanh: BẬT</button>
+                <button type="button" class="dd-quicktap-btn active" onclick="toggleDDQuickTap_()" title="Chạm 1 lần để điền 211 / chạm lần nữa để xóa">⚡ Chạm nhanh: BẬT</button>
               </div>
             </div>
             <div style="overflow-x:auto;">
@@ -4685,7 +4686,7 @@ function diemDanhTongKetClient_(diemDanh){
 // =====================================================================
 // CƠ CHẾ ĐIỂM DANH 1 CHẠM TRÊN DI ĐỘNG (1-TAP ATTENDANCE)
 // Tối ưu cho người dùng thao tác trên điện thoại:
-// - Chạm nhanh vào ô trống -> điền số 1, lưu ngay, nhấp nháy xanh, không bật bàn phím ảo
+// - Chạm nhanh vào ô trống -> điền số 211, lưu ngay, nhấp nháy xanh, không bật bàn phím ảo
 // - Chạm nhanh vào ô đã có số -> xóa về trống, lưu ngay
 // - Nhấn giữ > 400ms hoặc nhấp đúp -> mở bàn phím số (inputmode="numeric") để nhập số khác
 // - Nút "⚡ Chạm nhanh: BẬT/TẮT" ở đầu bảng cho phép bật/tắt chế độ này bất kỳ lúc nào
@@ -4717,13 +4718,13 @@ function toggleDDQuickTap_(){
   window._ddQuickTap = !window._ddQuickTap;
   try { localStorage.setItem('dd_quick_tap', window._ddQuickTap ? '1' : '0'); } catch(e){}
   updateQuickTapBtns_();
-  showMsg(window._ddQuickTap ? '⚡ Đã bật Chạm nhanh: Chạm 1 lần để điểm danh số 1 / xóa' : '⌨️ Đã chuyển sang Gõ phím: Bấm vào ô để mở bàn phím gõ tùy ý', true);
+  showMsg(window._ddQuickTap ? '⚡ Đã bật Chạm nhanh: Chạm 1 lần để điểm danh 211 / xóa' : '⌨️ Đã chuyển sang Gõ phím: Bấm vào ô để mở bàn phím gõ tùy ý', true);
 }
 
 function toggleCellAttendance_(input){
   if (!input) return;
   const cur = (input.value || '').trim();
-  const nextVal = (cur === '' || cur === '0') ? '1' : '';
+  const nextVal = (cur === '' || cur === '0') ? '211' : '';
   input.value = nextVal;
   if (nextVal) {
     input.classList.add('has-val');
@@ -6769,9 +6770,9 @@ function previewLocalUI(){
       {
         nhom: 'Đ Uyên',
         thanhVien: [
-          { ten: 'Nguyễn Văn An', diemDanh: { 1: { T3toi: '1', CNsang: '1', CNchieu: '1', CNtoi: '1' } }, tongKet: 4 },
-          { ten: 'Trần Thị Bích Ngọc', diemDanh: { 1: { T3toi: '1', CNsang: '1' } }, tongKet: 2 },
-          { ten: 'Lê Hoàng Đức', diemDanh: { 1: { T3toi: '1' } }, tongKet: 1 },
+          { ten: 'Nguyễn Văn An', diemDanh: { 1: { T3toi: '211', CNsang: '211', CNchieu: '211', CNtoi: '211' } }, tongKet: 4 },
+          { ten: 'Trần Thị Bích Ngọc', diemDanh: { 1: { T3toi: '211', CNsang: '211' } }, tongKet: 2 },
+          { ten: 'Lê Hoàng Đức', diemDanh: { 1: { T3toi: '211' } }, tongKet: 1 },
           { ten: 'Phạm Minh Trí', diemDanh: {}, tongKet: 0 }
         ]
       }
