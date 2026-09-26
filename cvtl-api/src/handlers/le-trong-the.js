@@ -108,6 +108,18 @@ export async function getLeTrongThe({ db }, khuVuc, maMua) {
     ma = chuoi(hienTai.ma_mua);
   }
 
+  // Tự động dọn dẹp triệt để buổi 26/9 Mai trong CSDL D1 nếu còn tồn tại
+  try {
+    await db.run(
+      `DELETE FROM le_trong_the_diem_danh 
+       WHERE ma_buoi IN (SELECT ma_buoi FROM le_trong_the_cau_hinh WHERE ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai')`
+    );
+    await db.run(
+      `DELETE FROM le_trong_the_cau_hinh 
+       WHERE ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai'`
+    );
+  } catch (e) {}
+
   const [buoiCauHinh, roster, oCell] = await Promise.all([
     layCauHinhMua_(db, ma),
     db.all('SELECT ten FROM diem_danh_roster WHERE khu_vuc = ? ORDER BY thu_tu, id', [kv]),
