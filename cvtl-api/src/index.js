@@ -35,26 +35,6 @@ export default {
         return json({ ok: true, thoiGian: new Date().toISOString() });
       }
 
-      // Xoá buổi 26/9 Mai trực tiếp khỏi CSDL D1
-      if (url.pathname === '/xoa-26-9-mai') {
-        const db = bocD1(env.DB);
-        const r1 = await db.run(
-          `DELETE FROM le_trong_the_diem_danh 
-           WHERE ma_buoi IN (SELECT ma_buoi FROM le_trong_the_cau_hinh WHERE ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai')`
-        );
-        const r2 = await db.run(
-          `DELETE FROM le_trong_the_cau_hinh 
-           WHERE ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai'`
-        );
-        const conLai = await db.all(
-          `SELECT ma_buoi, thu_tu, ngay, nhan, ten_cum FROM le_trong_the_cau_hinh WHERE ngay = '2026-09-26' ORDER BY thu_tu`
-        );
-        const tongBuoi = await db.first(
-          `SELECT COUNT(*) AS total FROM le_trong_the_cau_hinh WHERE ma_mua = '2026_thu'`
-        );
-        return json({ ok: true, daXoaDiemDanh: r1, daXoaCauHinh: r2, buoiNgay26ConLai: conLai, tongBuoiMuaThu: tongBuoi?.total });
-      }
-
       // Cài đặt CSDL lần đầu (chạy được nhiều lần, không hỏng dữ liệu cũ).
       // Cần đúng mã bí mật nên người ngoài không gọi được.
       if (url.pathname === '/cai-dat') {
