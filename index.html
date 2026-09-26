@@ -4645,6 +4645,22 @@ function renderLTTTable_(d){
   const muaLabel = document.getElementById('ltt_muaLabel');
   const filterBox = document.getElementById('lttClusterFilterBox');
   if (!table) return;
+
+  // Lọc bỏ cột 26/9 Mai cho toàn bộ khu vực theo yêu cầu
+  if (d && Array.isArray(d.buoi)) {
+    d.buoi = d.buoi.filter(function(b){
+      return !(b.ngay === '2026-09-26' && (b.nhan || '').trim().toLowerCase() === 'mai');
+    });
+    d.tongSoBuoi = d.buoi.length;
+    if (Array.isArray(d.thanhVien)) {
+      d.thanhVien.forEach(function(m){
+        let tong = 0;
+        d.buoi.forEach(function(b){ if (m.o && (m.o[b.maBuoi] || '') !== '') tong++; });
+        m.tong = tong;
+      });
+    }
+  }
+
   window._lttData = d;
 
   if (!d || !d.coDuLieu) {

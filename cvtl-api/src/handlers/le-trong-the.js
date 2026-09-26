@@ -36,11 +36,13 @@
 
 import { chuoi, batBuoc } from '../tien-ich.js';
 
-/** Toàn bộ lịch của 1 mùa, sắp đúng thứ tự hiển thị. */
+/** Toàn bộ lịch của 1 mùa, sắp đúng thứ tự hiển thị (loại bỏ 26/9 Mai). */
 async function layCauHinhMua_(db, maMua) {
   return db.all(
     `SELECT ma_buoi, thu_tu, ma_su_kien, ten_su_kien, cum, ten_cum, ngay, nhan, gio, ten_mua
-     FROM le_trong_the_cau_hinh WHERE ma_mua = ? ORDER BY thu_tu`,
+     FROM le_trong_the_cau_hinh 
+     WHERE ma_mua = ? AND NOT (ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai') 
+     ORDER BY thu_tu`,
     [maMua]
   );
 }
@@ -55,7 +57,9 @@ async function layCauHinhMua_(db, maMua) {
 async function chonMuaHienTai_(db) {
   const rows = await db.all(
     `SELECT ma_mua, ten_mua, MIN(ngay) AS tu_ngay, MAX(ngay) AS den_ngay, COUNT(*) AS so_buoi
-     FROM le_trong_the_cau_hinh GROUP BY ma_mua, ten_mua`
+     FROM le_trong_the_cau_hinh 
+     WHERE NOT (ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai')
+     GROUP BY ma_mua, ten_mua`
   );
   if (!rows.length) return null;
   const homNay = new Date().toISOString().slice(0, 10);
@@ -70,7 +74,9 @@ async function chonMuaHienTai_(db) {
 export async function getLeTrongTheMuaList({ db }) {
   const rows = await db.all(
     `SELECT ma_mua, ten_mua, MIN(ngay) AS tu_ngay, MAX(ngay) AS den_ngay, COUNT(*) AS so_buoi
-     FROM le_trong_the_cau_hinh GROUP BY ma_mua, ten_mua ORDER BY MIN(ngay) DESC`
+     FROM le_trong_the_cau_hinh 
+     WHERE NOT (ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai')
+     GROUP BY ma_mua, ten_mua ORDER BY MIN(ngay) DESC`
   );
   return { danhSach: rows };
 }
@@ -175,7 +181,8 @@ export async function saveLeTrongThe({ db }, khuVuc, ten, maMua, maBuoi, giaTri)
   const mb = batBuoc(maBuoi, 'Buổi lễ');
 
   const hopLe = await db.first(
-    'SELECT 1 AS x FROM le_trong_the_cau_hinh WHERE ma_mua = ? AND ma_buoi = ?',
+    `SELECT 1 AS x FROM le_trong_the_cau_hinh 
+     WHERE ma_mua = ? AND ma_buoi = ? AND NOT (ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai')`,
     [ma, mb]
   );
   if (!hopLe) throw new Error('Buổi lễ không hợp lệ: "' + mb + '" (không có trong lịch mùa "' + ma + '").');
@@ -195,12 +202,14 @@ export async function saveLeTrongThe({ db }, khuVuc, ten, maMua, maBuoi, giaTri)
   }
 
   const tongSoBuoi = await db.first(
-    'SELECT COUNT(*) AS n FROM le_trong_the_cau_hinh WHERE ma_mua = ?',
+    `SELECT COUNT(*) AS n FROM le_trong_the_cau_hinh 
+     WHERE ma_mua = ? AND NOT (ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai')`,
     [ma]
   );
   const daDiem = await db.first(
-    'SELECT COUNT(*) AS n FROM le_trong_the_diem_danh WHERE khu_vuc=? AND ten=? AND ma_mua=?',
-    [kv, tenTV, ma]
+    `SELECT COUNT(*) AS n FROM le_trong_the_diem_danh WHERE khu_vuc=? AND ten=? AND ma_mua=?
+     AND ma_buoi IN (SELECT ma_buoi FROM le_trong_the_cau_hinh WHERE ma_mua=? AND NOT (ngay = '2026-09-26' AND LOWER(TRIM(nhan)) = 'mai'))`,
+    [kv, tenTV, ma, ma]
   );
   return { success: true, tong: Number(daDiem?.n) || 0, tongSoBuoi: Number(tongSoBuoi?.n) || 0 };
 }
