@@ -34,6 +34,7 @@ import * as congViec from './handlers/cong-viec.js';
 import * as troLy from './handlers/tro-ly.js';
 import * as baoCao from './handlers/bao-cao.js';
 import * as leTrongThe from './handlers/le-trong-the.js';
+import * as keHoach from './handlers/ke-hoach.js';
 import * as nhatKy from './nhat-ky.js';
 
 export const DANH_MUC = {
@@ -108,6 +109,11 @@ export const DANH_MUC = {
   saveGoalCaNhan:          { doc: false, fn: mucTieuGiaoDuc.saveGoalCaNhan },
   deleteGoalCaNhan:        { doc: false, fn: mucTieuGiaoDuc.deleteGoalCaNhan },
   getPersonalGoalsAllKhuVuc:{ doc: true, fn: mucTieuGiaoDuc.getPersonalGoalsAllKhuVuc },
+
+  // --- Kế hoạch công tác tháng (04/10/2026) ---
+  getKeHoachThang:          { doc: true,  fn: keHoach.getKeHoachThang },
+  saveKeHoachThang:         { doc: false, fn: keHoach.saveKeHoachThang },
+  getAllKeHoachThang:       { doc: true,  fn: keHoach.getAllKeHoachThang },
 
   // --- Giáo dục thành viên ---
   getGiaoDucMembers:       { doc: true,  fn: mucTieuGiaoDuc.getGiaoDucMembers },

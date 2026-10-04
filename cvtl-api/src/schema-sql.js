@@ -58,7 +58,10 @@ export const CAU_LENH_TAO_BANG = [
   // `le_trong_the_diem_danh` = SỐ đã điểm danh, RIÊNG theo từng khu vực, ô
   // trống = xoá dòng (giống hệt `cv_cong_viec`).
   "CREATE TABLE IF NOT EXISTS le_trong_the_diem_danh ( khu_vuc TEXT NOT NULL, ten TEXT NOT NULL, ma_mua TEXT NOT NULL, ma_buoi TEXT NOT NULL, gia_tri TEXT NOT NULL, PRIMARY KEY (khu_vuc, ten, ma_mua, ma_buoi) )",
-  "CREATE INDEX IF NOT EXISTS ix_lttdd_kv_mua ON le_trong_the_diem_danh (khu_vuc, ma_mua)"
+  "CREATE INDEX IF NOT EXISTS ix_lttdd_kv_mua ON le_trong_the_diem_danh (khu_vuc, ma_mua)",
+  // Kế hoạch công tác tháng (04/10/2026) — xem handlers/ke-hoach.js
+  "CREATE TABLE IF NOT EXISTS ke_hoach_thang ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, noi_dung TEXT NOT NULL, nguoi_cap_nhat TEXT, cap_nhat_luc TEXT, PRIMARY KEY (thang, khu_vuc) )",
+  "CREATE INDEX IF NOT EXISTS ix_kht_thang ON ke_hoach_thang (thang)"
 ];
 
 // =====================================================================
