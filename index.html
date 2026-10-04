@@ -983,13 +983,13 @@
           <div id="bcThiDua_noiDung" style="color:#94a3b8;">Đang tải…</div>
         </div>
 
-        <!-- Card: Tổng hợp Kế hoạch công tác tháng các khu vực (04/10/2026) -->
+        <!-- Card: Tổng hợp Kế hoạch Tin Lành tháng các khu vực (04/10/2026) -->
         <div class="card" style="margin-top:16px;" id="kvtongKeHoachCard">
           <div class="toolbar" style="margin-bottom:6px;">
-            <h3 style="margin:0 0 4px 0;">📝 Kế hoạch công tác tháng các Khu vực — <span id="kvtongKeHoach_monthLabel"></span></h3>
+            <h3 style="margin:0 0 4px 0;">📝 Kế hoạch Tin Lành tháng các Khu vực — <span id="kvtongKeHoach_monthLabel"></span></h3>
           </div>
           <div style="color:#64748b;font-size:13px;margin-bottom:12px;">
-            Tổng hợp kế hoạch tháng của từng khu vực để Trưởng phòng và các anh em cùng theo dõi, hỗ trợ kịp thời.
+            Tổng hợp kế hoạch Tin Lành của từng khu vực để Trưởng phòng và các anh em cùng theo dõi, hỗ trợ kịp thời.
           </div>
           <div id="kvtongKeHoach_noiDung" style="color:#94a3b8;">Đang tải…</div>
         </div>
@@ -1016,20 +1016,20 @@
 
       <!-- ---- Sub-tab: Mục tiêu (Khu vực + Cá nhân) — scoped theo 1 Khu vực đang chọn ---- -->
       <div id="kvsub-muctieu" class="kv-subpanel">
-        <!-- Card: Kế hoạch công tác tháng (04/10/2026) -->
+        <!-- Card: Kế hoạch Tin Lành tháng (04/10/2026) -->
         <div class="card" id="card-kehoach-thang" style="margin-bottom:16px;">
           <div class="toolbar" style="margin-bottom:10px;">
-            <h3 style="margin:0;">📝 Kế hoạch công tác tháng — <span id="khthang_kvName">—</span> (tháng <span id="khthang_monthLabel"></span>)</h3>
+            <h3 style="margin:0;">📝 Kế hoạch Tin Lành tháng — <span id="khthang_kvName">—</span> (tháng <span id="khthang_monthLabel"></span>)</h3>
             <span id="khthang_saveIndicator" style="font-size:12px;color:#16a34a;display:none;font-weight:600;">✓ Đã lưu</span>
           </div>
           <p style="font-size:12px;color:#64748b;margin:0 0 10px;">
-            Khu vực trưởng ghi kế hoạch công tác trọng tâm, các buổi nhóm, thăm viếng, đào tạo hoặc mục tiêu cụ thể trong tháng để Trưởng phòng và các anh em cùng theo dõi, hỗ trợ.
+            Khu vực trưởng ghi kế hoạch Tin Lành trọng tâm, các buổi nhóm, thăm viếng, đào tạo hoặc mục tiêu cụ thể trong tháng để Trưởng phòng và các anh em cùng theo dõi, hỗ trợ.
           </p>
           <div style="margin-bottom:10px;">
-            <textarea id="khthang_noiDung" rows="6" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px;line-height:1.5;resize:vertical;" placeholder="Nhập kế hoạch công tác của khu vực trong tháng này (các trọng tâm thăm viếng, học Lời, rèn luyện giúp việc, tổ chức buổi nhóm...)..."></textarea>
+            <textarea id="khthang_noiDung" rows="6" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:14px;line-height:1.5;resize:vertical;" placeholder="Nhập kế hoạch Tin Lành của khu vực trong tháng này (các trọng tâm thăm viếng, học Lời, rèn luyện giúp việc, tổ chức buổi nhóm...)..."></textarea>
           </div>
           <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-            <button type="button" id="khthang_saveBtn" onclick="saveKeHoachThang_()" style="display:inline-flex;align-items:center;gap:6px;">💾 Lưu kế hoạch tháng</button>
+            <button type="button" id="khthang_saveBtn" onclick="saveKeHoachThang_()" style="display:inline-flex;align-items:center;gap:6px;">💾 Lưu kế hoạch Tin Lành</button>
             <button type="button" class="secondary" id="khthang_mauBtn" onclick="dienMauKeHoachThang_()">📋 Điền mẫu gợi ý</button>
             <span id="khthang_capNhatLuc" style="font-size:12px;color:#64748b;"></span>
           </div>
@@ -1716,7 +1716,7 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   // dùng được cache; bấm "Báo cáo" là lệnh GHI nên tự xoá sạch cache, lần vẽ
   // lại bảng kiểm ngay sau đó chắc chắn lấy số mới.
   'getBaoCaoTuan', 'getBaoCaoLuoi',
-  // Kế hoạch công tác tháng (04/10/2026)
+  // Kế hoạch Tin Lành tháng (04/10/2026)
   'getKeHoachThang', 'getAllKeHoachThang',
   // ⚠️ Kỳ vận động KHÔNG có hàm nào riêng — nó dùng chung `getXepHang` (đã khai
   // ở trên), chỉ khoá cứng khoảng ngày theo kỳ.
@@ -2655,7 +2655,7 @@ function loadMucTieuPanel(){
   document.getElementById('mtkv_monthLabel').textContent = monthKey;
   document.getElementById('mtcn_kvName').textContent = selectedKV;
 
-  // Nạp kế hoạch công tác tháng của khu vực đang chọn (04/10/2026)
+  // Nạp kế hoạch Tin Lành tháng của khu vực đang chọn (04/10/2026)
   loadKeHoachThang_();
 
   google.script.run.withSuccessHandler(function(list){
@@ -2678,7 +2678,7 @@ function loadMucTieuPanel(){
 }
 
 // =====================================================================
-// KẾ HOẠCH CÔNG TÁC THÁNG (thêm 04/10/2026)
+// KẾ HOẠCH TIN LÀNH THÁNG (thêm 04/10/2026)
 // =====================================================================
 function duocSuaKeHoach_(kv){
   if (isChuTaiKhoan_()) return true;
@@ -2718,7 +2718,7 @@ function loadKeHoachThang_(){
 
   google.script.run.withSuccessHandler(function(res){
     if (txt) {
-      txt.placeholder = 'Nhập kế hoạch công tác của khu vực trong tháng này (các trọng tâm thăm viếng, học Lời, rèn luyện giúp việc, tổ chức buổi nhóm...)...';
+      txt.placeholder = 'Nhập kế hoạch Tin Lành của khu vực trong tháng này (các trọng tâm thăm viếng, học Lời, rèn luyện giúp việc, tổ chức buổi nhóm...)...';
       txt.value = (res && res.noiDung) || '';
     }
     if (lblTime && res && res.capNhatLuc) {
@@ -2727,7 +2727,7 @@ function loadKeHoachThang_(){
     }
   }).withFailureHandler(function(err){
     if (txt) txt.placeholder = 'Không tải được kế hoạch: ' + err.message;
-    showMsg('Lỗi tải kế hoạch tháng: ' + err.message, false);
+    showMsg('Lỗi tải kế hoạch Tin Lành: ' + err.message, false);
   }).getKeHoachThang(monthKey, kv);
 }
 
@@ -2749,7 +2749,7 @@ function saveKeHoachThang_(){
   google.script.run.withSuccessHandler(function(res){
     if (btnSave) {
       btnSave.disabled = false;
-      btnSave.textContent = '💾 Lưu kế hoạch tháng';
+      btnSave.textContent = '💾 Lưu kế hoạch Tin Lành';
     }
     if (saveInd) {
       saveInd.style.display = 'inline';
@@ -2759,13 +2759,13 @@ function saveKeHoachThang_(){
       const email = res.nguoiCapNhat ? ' (' + res.nguoiCapNhat + ')' : '';
       lblTime.textContent = 'Cập nhật lần cuối: ' + fmtNgayGio_(res.capNhatLuc) + email;
     }
-    showMsg('Đã lưu kế hoạch tháng thành công!', true);
+    showMsg('Đã lưu kế hoạch Tin Lành thành công!', true);
   }).withFailureHandler(function(err){
     if (btnSave) {
       btnSave.disabled = false;
-      btnSave.textContent = '💾 Lưu kế hoạch tháng';
+      btnSave.textContent = '💾 Lưu kế hoạch Tin Lành';
     }
-    showMsg('Lỗi lưu kế hoạch tháng: ' + err.message, false);
+    showMsg('Lỗi lưu kế hoạch Tin Lành: ' + err.message, false);
   }).saveKeHoachThang(monthKey, kv, noiDung);
 }
 
@@ -3113,7 +3113,7 @@ function loadKVTongKeHoach_(){
           html += '<div style="font-size:11px;color:#94a3b8;margin-top:6px;text-align:right;">Người cập nhật: ' + esc(item.nguoiCapNhat) + '</div>';
         }
       } else {
-        html += '<div style="font-size:13px;color:#94a3b8;font-style:italic;padding:8px 0;">Chưa ghi kế hoạch công tác cho tháng này.</div>';
+        html += '<div style="font-size:13px;color:#94a3b8;font-style:italic;padding:8px 0;">Chưa ghi kế hoạch Tin Lành cho tháng này.</div>';
       }
 
       html += '</div>';

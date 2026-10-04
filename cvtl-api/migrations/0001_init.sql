@@ -520,7 +520,7 @@ CREATE TABLE IF NOT EXISTS le_trong_the_diem_danh (
 CREATE INDEX IF NOT EXISTS ix_lttdd_kv_mua ON le_trong_the_diem_danh (khu_vuc, ma_mua);
 
 -- ---------------------------------------------------------------------
--- 24. Kế hoạch công tác tháng (04/10/2026)
+-- 24. Kế hoạch Tin Lành tháng (04/10/2026)
 -- ---------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS ke_hoach_thang (
   thang         TEXT NOT NULL,

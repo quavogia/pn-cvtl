@@ -1,5 +1,5 @@
 // =====================================================================
-// Kế hoạch công tác tháng theo từng Khu vực (thêm 04/10/2026).
+// Kế hoạch Tin Lành tháng theo từng Khu vực (thêm 04/10/2026).
 //
 // Bảng `ke_hoach_thang`:
 //   thang          TEXT NOT NULL,

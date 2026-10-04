@@ -1,5 +1,5 @@
 // =====================================================================
-// Kiểm thử OFFLINE cho Kế hoạch công tác tháng (src/handlers/ke-hoach.js):
+// Kiểm thử OFFLINE cho Kế hoạch Tin Lành tháng (src/handlers/ke-hoach.js):
 //     node scripts/kiem-thu-ke-hoach.mjs
 // =====================================================================
 
@@ -34,7 +34,7 @@ function taoCSDL() {
   db = bocSqlite(sqlite);
 }
 
-console.log('--- KIỂM THỬ: Kế hoạch công tác tháng (ke-hoach.js) ---');
+console.log('--- KIỂM THỬ: Kế hoạch Tin Lành tháng (ke-hoach.js) ---');
 taoCSDL();
 
 // 1. Khi chưa có dữ liệu: getKeHoachThang trả về cấu trúc mặc định rỗng

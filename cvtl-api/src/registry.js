@@ -110,7 +110,7 @@ export const DANH_MUC = {
   deleteGoalCaNhan:        { doc: false, fn: mucTieuGiaoDuc.deleteGoalCaNhan },
   getPersonalGoalsAllKhuVuc:{ doc: true, fn: mucTieuGiaoDuc.getPersonalGoalsAllKhuVuc },
 
-  // --- Kế hoạch công tác tháng (04/10/2026) ---
+  // --- Kế hoạch Tin Lành tháng (04/10/2026) ---
   getKeHoachThang:          { doc: true,  fn: keHoach.getKeHoachThang },
   saveKeHoachThang:         { doc: false, fn: keHoach.saveKeHoachThang },
   getAllKeHoachThang:       { doc: true,  fn: keHoach.getAllKeHoachThang },
