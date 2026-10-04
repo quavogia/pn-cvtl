@@ -30,6 +30,29 @@ function bocSqlite(conn) {
   };
 }
 
+function taoSpyDB(dbGoc) {
+  let soLanGhi = 0;
+  const cacLenhGhi = [];
+  return {
+    spy: {
+      ...dbGoc,
+      async run(sql, p = []) {
+        soLanGhi++;
+        cacLenhGhi.push({ type: 'run', sql: sql.trim().replace(/\s+/g, ' '), params: p });
+        return dbGoc.run(sql, p);
+      },
+      async batch(ds) {
+        soLanGhi += (Array.isArray(ds) ? ds.length : 1);
+        cacLenhGhi.push({ type: 'batch', ds });
+        return dbGoc.batch(ds);
+      },
+    },
+    laySoLanGhi: () => soLanGhi,
+    layCacLenhGhi: () => cacLenhGhi,
+    datLai: () => { soLanGhi = 0; cacLenhGhi.length = 0; },
+  };
+}
+
 function taoCSDL() {
   sqlite = new DatabaseSync(':memory:');
   sqlite.exec(SQL_KHOI_TAO);
@@ -99,4 +122,27 @@ const muaList = await getLeTrongTheMuaList({ db });
 assert.equal(muaList.danhSach[0].so_buoi, 5, 'Số buổi trong mùa là 5');
 console.log('✓ getLeTrongTheMuaList đếm đúng số buổi (5 buổi)');
 
+// 6. Kiểm tra tính thuần đọc (read-only): getLeTrongThe tuyệt đối không phát sinh lệnh ghi (run/batch)
+taoCSDL();
+
+// 6.1. Đối chứng dương: xác minh spy bắt được lệnh ghi khi gọi hàm ghi saveLeTrongThe
+const spyGhi = taoSpyDB(db);
+const resSaveSpy = await saveLeTrongThe({ db: spyGhi.spy }, 'SĐ', 'N T Huyền', '2026_thu', 'buoi_26_09_sang', '211');
+assert.equal(resSaveSpy.success, true, 'Lưu điểm danh thành công');
+assert.ok(spyGhi.laySoLanGhi() > 0, `Spy phải bắt được lệnh ghi (thực tế: ${spyGhi.laySoLanGhi()} lệnh)`);
+console.log(`✓ Đối chứng dương: Spy ghi nhận chính xác ${spyGhi.laySoLanGhi()} lệnh ghi khi gọi saveLeTrongThe`);
+
+// 6.2. Kiểm tra hàm đọc: getLeTrongThe không được gọi run hoặc batch
+const spyDoc = taoSpyDB(db);
+const resDoc = await getLeTrongThe({ db: spyDoc.spy }, 'SĐ', '2026_thu');
+assert.equal(resDoc.coDuLieu, true, 'getLeTrongThe phải trả về có dữ liệu');
+assert.equal(resDoc.buoi.length, 5, 'getLeTrongThe phải trả về đúng 5 buổi');
+assert.equal(
+  spyDoc.laySoLanGhi(),
+  0,
+  `Hàm đọc getLeTrongThe không được phát sinh bất kỳ lệnh ghi nào (run/batch), thực tế phát sinh ${spyDoc.laySoLanGhi()} lệnh: ${JSON.stringify(spyDoc.layCacLenhGhi())}`
+);
+console.log('✓ getLeTrongThe là hàm thuần đọc (0 lệnh run, 0 lệnh batch)');
+
 console.log('=== KẾT QUẢ: TẤT CẢ KIỂM THỬ ĐIỂM DANH LỄ TRỌNG THỂ ĐẠT 100% ===');
+
