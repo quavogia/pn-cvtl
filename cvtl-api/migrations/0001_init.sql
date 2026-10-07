@@ -532,3 +532,18 @@ CREATE TABLE IF NOT EXISTS ke_hoach_thang (
 );
 CREATE INDEX IF NOT EXISTS ix_kht_thang ON ke_hoach_thang (thang);
 
+-- ---------------------------------------------------------------------
+-- 25. Kế hoạch Tin Lành theo từng mảng (07/10/2026)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ke_hoach_muc (
+  thang          TEXT NOT NULL,
+  khu_vuc        TEXT NOT NULL,
+  muc            TEXT NOT NULL,
+  noi_dung       TEXT NOT NULL DEFAULT '',
+  can_ho_tro     TEXT NOT NULL DEFAULT '',
+  nguoi_cap_nhat TEXT,
+  cap_nhat_luc   TEXT,
+  PRIMARY KEY (thang, khu_vuc, muc)
+);
+CREATE INDEX IF NOT EXISTS ix_khm_thang ON ke_hoach_muc (thang);
+

@@ -1,5 +1,5 @@
 // =====================================================================
-// Kiểm thử OFFLINE cho Kế hoạch Tin Lành tháng (src/handlers/ke-hoach.js):
+// Kiểm thử OFFLINE cho Kế hoạch Tin Lành theo từng mảng (src/handlers/ke-hoach.js):
 //     node scripts/kiem-thu-ke-hoach.mjs
 // =====================================================================
 
@@ -28,94 +28,201 @@ function bocSqlite(conn) {
   };
 }
 
+function taoSpyDB(dbGoc) {
+  let soLanGhi = 0;
+  const cacLenhGhi = [];
+  return {
+    spy: {
+      ...dbGoc,
+      async run(sql, p = []) {
+        soLanGhi++;
+        cacLenhGhi.push({ type: 'run', sql: sql.trim().replace(/\s+/g, ' '), params: p });
+        return dbGoc.run(sql, p);
+      },
+      async batch(ds) {
+        soLanGhi += (Array.isArray(ds) ? ds.length : 1);
+        cacLenhGhi.push({ type: 'batch', ds });
+        return dbGoc.batch(ds);
+      },
+    },
+    laySoLanGhi: () => soLanGhi,
+    layCacLenhGhi: () => cacLenhGhi,
+    datLai: () => { soLanGhi = 0; cacLenhGhi.length = 0; },
+  };
+}
+
 function taoCSDL() {
   sqlite = new DatabaseSync(':memory:');
   sqlite.exec(SQL_KHOI_TAO);
   db = bocSqlite(sqlite);
 }
 
-console.log('--- KIỂM THỬ: Kế hoạch Tin Lành tháng (ke-hoach.js) ---');
+function demSoDong() {
+  const r = sqlite.prepare('SELECT COUNT(*) AS c FROM ke_hoach_muc').get();
+  return Number(r?.c || 0);
+}
+
+console.log('--- KIỂM THỬ: Kế hoạch Tin Lành theo từng mảng (ke-hoach.js) ---');
 taoCSDL();
 
-// 1. Khi chưa có dữ liệu: getKeHoachThang trả về cấu trúc mặc định rỗng
-const macDinh = await getKeHoachThang({ db }, '2026-10', 'K My');
+// 1. Khi chưa có dữ liệu: getKeHoachThang trả về cấu trúc mặc định rỗng an toàn
+const macDinh = await getKeHoachThang({ db }, '2026-10', 'K My', 'tp');
 assert.equal(macDinh.thang, '2026-10');
 assert.equal(macDinh.khuVuc, 'K My');
+assert.equal(macDinh.muc, 'tp');
 assert.equal(macDinh.noiDung, '');
+assert.equal(macDinh.canHoTro, '');
 assert.equal(macDinh.nguoiCapNhat, '');
 assert.equal(macDinh.capNhatLuc, '');
 console.log('✓ getKeHoachThang trả về mặc định an toàn khi chưa có dữ liệu');
 
-// 2. Chặn tháng không hợp lệ hoặc thiếu khu vực
+// 2. Chặn tham số không hợp lệ và khẳng định số dòng không đổi
+const soDongBanDau = demSoDong();
 await assert.rejects(
-  async () => { await getKeHoachThang({ db }, 'sai-thang', 'K My'); },
+  async () => { await getKeHoachThang({ db }, 'sai-thang', 'K My', 'tp'); },
   /Tháng không hợp lệ/,
   'Chặn tháng sai'
 );
 await assert.rejects(
-  async () => { await getKeHoachThang({ db }, '2026-10', ''); },
+  async () => { await getKeHoachThang({ db }, '2026-10', '', 'tp'); },
   /Khu vực/,
   'Chặn khu vực rỗng'
 );
-console.log('✓ Tham số đầu vào được kiểm tra chặt chẽ');
+await assert.rejects(
+  async () => { await getKeHoachThang({ db }, '2026-10', 'K My', ''); },
+  /Thiếu mảng kế hoạch/,
+  'Chặn thiếu mảng kế hoạch'
+);
+await assert.rejects(
+  async () => { await getKeHoachThang({ db }, '2026-10', 'K My', 'chung'); },
+  /Mảng kế hoạch không hợp lệ/,
+  'Chặn mảng "chung"'
+);
+await assert.rejects(
+  async () => { await getKeHoachThang({ db }, '2026-10', 'K My', 'xyz'); },
+  /Mảng kế hoạch không hợp lệ/,
+  'Chặn mảng lạ'
+);
+assert.equal(demSoDong(), soDongBanDau, 'Số dòng trong bảng không đổi sau các lần gọi đọc lỗi');
+console.log('✓ Tham số đầu vào được kiểm tra chặt chẽ, số dòng không đổi');
 
-// 3. Phân quyền khi lưu (saveKeHoachThang)
-// Tài khoản admin chủ: sửa được mọi khu vực
+// 3. Lưu và đọc độc lập giữa các mảng của cùng một khu vực (tp và trudo)
 const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1, pham_vi: null } };
-const resSave1 = await saveKeHoachThang(adminCtx, '2026-10', 'K My', '1. Thăm viếng 5 thánh đồ yếu đuối\n2. Mở 2 lớp học Kinh Thánh');
-assert.equal(resSave1.success, true);
-assert.equal(resSave1.thang, '2026-10');
-assert.equal(resSave1.khuVuc, 'K My');
-assert.ok(resSave1.noiDung.includes('Thăm viếng'));
-assert.equal(resSave1.nguoiCapNhat, 'rise.shine1948@gmail.com');
-assert.ok(resSave1.capNhatLuc.length > 0);
-console.log('✓ Admin lưu kế hoạch tháng thành công');
 
-// Đọc lại kiểm tra
-const docLai = await getKeHoachThang({ db }, '2026-10', 'K My');
-assert.equal(docLai.noiDung, '1. Thăm viếng 5 thánh đồ yếu đuối\n2. Mở 2 lớp học Kinh Thánh');
-assert.equal(docLai.nguoiCapNhat, 'rise.shine1948@gmail.com');
-console.log('✓ Đọc lại đúng nội dung vừa lưu');
+// Lưu mảng tp
+const resSaveTP = await saveKeHoachThang(adminCtx, '2026-10', 'K My', 'tp', 'Nội dung mẫu TP A1', 'Cần hỗ trợ âm thanh');
+assert.equal(resSaveTP.success, true);
+assert.equal(resSaveTP.thang, '2026-10');
+assert.equal(resSaveTP.khuVuc, 'K My');
+assert.equal(resSaveTP.muc, 'tp');
+assert.equal(resSaveTP.noiDung, 'Nội dung mẫu TP A1');
+assert.equal(resSaveTP.canHoTro, 'Cần hỗ trợ âm thanh');
+assert.equal(resSaveTP.nguoiCapNhat, 'rise.shine1948@gmail.com');
+assert.ok(resSaveTP.capNhatLuc.length > 0);
 
+// Lưu mảng trudo cho cùng khu vực và tháng
+const resSaveTD = await saveKeHoachThang(adminCtx, '2026-10', 'K My', 'trudo', 'Nội dung mẫu Trudo B2', 'Cần tài liệu học');
+assert.equal(resSaveTD.success, true);
+assert.equal(resSaveTD.muc, 'trudo');
+
+// Kiểm tra tính độc lập: đọc lại tp không bị trudo đè lên
+const docTP = await getKeHoachThang({ db }, '2026-10', 'K My', 'tp');
+assert.equal(docTP.noiDung, 'Nội dung mẫu TP A1');
+assert.equal(docTP.canHoTro, 'Cần hỗ trợ âm thanh');
+
+const docTD = await getKeHoachThang({ db }, '2026-10', 'K My', 'trudo');
+assert.equal(docTD.noiDung, 'Nội dung mẫu Trudo B2');
+assert.equal(docTD.canHoTro, 'Cần tài liệu học');
+console.log('✓ Lưu và đọc độc lập giữa các mảng của cùng một khu vực');
+
+// 4. Kiểm tra độc lập giữa cột noi_dung và can_ho_tro
+await saveKeHoachThang(adminCtx, '2026-10', 'K My', 'tp', 'Nội dung mẫu TP cập nhật', '');
+const docTP2 = await getKeHoachThang({ db }, '2026-10', 'K My', 'tp');
+assert.equal(docTP2.noiDung, 'Nội dung mẫu TP cập nhật');
+assert.equal(docTP2.canHoTro, '');
+console.log('✓ Cột noi_dung và can_ho_tro hoạt động độc lập và cập nhật chính xác');
+
+// 5. Phân quyền khi lưu (saveKeHoachThang)
 // Tài khoản khu vực trưởng: chỉ lưu được khu vực trong phạm vi
 const kvtMyCtx = { db, nguoiGoi: { email: 'my@example.com', la_chu: 0, pham_vi: 'K My' } };
-const resSaveKVT = await saveKeHoachThang(kvtMyCtx, '2026-10', 'K My', 'Kế hoạch bổ sung tuần 2');
+const resSaveKVT = await saveKeHoachThang(kvtMyCtx, '2026-10', 'K My', 'edu', 'Kế hoạch học tập C3', '');
 assert.equal(resSaveKVT.success, true);
-assert.equal(resSaveKVT.noiDung, 'Kế hoạch bổ sung tuần 2');
 assert.equal(resSaveKVT.nguoiCapNhat, 'my@example.com');
 console.log('✓ Khu vực trưởng lưu kế hoạch của khu vực mình thành công');
 
-// Khu vực trưởng cố sửa khu vực khác -> bị chặn
+// Khu vực trưởng cố sửa khu vực khác -> bị chặn VÀ số dòng không đổi
+const soDongTruocChan = demSoDong();
 await assert.rejects(
-  async () => { await saveKeHoachThang(kvtMyCtx, '2026-10', 'K Thành', 'Sửa trộm'); },
+  async () => { await saveKeHoachThang(kvtMyCtx, '2026-10', 'K Thành', 'tp', 'Sửa trộm', ''); },
   /Bạn không có quyền sửa kế hoạch của khu vực "K Thành"/,
   'Chặn khu vực ngoài phạm vi'
 );
-console.log('✓ Chặn thành công khu vực trưởng sửa khu vực không thuộc phạm vi');
+assert.equal(demSoDong(), soDongTruocChan, 'Số dòng không đổi khi KVT sửa khu vực ngoài phạm vi');
 
-// Tài khoản không có phạm vi nào (thánh đồ thường) -> bị chặn
+// Tài khoản không có phạm vi nào (thánh đồ thường) -> bị chặn VÀ số dòng không đổi
 const thanhDoCtx = { db, nguoiGoi: { email: 'user@example.com', la_chu: 0, pham_vi: '' } };
 await assert.rejects(
-  async () => { await saveKeHoachThang(thanhDoCtx, '2026-10', 'K My', 'Thử sửa'); },
+  async () => { await saveKeHoachThang(thanhDoCtx, '2026-10', 'K My', 'tp', 'Thử sửa', ''); },
   /Bạn không có quyền sửa kế hoạch/,
   'Chặn người dùng không có phạm vi'
 );
-console.log('✓ Chặn thành công tài khoản thường không có quyền');
+assert.equal(demSoDong(), soDongTruocChan, 'Số dòng không đổi khi người dùng thường cố sửa');
+console.log('✓ Chặn thành công các hành vi ghi trái phép, số dòng không đổi');
 
-// 4. getAllKeHoachThang: lấy kế hoạch toàn bộ các khu vực trong tháng
-// Thêm kế hoạch cho thêm 1 khu vực nữa
-await saveKeHoachThang(adminCtx, '2026-10', 'Đ Uyên', 'Kế hoạch Đ Uyên tháng 10');
+// 6. getAllKeHoachThang: lấy kế hoạch toàn bộ các khu vực và mảng trong tháng
+await saveKeHoachThang(adminCtx, '2026-10', 'Đ Uyên', 'daotao', 'Kế hoạch đào tạo Đ Uyên D4', 'Cần hỗ trợ giáo trình');
 const allPlans = await getAllKeHoachThang({ db }, '2026-10');
 assert.equal(allPlans.thang, '2026-10');
-assert.equal(allPlans.danhSach.length, 2);
-assert.equal(allPlans.theoKhuVuc['K My'].noiDung, 'Kế hoạch bổ sung tuần 2');
-assert.equal(allPlans.theoKhuVuc['Đ Uyên'].noiDung, 'Kế hoạch Đ Uyên tháng 10');
-console.log('✓ getAllKeHoachThang tổng hợp đầy đủ theo từng khu vực');
+assert.equal(allPlans.danhSach.length, 4);
+assert.ok(allPlans.theoKhuVuc['K My']['tp']);
+assert.equal(allPlans.theoKhuVuc['K My']['tp'].noiDung, 'Nội dung mẫu TP cập nhật');
+assert.ok(allPlans.theoKhuVuc['K My']['trudo']);
+assert.equal(allPlans.theoKhuVuc['K My']['trudo'].noiDung, 'Nội dung mẫu Trudo B2');
+assert.ok(allPlans.theoKhuVuc['Đ Uyên']['daotao']);
+assert.equal(allPlans.theoKhuVuc['Đ Uyên']['daotao'].canHoTro, 'Cần hỗ trợ giáo trình');
+console.log('✓ getAllKeHoachThang tổng hợp cấu trúc theoKhuVuc[khuVuc][muc] đầy đủ');
 
-// 5. Thử tháng khác chưa có kế hoạch nào -> trả danh sách rỗng
+// Thử tháng khác chưa có kế hoạch nào -> trả danh sách rỗng
 const allNov = await getAllKeHoachThang({ db }, '2026-11');
 assert.equal(allNov.danhSach.length, 0);
 assert.deepEqual(allNov.theoKhuVuc, {});
 console.log('✓ getAllKeHoachThang tháng chưa có dữ liệu trả về rỗng an toàn');
 
-console.log('\n=== TẤT CẢ KIỂM THỬ KẾ HOẠCH THÁNG ĐÃ ĐẠT 100% ===\n');
+// 7. Kiểm tra tính thuần đọc bằng spy bọc cả run và batch
+const spyObj = taoSpyDB(db);
+
+// 7.1. Đối chứng dương: hàm ghi saveKeHoachThang phải phát sinh lệnh ghi > 0
+const resSpySave = await saveKeHoachThang({ db: spyObj.spy, nguoiGoi: adminCtx.nguoiGoi }, '2026-10', 'K My', 'lehoi', 'KH Lễ hội E5', '');
+assert.equal(resSpySave.success, true);
+assert.ok(spyObj.laySoLanGhi() > 0, `Spy bắt được lệnh ghi khi gọi saveKeHoachThang (thực tế: ${spyObj.laySoLanGhi()} lệnh)`);
+console.log(`✓ Đối chứng dương: Spy bắt được ${spyObj.laySoLanGhi()} lệnh ghi khi gọi saveKeHoachThang`);
+
+// 7.2. Đối chứng âm: getKeHoachThang phát sinh 0 lệnh ghi và trả về dữ liệu thật
+spyObj.datLai();
+const docSpySingle = await getKeHoachThang({ db: spyObj.spy }, '2026-10', 'K My', 'lehoi');
+assert.equal(docSpySingle.noiDung, 'KH Lễ hội E5', 'Dữ liệu trả về đúng nội dung thật');
+assert.equal(spyObj.laySoLanGhi(), 0, 'getKeHoachThang không được phát sinh lệnh ghi');
+
+// 7.3. Đối chứng âm: getAllKeHoachThang phát sinh 0 lệnh ghi và trả về dữ liệu thật
+spyObj.datLai();
+const docSpyAll = await getAllKeHoachThang({ db: spyObj.spy }, '2026-10');
+assert.ok(docSpyAll.danhSach.length >= 5, 'Dữ liệu trả về danh sách thật');
+assert.equal(spyObj.laySoLanGhi(), 0, 'getAllKeHoachThang không được phát sinh lệnh ghi');
+console.log('✓ getKeHoachThang và getAllKeHoachThang là hàm thuần đọc (0 lệnh run, 0 lệnh batch)');
+
+// 8. Khả năng chịu lỗi khi bảng ke_hoach_muc chưa tồn tại (Condition 4)
+sqlite.exec('DROP TABLE IF EXISTS ke_hoach_muc');
+
+const spyNoTable = taoSpyDB(db);
+const docNoTable = await getKeHoachThang({ db: spyNoTable.spy }, '2026-10', 'K My', 'tp');
+assert.equal(docNoTable.noiDung, '', 'Bảng chưa có -> trả về cấu trúc rỗng');
+assert.equal(docNoTable.canHoTro, '', 'Bảng chưa có -> canHoTro rỗng');
+assert.equal(spyNoTable.laySoLanGhi(), 0, 'Không phát sinh lệnh ghi khi bảng chưa tồn tại');
+
+const docAllNoTable = await getAllKeHoachThang({ db: spyNoTable.spy }, '2026-10');
+assert.equal(docAllNoTable.danhSach.length, 0, 'Bảng chưa có -> danhSach rỗng');
+assert.deepEqual(docAllNoTable.theoKhuVuc, {}, 'Bảng chưa có -> theoKhuVuc rỗng');
+assert.equal(spyNoTable.laySoLanGhi(), 0, 'getAllKeHoachThang không phát sinh lệnh ghi khi bảng chưa tồn tại');
+console.log('✓ Chịu lỗi an toàn khi bảng ke_hoach_muc chưa tồn tại (0 lệnh ghi, trả rỗng an toàn)');
+
+console.log('\n=== TẤT CẢ KIỂM THỬ KẾ HOẠCH THEO MẢNG ĐÃ ĐẠT 100% ===\n');
