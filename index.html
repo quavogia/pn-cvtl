@@ -2736,6 +2736,7 @@ function loadKeHoachMuc_(muc){
   container.setAttribute('data-kv', kv);
   container.setAttribute('data-thang', monthKey);
   container.setAttribute('data-muc', muc);
+  container.setAttribute('data-loaded', '0');
 
   const coQuyen = duocSuaKeHoach_(kv);
   const ph = KH_PLACEHOLDERS[muc] || { noiDung: 'Nhập kế hoạch...', canHoTro: 'Việc cần hỗ trợ...' };
@@ -2748,14 +2749,14 @@ function loadKeHoachMuc_(muc){
       '</div>' +
       '<div style="margin-bottom:10px;">' +
         '<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px;">📋 Kế hoạch tháng:</label>' +
-        '<textarea class="kh-noidung" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;' + (coQuyen ? 'background:#fff;' : 'background:#f8fafc;') + '" placeholder="Đang tải kế hoạch..." ' + (coQuyen ? '' : 'readonly') + '></textarea>' +
+        '<textarea class="kh-noidung" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kế hoạch..." disabled></textarea>' +
       '</div>' +
       '<div style="margin-bottom:10px;">' +
         '<label style="font-size:12px;font-weight:600;color:#b45309;display:block;margin-bottom:4px;">🆘 Cần hỗ trợ từ Si-ôn:</label>' +
-        '<textarea class="kh-canhotro" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #fcd34d;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;' + (coQuyen ? 'background:#fffbeb;' : 'background:#f8fafc;') + '" placeholder="' + esc(ph.canHoTro) + '" ' + (coQuyen ? '' : 'readonly') + '></textarea>' +
+        '<textarea class="kh-canhotro" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #fcd34d;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kế hoạch..." disabled></textarea>' +
       '</div>' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-        (coQuyen ? '<button type="button" class="kh-save-btn" onclick="saveKeHoachMuc_(\'' + muc + '\', this)" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;">💾 Lưu kế hoạch</button>' : '') +
+        (coQuyen ? '<button type="button" class="kh-save-btn" onclick="saveKeHoachMuc_(\'' + muc + '\', this)" disabled style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;">💾 Lưu kế hoạch</button>' : '') +
         '<span class="kh-time-label" style="font-size:12px;color:#64748b;"></span>' +
       '</div>' +
       (!coQuyen ? '<div style="font-size:12px;color:#d97706;margin-top:8px;">ℹ️ Bạn đang xem ở chế độ chỉ đọc (chỉ Khu vực trưởng phụ trách khu vực này hoặc Trưởng phòng mới có quyền chỉnh sửa).</div>' : '') +
@@ -2766,17 +2767,30 @@ function loadKeHoachMuc_(muc){
     if (container.getAttribute('data-kv') !== kv || container.getAttribute('data-thang') !== monthKey || container.getAttribute('data-muc') !== muc) {
       return;
     }
+    container.setAttribute('data-loaded', '1');
     const txtNoiDung = container.querySelector('.kh-noidung');
     const txtCanHoTro = container.querySelector('.kh-canhotro');
+    const saveBtn = container.querySelector('.kh-save-btn');
     const lblTime = container.querySelector('.kh-time-label');
 
     if (txtNoiDung) {
       txtNoiDung.placeholder = ph.noiDung;
       txtNoiDung.value = (res && res.noiDung) || '';
+      if (coQuyen) {
+        txtNoiDung.disabled = false;
+        txtNoiDung.style.background = '#fff';
+      }
     }
     if (txtCanHoTro) {
       txtCanHoTro.placeholder = ph.canHoTro;
       txtCanHoTro.value = (res && res.canHoTro) || '';
+      if (coQuyen) {
+        txtCanHoTro.disabled = false;
+        txtCanHoTro.style.background = '#fffbeb';
+      }
+    }
+    if (saveBtn && coQuyen) {
+      saveBtn.disabled = false;
     }
     if (lblTime && res && res.capNhatLuc) {
       const email = res.nguoiCapNhat ? ' (' + res.nguoiCapNhat + ')' : '';
@@ -2786,8 +2800,27 @@ function loadKeHoachMuc_(muc){
     if (container.getAttribute('data-kv') !== kv || container.getAttribute('data-thang') !== monthKey || container.getAttribute('data-muc') !== muc) {
       return;
     }
+    container.setAttribute('data-loaded', '0');
     const txtNoiDung = container.querySelector('.kh-noidung');
-    if (txtNoiDung) txtNoiDung.placeholder = 'Không tải được kế hoạch: ' + (err ? err.message : '');
+    const txtCanHoTro = container.querySelector('.kh-canhotro');
+    const saveBtn = container.querySelector('.kh-save-btn');
+    const lblTime = container.querySelector('.kh-time-label');
+
+    if (txtNoiDung) {
+      txtNoiDung.disabled = true;
+      txtNoiDung.placeholder = 'Không tải được kế hoạch, vui lòng tải lại trang';
+    }
+    if (txtCanHoTro) {
+      txtCanHoTro.disabled = true;
+      txtCanHoTro.placeholder = 'Không tải được kế hoạch, vui lòng tải lại trang';
+    }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+    }
+    if (lblTime) {
+      lblTime.textContent = '⚠️ Lỗi tải dữ liệu';
+      lblTime.style.color = '#dc2626';
+    }
     showMsg('Lỗi tải kế hoạch: ' + (err ? err.message : ''), false);
   }).getKeHoachThang(monthKey, kv, muc);
 }
@@ -2795,6 +2828,12 @@ function loadKeHoachMuc_(muc){
 function saveKeHoachMuc_(muc, btn){
   const container = btn ? btn.closest('.kh-muc') : document.querySelector('.kh-muc[data-muc="' + muc + '"]');
   if (!container) return;
+
+  // Chặn lưu khi dữ liệu chưa tải xong hoặc tải lỗi (Claude #17)
+  if (container.getAttribute('data-loaded') !== '1') {
+    showMsg('Kế hoạch chưa tải xong, vui lòng đợi hoặc tải lại trang.', false);
+    return;
+  }
 
   // Đọc bộ ba (khu vực, tháng, mảng) từ chính hộp đó (Điều kiện 2b) — KHÔNG đọc selectedKV toàn cục!
   const kv = container.getAttribute('data-kv');

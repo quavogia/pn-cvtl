@@ -67,7 +67,6 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE INDEX IF NOT EXISTS ix_khm_thang ON ke_hoach_muc (thang)"
 ];
 
-
 // =====================================================================
 // CÂU LỆNH NÂNG CẤP BẢNG CŨ (thêm 26/08/2026)
 //
