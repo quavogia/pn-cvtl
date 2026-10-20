@@ -8,8 +8,9 @@
 //   - chua_lam: Chưa làm được, vì sao
 //
 // Phân quyền:
-//   - Đọc 1 khu vực (getKetQuaMuc): các thành viên đã duyệt (router kiểm
-//     tra khu vực qua VI_TRI_KHU_VUC).
+//   - Đọc 1 khu vực (getKetQuaMuc): chỉ Chủ/Admin hoặc người có khu vực nằm
+//     trong phạm vi phụ trách (duocXemKhuVuc). Kiểm tra trực tiếp trong hàm
+//     trước khi chạm CSDL vì nội dung "chưa làm được, vì sao" nhạy cảm.
 //   - Ghi (saveKetQuaMuc): chỉ Chủ/Admin hoặc người có khu vực nằm trong
 //     phạm vi phụ trách (duocXemKhuVuc).
 //   - Đọc gộp toàn Si-ôn (getAllKetQuaMuc): chỉ Chủ/Admin (chuThoi: true).
@@ -125,12 +126,18 @@ function laLoiChuaCoBang_(err) {
 /**
  * Đọc kết quả thực hiện của 1 khu vực trong 1 tháng và 1 mảng công việc
  * cho toàn bộ các tuần trong tháng và Tổng kết tháng (tuan = 0).
- * Hàm thuần ĐỌC: không chạy bất kỳ lệnh ghi/DDL nào.
+ * Chỉ Chủ/Admin hoặc người phụ trách khu vực đó mới được xem (kiểm tra trước
+ * khi chạm vào CSDL). Hàm thuần ĐỌC: không chạy bất kỳ lệnh ghi/DDL nào.
  */
-export async function getKetQuaMuc({ db }, thang, khuVuc, muc) {
+export async function getKetQuaMuc({ db, nguoiGoi }, thang, khuVuc, muc) {
   const t = kiemThang_(thang);
   const kv = batBuoc(khuVuc, 'Khu vực');
   const m = kiemMuc_(muc);
+
+  const nguoi = chuanHoaNguoiGoi_(nguoiGoi);
+  if (!nguoi || !duocXemKhuVuc(nguoi, kv)) {
+    throw new Error('Bạn không có quyền xem kết quả thực hiện của khu vực "' + kv + '".');
+  }
 
   const dsTuan = cacTuanCuaThang(t);
   const hn = homNay();

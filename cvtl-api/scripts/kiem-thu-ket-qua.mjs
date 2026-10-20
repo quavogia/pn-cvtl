@@ -34,24 +34,37 @@ function bocSqlite(conn) {
 
 function taoSpyDB(dbGoc) {
   let soLanGhi = 0;
+  let soLanGoiCSDL = 0;
   const cacLenhGhi = [];
   return {
     spy: {
       ...dbGoc,
+      async all(sql, p = []) {
+        soLanGoiCSDL++;
+        return dbGoc.all(sql, p);
+      },
+      async first(sql, p = []) {
+        soLanGoiCSDL++;
+        return dbGoc.first(sql, p);
+      },
       async run(sql, p = []) {
         soLanGhi++;
+        soLanGoiCSDL++;
         cacLenhGhi.push({ type: 'run', sql: sql.trim().replace(/\s+/g, ' '), params: p });
         return dbGoc.run(sql, p);
       },
       async batch(ds) {
-        soLanGhi += (Array.isArray(ds) ? ds.length : 1);
+        const n = Array.isArray(ds) ? ds.length : 1;
+        soLanGhi += n;
+        soLanGoiCSDL += n;
         cacLenhGhi.push({ type: 'batch', ds });
         return dbGoc.batch(ds);
       },
     },
     laySoLanGhi: () => soLanGhi,
+    laySoLanGoiCSDL: () => soLanGoiCSDL,
     layCacLenhGhi: () => cacLenhGhi,
-    datLai: () => { soLanGhi = 0; cacLenhGhi.length = 0; },
+    datLai: () => { soLanGhi = 0; soLanGoiCSDL = 0; cacLenhGhi.length = 0; },
   };
 }
 
@@ -81,6 +94,8 @@ async function voiNgayCoDinh(isoDateVN, fn) {
   }
 }
 
+const adminNguoiGoi = { email: 'rise.shine1948@gmail.com', la_chu: 1, pham_vi: null };
+
 console.log('--- KIỂM THỬ: Thực hiện kế hoạch theo mảng & tuần (ket-qua.js) ---');
 
 // =====================================================================
@@ -93,7 +108,7 @@ console.log('--- KIỂM THỬ: Thực hiện kế hoạch theo mảng & tuần (
   const dbChuaCoBang = bocSqlite(sqliteChuaCoBang);
   const { spy, laySoLanGhi } = taoSpyDB(dbChuaCoBang);
 
-  const r1 = await getKetQuaMuc({ db: spy }, '2026-10', 'K My', 'tp');
+  const r1 = await getKetQuaMuc({ db: spy, nguoiGoi: adminNguoiGoi }, '2026-10', 'K My', 'tp');
   assert.equal(r1.thang, '2026-10');
   assert.equal(r1.khuVuc, 'K My');
   assert.equal(r1.muc, 'tp');
@@ -112,11 +127,12 @@ console.log('--- KIỂM THỬ: Thực hiện kế hoạch theo mảng & tuần (
 // 2. Danh sách tuần trả về khớp cacTuanCuaThang (cả tháng 5 tuần & tháng 6 tuần)
 // =====================================================================
 taoCSDL();
+const adminCtx = { db, nguoiGoi: adminNguoiGoi };
 {
   // Tháng 2026-10 có 5 tuần
   const ds10 = cacTuanCuaThang('2026-10');
   assert.equal(ds10.length, 5);
-  const kq10 = await getKetQuaMuc({ db }, '2026-10', 'K My', 'tp');
+  const kq10 = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp');
   assert.equal(kq10.tuan.length, 5);
   for (let i = 0; i < ds10.length; i++) {
     assert.equal(kq10.tuan[i].tuan, ds10[i].tuan);
@@ -127,7 +143,7 @@ taoCSDL();
   // Tháng 2026-08 bắt đầu Thứ Bảy và có 31 ngày -> có 6 tuần (Điều kiện 3 - Tin #25)
   const ds08 = cacTuanCuaThang('2026-08');
   assert.equal(ds08.length, 6);
-  const kq08 = await getKetQuaMuc({ db }, '2026-08', 'K My', 'tp');
+  const kq08 = await getKetQuaMuc(adminCtx, '2026-08', 'K My', 'tp');
   assert.equal(kq08.tuan.length, 6);
   assert.equal(kq08.tuan[0].tuan, 1);
   assert.equal(kq08.tuan[0].tuNgay, 1);
@@ -148,24 +164,24 @@ taoCSDL();
 // =====================================================================
 {
   await voiNgayCoDinh('2026-10-15', async () => {
-    const cungThangT3 = await getKetQuaMuc({ db }, '2026-10', 'K My', 'tp');
+    const cungThangT3 = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp');
     assert.equal(cungThangT3.tuanHienTai, 3, 'Ngày 15/10/2026 thuộc Tuần 3 (11–17/10) của tháng 10/2026');
   });
 
   await voiNgayCoDinh('2026-10-18', async () => {
-    const cungThang = await getKetQuaMuc({ db }, '2026-10', 'K My', 'tp');
+    const cungThang = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp');
     assert.equal(cungThang.tuanHienTai, 4, 'Ngày 18/10/2026 (Chủ Nhật) thuộc Tuần 4 (18–24/10) của tháng 10/2026');
 
-    const thangTruoc = await getKetQuaMuc({ db }, '2026-09', 'K My', 'tp');
+    const thangTruoc = await getKetQuaMuc(adminCtx, '2026-09', 'K My', 'tp');
     assert.equal(thangTruoc.tuanHienTai, 0, 'Khác tháng hiện tại (tháng trước) phải trả tuanHienTai = 0');
 
-    const thangSau = await getKetQuaMuc({ db }, '2026-11', 'K My', 'tp');
+    const thangSau = await getKetQuaMuc(adminCtx, '2026-11', 'K My', 'tp');
     assert.equal(thangSau.tuanHienTai, 0, 'Khác tháng hiện tại (tháng sau) phải trả tuanHienTai = 0');
   });
 
   // Ca ngày cuối tháng 2026-10-31 -> Tuần 5 (Điều kiện 3 - Tin #25)
   await voiNgayCoDinh('2026-10-31', async () => {
-    const cuoiThang = await getKetQuaMuc({ db }, '2026-10', 'K My', 'tp');
+    const cuoiThang = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp');
     assert.equal(cuoiThang.tuanHienTai, 5, 'Ngày 31/10/2026 (cuối tháng) thuộc Tuần 5 của tháng 10/2026');
   });
   console.log('✓ 3. tuanHienTai tính chính xác ở ngày giữa tháng, cuối tháng và bằng 0 khi khác tháng');
@@ -174,13 +190,12 @@ taoCSDL();
 // =====================================================================
 // 4. Lưu dữ liệu mẫu và kiểm chứng hàm đọc KHÔNG phát sinh lệnh ghi (có đối chứng dương)
 // =====================================================================
-const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1, pham_vi: null } };
 {
   const { spy, laySoLanGhi, datLai } = taoSpyDB(db);
 
   // Đối chứng dương: gọi hàm ghi qua spy phải tăng bộ đếm
   const resLuu1 = await saveKetQuaMuc(
-    { db: spy, nguoiGoi: adminCtx.nguoiGoi },
+    { db: spy, nguoiGoi: adminNguoiGoi },
     '2026-10', 'K My', 'tp', 1,
     'Mẫu đã làm tuần 1 TP', 'Mẫu chưa làm tuần 1 TP'
   );
@@ -196,7 +211,7 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   datLai();
   assert.equal(laySoLanGhi(), 0);
 
-  const doc1 = await getKetQuaMuc({ db: spy }, '2026-10', 'K My', 'tp');
+  const doc1 = await getKetQuaMuc({ db: spy, nguoiGoi: adminNguoiGoi }, '2026-10', 'K My', 'tp');
   assert.equal(doc1.tuan[0].daLam, 'Mẫu đã làm tuần 1 TP');
   assert.equal(doc1.tuan[0].chuaLam, 'Mẫu chưa làm tuần 1 TP');
   assert.equal(doc1.tuan[0].nguoiCapNhat, 'rise.shine1948@gmail.com');
@@ -219,7 +234,7 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   // Tháng sai định dạng hoặc tháng 13 / tháng 00
   for (const thangSai of ['', 'sai-thang', '2026/10', '2026-13', '2026-00', '2026-99']) {
     await assert.rejects(
-      async () => { await getKetQuaMuc({ db }, thangSai, 'K My', 'tp'); },
+      async () => { await getKetQuaMuc(adminCtx, thangSai, 'K My', 'tp'); },
       /Tháng không hợp lệ/
     );
     await assert.rejects(
@@ -235,7 +250,7 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   // Khu vực rỗng
   for (const kvSai of ['', '   ']) {
     await assert.rejects(
-      async () => { await getKetQuaMuc({ db }, '2026-10', kvSai, 'tp'); },
+      async () => { await getKetQuaMuc(adminCtx, '2026-10', kvSai, 'tp'); },
       /Khu vực/
     );
     await assert.rejects(
@@ -246,12 +261,12 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
 
   // Mảng rỗng, 'chung', mảng lạ
   await assert.rejects(
-    async () => { await getKetQuaMuc({ db }, '2026-10', 'K My', ''); },
+    async () => { await getKetQuaMuc(adminCtx, '2026-10', 'K My', ''); },
     /Thiếu mảng công việc/
   );
   for (const mucSai of ['chung', 'xyz', 'baocao', 'muctieu']) {
     await assert.rejects(
-      async () => { await getKetQuaMuc({ db }, '2026-10', 'K My', mucSai); },
+      async () => { await getKetQuaMuc(adminCtx, '2026-10', 'K My', mucSai); },
       /Mảng công việc không hợp lệ/
     );
     await assert.rejects(
@@ -285,7 +300,7 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   assert.equal(resT6.tuan, 6);
   assert.equal(demSoDong(), soDongTruoc + 1);
 
-  const doc08 = await getKetQuaMuc({ db }, '2026-08', 'K My', 'tp');
+  const doc08 = await getKetQuaMuc(adminCtx, '2026-08', 'K My', 'tp');
   assert.equal(doc08.tuan[5].tuan, 6);
   assert.equal(doc08.tuan[5].daLam, 'Mẫu đã làm tuần 6 tháng 8');
   assert.equal(doc08.tuan[5].chuaLam, 'Mẫu chưa làm tuần 6 tháng 8');
@@ -299,7 +314,7 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   await saveKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp', 2, 'Đã làm tuần 2 TP', 'Chưa làm tuần 2 TP');
   await saveKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp', 0, 'Tổng kết tháng TP đã làm', 'Tổng kết tháng TP chưa làm');
 
-  const docTP = await getKetQuaMuc({ db }, '2026-10', 'K My', 'tp');
+  const docTP = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'tp');
   assert.equal(docTP.tuan[0].daLam, 'Mẫu đã làm tuần 1 TP');
   assert.equal(docTP.tuan[0].chuaLam, 'Mẫu chưa làm tuần 1 TP');
   assert.equal(docTP.tuan[1].daLam, 'Đã làm tuần 2 TP');
@@ -320,11 +335,11 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   await saveKetQuaMuc(adminCtx, '2026-10', 'K My', 'lehoi', 1, 'Đã làm Lễ hội T1', 'Chưa làm Lễ hội T1');
   await saveKetQuaMuc(adminCtx, '2026-10', 'K Long', 'tp', 1, 'Đã làm K Long TP T1', 'Chưa làm K Long TP T1');
 
-  const docTrudo = await getKetQuaMuc({ db }, '2026-10', 'K My', 'trudo');
-  const docEdu = await getKetQuaMuc({ db }, '2026-10', 'K My', 'edu');
-  const docDaoTao = await getKetQuaMuc({ db }, '2026-10', 'K My', 'daotao');
-  const docLeHoi = await getKetQuaMuc({ db }, '2026-10', 'K My', 'lehoi');
-  const docKLong = await getKetQuaMuc({ db }, '2026-10', 'K Long', 'tp');
+  const docTrudo = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'trudo');
+  const docEdu = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'edu');
+  const docDaoTao = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'daotao');
+  const docLeHoi = await getKetQuaMuc(adminCtx, '2026-10', 'K My', 'lehoi');
+  const docKLong = await getKetQuaMuc(adminCtx, '2026-10', 'K Long', 'tp');
 
   assert.equal(docTrudo.tuan[0].daLam, 'Đã làm Trudo T1');
   assert.equal(docEdu.tuan[0].daLam, 'Đã làm Edu T1');
@@ -349,7 +364,7 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
   assert.equal(resDe.nguoiCapNhat, 'kvt.my@example.com');
   assert.equal(demSoDong(), soDongTruoc, 'Ghi đè cùng khóa chính không được tăng số dòng');
 
-  const docLai = await getKetQuaMuc({ db }, '2026-10', 'K My', 'tp');
+  const docLai = await getKetQuaMuc(kvtMyCtx, '2026-10', 'K My', 'tp');
   assert.equal(docLai.tuan[0].daLam, 'Mẫu đã làm tuần 1 TP (đã cập nhật)');
   assert.equal(docLai.tuan[0].chuaLam, 'Mẫu chưa làm tuần 1 TP (đã cập nhật)');
   assert.equal(docLai.tuan[0].nguoiCapNhat, 'kvt.my@example.com');
@@ -357,16 +372,73 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
 }
 
 // =====================================================================
-// 10. Phân quyền ghi: Chủ/Admin, KVT đúng khu vực, KVT khác khu vực, chưa gán quyền
+// 10. Phân quyền ĐỌC (getKetQuaMuc) & GHI (saveKetQuaMuc) (Claude #27)
 // =====================================================================
 {
-  const kvtMyCtx = { db, nguoiGoi: { email: 'kvt.my@example.com', la_chu: 0, pham_vi: 'K My' } };
-  const dvtCtx = { db, nguoiGoi: { email: 'dvt@example.com', la_chu: 0, pham_vi: 'Đ Uyên,K Thành,TT Châu' } };
-  const thuongCtx = { db, nguoiGoi: { email: 'thanhdo@example.com', la_chu: 0, pham_vi: '' } };
+  const { spy, laySoLanGoiCSDL, datLai } = taoSpyDB(db);
+  const kvtMyNguoi = { email: 'kvt.my@example.com', la_chu: 0, pham_vi: 'K My' };
+  const dvtNguoi = { email: 'dvt@example.com', la_chu: 0, pham_vi: 'Đ Uyên,K Thành,TT Châu' };
+  const thuongNguoi = { email: 'thanhdo@example.com', la_chu: 0, pham_vi: '' };
 
-  // Địa vực trưởng sửa được khu vực trong phạm vi
+  const kvtMyCtx = { db: spy, nguoiGoi: kvtMyNguoi };
+  const dvtCtx = { db: spy, nguoiGoi: dvtNguoi };
+  const thuongCtx = { db: spy, nguoiGoi: thuongNguoi };
+
+  // 10a) Phân quyền ĐỌC (getKetQuaMuc):
+  // Chủ tài khoản đọc được mọi khu vực
+  const chuDocMy = await getKetQuaMuc({ db: spy, nguoiGoi: adminNguoiGoi }, '2026-10', 'K My', 'tp');
+  assert.equal(chuDocMy.tuan[0].daLam, 'Mẫu đã làm tuần 1 TP (đã cập nhật)');
+  const chuDocLong = await getKetQuaMuc({ db: spy, nguoiGoi: adminNguoiGoi }, '2026-10', 'K Long', 'tp');
+  assert.equal(chuDocLong.tuan[0].daLam, 'Đã làm K Long TP T1');
+
+  // Khu vực trưởng đọc được khu vực mình (đối chứng dương cho laySoLanGoiCSDL)
+  datLai();
+  const kvtDocMinh = await getKetQuaMuc(kvtMyCtx, '2026-10', 'K My', 'tp');
+  assert.equal(kvtDocMinh.tuan[0].daLam, 'Mẫu đã làm tuần 1 TP (đã cập nhật)');
+  assert.equal(laySoLanGoiCSDL(), 1, 'Đối chứng dương: đọc hợp lệ phải gọi CSDL đúng 1 lần');
+
+  // Khu vực trưởng đọc khu vực khác -> bị từ chối TRƯỚC khi chạm CSDL (0 lệnh gọi CSDL)
+  datLai();
+  await assert.rejects(
+    async () => { await getKetQuaMuc(kvtMyCtx, '2026-10', 'K Long', 'tp'); },
+    /không có quyền xem/
+  );
+  assert.equal(laySoLanGoiCSDL(), 0, 'KVT đọc khu vực khác phải bị chặn trước khi chạm CSDL (0 lệnh CSDL)');
+
+  // Địa vực trưởng đọc khu vực ngoài địa vực -> bị từ chối và 0 lệnh CSDL
+  datLai();
+  await assert.rejects(
+    async () => { await getKetQuaMuc(dvtCtx, '2026-10', 'K My', 'tp'); },
+    /không có quyền xem/
+  );
+  assert.equal(laySoLanGoiCSDL(), 0, 'ĐVT đọc ngoài địa vực phải bị chặn trước khi chạm CSDL');
+
+  // Người không có phạm vi -> bị từ chối và 0 lệnh CSDL
+  datLai();
+  await assert.rejects(
+    async () => { await getKetQuaMuc(thuongCtx, '2026-10', 'K My', 'tp'); },
+    /không có quyền xem/
+  );
+  assert.equal(laySoLanGoiCSDL(), 0, 'Người không có phạm vi phải bị chặn trước khi chạm CSDL');
+
+  // nguoiGoi rỗng (null / undefined) -> bị từ chối và 0 lệnh CSDL
+  datLai();
+  await assert.rejects(
+    async () => { await getKetQuaMuc({ db: spy, nguoiGoi: null }, '2026-10', 'K My', 'tp'); },
+    /không có quyền xem/
+  );
+  await assert.rejects(
+    async () => { await getKetQuaMuc({ db: spy }, '2026-10', 'K My', 'tp'); },
+    /không có quyền xem/
+  );
+  assert.equal(laySoLanGoiCSDL(), 0, 'nguoiGoi rỗng phải bị chặn trước khi chạm CSDL');
+
+  // 10b) Phân quyền GHI (saveKetQuaMuc):
+  // Địa vực trưởng sửa và đọc được khu vực trong phạm vi
   const rDvt = await saveKetQuaMuc(dvtCtx, '2026-10', 'K Thành', 'edu', 2, 'K Thành Edu T2', 'Khó khăn mẫu');
   assert.equal(rDvt.success, true);
+  const dvtDoc = await getKetQuaMuc(dvtCtx, '2026-10', 'K Thành', 'edu');
+  assert.equal(dvtDoc.tuan[1].daLam, 'K Thành Edu T2');
 
   const soDongTruocKhiChan = demSoDong();
 
@@ -393,15 +465,15 @@ const adminCtx = { db, nguoiGoi: { email: 'rise.shine1948@gmail.com', la_chu: 1,
 
   // Không có nguoiGoi -> bị từ chối
   await assert.rejects(
-    async () => { await saveKetQuaMuc({ db, nguoiGoi: null }, '2026-10', 'K My', 'tp', 1, 'X', 'Y'); },
+    async () => { await saveKetQuaMuc({ db: spy, nguoiGoi: null }, '2026-10', 'K My', 'tp', 1, 'X', 'Y'); },
     /không có quyền chỉnh sửa/
   );
   assert.equal(demSoDong(), soDongTruocKhiChan, 'Thiếu nguoiGoi bị chặn, số dòng không đổi');
 
   // Dữ liệu gốc của K Long vẫn nguyên vẹn
-  const docKLong = await getKetQuaMuc({ db }, '2026-10', 'K Long', 'tp');
+  const docKLong = await getKetQuaMuc(adminCtx, '2026-10', 'K Long', 'tp');
   assert.equal(docKLong.tuan[0].daLam, 'Đã làm K Long TP T1');
-  console.log('✓ 10. Phân quyền ghi chặt chẽ (Chủ, KVT, ĐVT, người thường), số dòng không đổi khi bị chặn');
+  console.log('✓ 10. Phân quyền ĐỌC (0 lệnh CSDL khi bị chặn) và GHI (số dòng không đổi) chặt chẽ');
 }
 
 // =====================================================================

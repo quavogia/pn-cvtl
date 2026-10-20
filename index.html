@@ -3034,6 +3034,18 @@ function loadKetQuaMuc_(muc){
 
   const coQuyen = duocSuaKeHoach_(kv);
 
+  // Người không phụ trách khu vực này: không gọi máy chủ, chỉ dựng hộp gọn (Claude #27)
+  if (!coQuyen) {
+    container.innerHTML =
+      '<div class="card" style="margin-bottom:0;">' +
+        '<div class="toolbar" style="margin-bottom:6px;">' +
+          '<h3 style="margin:0;font-size:15px;">✅ Thực hiện kế hoạch — ' + esc(mName) + ' — <span class="kq-kv-label">' + esc(kv) + '</span> (tháng ' + esc(monthKey) + ')</h3>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#64748b;">Kết quả thực hiện chỉ khu vực trưởng phụ trách khu vực này và Trưởng phòng xem được.</div>' +
+      '</div>';
+    return;
+  }
+
   container.innerHTML =
     '<div class="card" style="margin-bottom:0;">' +
       '<div class="toolbar" style="margin-bottom:8px;">' +
@@ -3052,10 +3064,9 @@ function loadKetQuaMuc_(muc){
         '<textarea class="kq-chualam" rows="2" oninput="onInputKetQuaMuc_(\'' + esc(muc) + '\')" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #fcd34d;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kết quả..." disabled></textarea>' +
       '</div>' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
-        (coQuyen ? '<button type="button" class="kq-save-btn" onclick="saveKetQuaMuc_(\'' + esc(muc) + '\', this)" disabled style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;">💾 Lưu kết quả</button>' : '') +
+        '<button type="button" class="kq-save-btn" onclick="saveKetQuaMuc_(\'' + esc(muc) + '\', this)" disabled style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;">💾 Lưu kết quả</button>' +
         '<span class="kq-time-label" style="font-size:12px;color:#64748b;"></span>' +
       '</div>' +
-      (!coQuyen ? '<div style="font-size:12px;color:#d97706;margin-top:8px;">ℹ️ Bạn đang xem ở chế độ chỉ đọc (chỉ Khu vực trưởng phụ trách khu vực này hoặc Trưởng phòng mới có quyền chỉnh sửa).</div>' : '') +
     '</div>';
 
   google.script.run.withSuccessHandler(function(res){
@@ -3073,7 +3084,7 @@ function loadKetQuaMuc_(muc){
       kv: kv,
       thang: monthKey,
       muc: muc,
-      coQuyen: coQuyen,
+      coQuyen: true,
       activeTuan: macDinhTuan,
       dsTuan: dsTuan,
       saved: {},
@@ -3117,17 +3128,15 @@ function loadKetQuaMuc_(muc){
       txtDaLam.placeholder = KQ_PLACEHOLDERS.daLam;
       txtDaLam.value = initDraft.daLam || '';
       txtDaLam.disabled = false;
-      txtDaLam.readOnly = !coQuyen;
-      txtDaLam.style.background = coQuyen ? '#fff' : '#f8fafc';
+      txtDaLam.style.background = '#fff';
     }
     if (txtChuaLam) {
       txtChuaLam.placeholder = KQ_PLACEHOLDERS.chuaLam;
       txtChuaLam.value = initDraft.chuaLam || '';
       txtChuaLam.disabled = false;
-      txtChuaLam.readOnly = !coQuyen;
-      txtChuaLam.style.background = coQuyen ? '#fffbeb' : '#f8fafc';
+      txtChuaLam.style.background = '#fffbeb';
     }
-    if (saveBtn && coQuyen) {
+    if (saveBtn) {
       saveBtn.disabled = false;
     }
 
