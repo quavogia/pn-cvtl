@@ -825,13 +825,14 @@
           <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select id="filterTo"><option value="">-- Lọc theo Khu vực --</option></select>
             <select id="filterPeriodType">
-              <option value="">-- Lọc theo thời gian --</option>
+              <option value="by_month" selected>Theo tháng</option>
+              <option value="all">Tất cả các tháng</option>
               <option value="today">Hôm nay</option>
               <option value="week">1 tuần qua</option>
-              <option value="month">1 tháng qua</option>
               <option value="custom">Chọn thời gian...</option>
             </select>
-            <span title="Lọc theo thời gian áp dụng trên cột &quot;Ngày chia sẻ cuối cùng&quot; (&quot;Hôm nay&quot;/&quot;1 tuần qua&quot;/&quot;1 tháng qua&quot; tính lùi từ ngày hiện tại)." style="cursor:help;color:#94a3b8;border:1px solid #cbd5e1;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">ⓘ</span>
+            <input type="month" id="filterMonth" style="width:auto">
+            <span title="Lọc theo thời gian áp dụng trên cột &quot;Ngày chia sẻ cuối cùng&quot; (mặc định hiện theo tháng lịch đang chọn; sắp xếp mới nhất ở trên)." style="cursor:help;color:#94a3b8;border:1px solid #cbd5e1;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;">ⓘ</span>
             <span id="filterCustomRange" style="display:none;gap:8px;align-items:center;">
               <input type="date" id="filterDateFrom" style="width:auto">
               <span style="font-size:13px;color:#64748b;">đến</span>
@@ -2160,6 +2161,10 @@ function toggleDanhGia_(id, btn){
 function renderStudents(list){
   const body = document.getElementById('studentsBody');
   document.getElementById('countBadge').textContent = list.length;
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:18px;">Chưa có học viên nào trong tháng này.</td></tr>';
+    return;
+  }
   body.innerHTML = list.map(function(s){
     return '<tr>' +
       '<td>' + esc(s.stt) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.ngayDau) + '</td><td>' + esc(s.diaChi) + '</td>' +
@@ -2217,47 +2222,66 @@ function loadStudents(){
   }).getStudents();
 }
 
-function applyFilter(){
+function kiemTraKhopBoLoc_(s){
   const toVal = document.getElementById('filterTo').value;
-  const periodType = document.getElementById('filterPeriodType').value;
-  let list = allStudents;
+  if (toVal && s.to !== toVal) return false;
 
-  if (toVal) list = list.filter(function(s){ return s.to === toVal; });
+  const periodType = document.getElementById('filterPeriodType').value;
+  if (!periodType || periodType === 'all') return true;
+
+  const d = parseVNDate(s.ngay);
+  if (!d) return false;
+
+  if (periodType === 'by_month') {
+    const monthVal = document.getElementById('filterMonth').value || currentMonthKey();
+    return formatYMD(d).slice(0, 7) === monthVal;
+  }
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
   if (periodType === 'today') {
-    list = list.filter(function(s){ const d = parseVNDate(s.ngay); return d && formatYMD(d) === formatYMD(today); });
-  } else if (periodType === 'week') {
+    return formatYMD(d) === formatYMD(today);
+  }
+  if (periodType === 'week') {
     const start = new Date(today);
     start.setDate(start.getDate() - 6);
-    list = list.filter(function(s){ const d = parseVNDate(s.ngay); return d && d >= start && d <= today; });
-  } else if (periodType === 'month') {
-    const start = new Date(today);
-    start.setMonth(start.getMonth() - 1);
-    list = list.filter(function(s){ const d = parseVNDate(s.ngay); return d && d >= start && d <= today; });
-  } else if (periodType === 'custom') {
+    return d >= start && d <= today;
+  }
+  if (periodType === 'custom') {
     const fromVal = document.getElementById('filterDateFrom').value;
     const toValRange = document.getElementById('filterDateTo').value;
     const fromD = fromVal ? new Date(fromVal) : null;
     const toD = toValRange ? new Date(toValRange) : null;
     if (fromD) fromD.setHours(0, 0, 0, 0);
     if (toD) toD.setHours(23, 59, 59, 999);
-    list = list.filter(function(s){
-      const d = parseVNDate(s.ngay);
-      if (!d) return false;
-      if (fromD && d < fromD) return false;
-      if (toD && d > toD) return false;
-      return true;
-    });
+    if (fromD && d < fromD) return false;
+    if (toD && d > toD) return false;
+    return true;
   }
+  return true;
+}
 
+function applyFilter(){
+  const list = allStudents.filter(kiemTraKhopBoLoc_);
+  list.sort(function(a, b){
+    const da = parseVNDate(a.ngay);
+    const db = parseVNDate(b.ngay);
+    const ta = da ? da.getTime() : -Infinity;
+    const tb = db ? db.getTime() : -Infinity;
+    if (tb !== ta) return tb - ta;
+    return (Number(b.stt) || 0) - (Number(a.stt) || 0);
+  });
   renderStudents(list);
 }
+document.getElementById('filterMonth').value = currentMonthKey();
 document.getElementById('filterTo').addEventListener('change', applyFilter);
+document.getElementById('filterMonth').addEventListener('change', applyFilter);
 document.getElementById('filterPeriodType').addEventListener('change', function(){
   const t = this.value;
+  const mEl = document.getElementById('filterMonth');
+  if (t === 'by_month' && !mEl.value) mEl.value = currentMonthKey();
+  mEl.style.display = t === 'by_month' ? 'inline-block' : 'none';
   document.getElementById('filterCustomRange').style.display = t === 'custom' ? 'inline-flex' : 'none';
   applyFilter();
 });
@@ -2271,6 +2295,19 @@ function toDateInputValue_(dmy){
   const m = String(dmy || '').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return '';
   return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+}
+// Ngược lại: chuyển "yyyy-mm-dd" từ <input type="date"> về "dd/mm/yyyy" cho
+// đối tượng Lưu lạc quan trong allStudents (để parseVNDate lọc/sắp xếp đúng ngay).
+function fromDateInputValue_(ymd){
+  const m = String(ymd || '').trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return String(ymd || '').trim();
+  return m[3] + '/' + m[2] + '/' + m[1];
+}
+function thongBaoLuuHocVien_(s){
+  if (kiemTraKhopBoLoc_(s)) return 'Đã lưu thành công';
+  const m = String(s && s.ngay || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  const thangNhan = m ? (m[2] + '/' + m[3]) : '';
+  return 'Đã lưu. Học viên này' + (thangNhan ? ' thuộc tháng ' + thangNhan + ',' : '') + ' đang không nằm trong bộ lọc hiện tại.';
 }
 
 function editStudent(row){
@@ -2361,14 +2398,20 @@ document.getElementById('studentForm').addEventListener('submit', function(e){
   // loadStatsPanel) để lấy đúng số dòng thật trên Sheet / cập nhật lại các
   // số liệu phụ thuộc (Xếp hạng người dẫn dắt, % mục tiêu...) — không chặn
   // thao tác đang thấy. Nếu lưu lỗi mới hoàn tác + báo lỗi.
+  const optNgay = fromDateInputValue_(data.ngay);
+  const optData = Object.assign({}, data, {
+    ngay: optNgay,
+    ngayDau: fromDateInputValue_(data.ngayDau) || optNgay
+  });
   if (editRow) {
     const rowNum = Number(editRow);
     const idx = allStudents.findIndex(function(s){ return s.row === rowNum; });
     const backup = idx > -1 ? allStudents[idx] : null;
-    if (idx > -1) allStudents[idx] = Object.assign({}, backup, data, { row: rowNum });
+    if (backup && backup.ngayDau) optData.ngayDau = backup.ngayDau;
+    if (idx > -1) allStudents[idx] = Object.assign({}, backup, optData, { row: rowNum });
     refreshStudentsUI_();
     resetForm();
-    showMsg('Đã lưu thành công', true);
+    showMsg(thongBaoLuuHocVien_(optData), true);
     google.script.run.withSuccessHandler(function(){
       loadStatsPanel();
     }).withFailureHandler(function(err){
@@ -2377,11 +2420,11 @@ document.getElementById('studentForm').addEventListener('submit', function(e){
     }).updateStudent(rowNum, data);
   } else {
     const tempRow = -Date.now();
-    const optimisticStudent = Object.assign({ stt: allStudents.length + 1, row: tempRow }, data);
+    const optimisticStudent = Object.assign({ stt: allStudents.length + 1, row: tempRow }, optData);
     allStudents.push(optimisticStudent);
     refreshStudentsUI_();
     resetForm();
-    showMsg('Đã lưu thành công', true);
+    showMsg(thongBaoLuuHocVien_(optimisticStudent), true);
     google.script.run.withSuccessHandler(function(){
       loadStudents();   // đồng bộ số dòng/STT thật chạy ngầm
       loadStatsPanel();
@@ -7399,6 +7442,7 @@ function loadAll(){
   loadDropdowns();
   loadStudents();
   if (!document.getElementById('kvMonth').value) document.getElementById('kvMonth').value = currentMonthKey();
+  if (!document.getElementById('filterMonth').value) document.getElementById('filterMonth').value = currentMonthKey();
   loadStatsPanel();
   loadLogs();
   loadKVSubTab();
