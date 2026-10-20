@@ -1096,6 +1096,7 @@
       <!-- ---- Sub-tab: TP (Thờ phượng) — scoped theo 1 Khu vực đang chọn ---- -->
       <div id="kvsub-tp" class="kv-subpanel active">
         <div class="kh-muc" data-muc="tp" style="margin-bottom:16px;"></div>
+        <div class="kq-muc" data-muc="tp" style="margin-bottom:16px;"></div>
         <div class="kv-pills" id="tpInnerTabs" style="margin-bottom:14px;">
           <button type="button" class="kv-pill active" data-tpsub="tuan" onclick="selectTPInnerSubTab('tuan')">📅 Theo tuần</button>
           <button type="button" class="kv-pill" data-tpsub="ltt" onclick="selectTPInnerSubTab('ltt')">📋 Lễ Trọng Thể<span class="tp-badge-moi">MỚI</span></button>
@@ -1199,6 +1200,7 @@
       <!-- ---- Sub-tab: Trudo (Đơn thuần / học viên đang nghe) ---- -->
       <div id="kvsub-trudo" class="kv-subpanel">
         <div class="kh-muc" data-muc="trudo" style="margin-bottom:16px;"></div>
+        <div class="kq-muc" data-muc="trudo" style="margin-bottom:16px;"></div>
         <div class="card">
           <div class="toolbar">
             <h3 style="margin:0">Trudo — <span id="trudo_kvName">—</span></h3>
@@ -1285,6 +1287,7 @@
       <!-- ---- Sub-tab: Giáo dục — scoped theo 1 Khu vực đang chọn ---- -->
       <div id="kvsub-edu" class="kv-subpanel">
         <div class="kh-muc" data-muc="edu" style="margin-bottom:16px;"></div>
+        <div class="kq-muc" data-muc="edu" style="margin-bottom:16px;"></div>
         <div class="card">
           <div class="toolbar">
             <h3 style="margin:0">Giáo dục — <span id="edu_kvName">—</span> (tháng <span id="edu_monthLabel"></span>)</h3>
@@ -1330,6 +1333,7 @@
       <!-- ---- Sub-tab: Đào tạo — Phát biểu giáo trình ELOHIM ACADEMY (70 bài) + Việc giao tuần/tháng ---- -->
       <div id="kvsub-daotao" class="kv-subpanel">
         <div class="kh-muc" data-muc="daotao" style="margin-bottom:16px;"></div>
+        <div class="kq-muc" data-muc="daotao" style="margin-bottom:16px;"></div>
         <div class="card">
           <h3 style="margin:0 0 6px">Phát biểu giáo trình ELOHIM ACADEMY<span id="dt_kvName" style="display:none"></span></h3>
           <p style="font-size:12px;color:#64748b;margin:0 0 14px;">70 bài chia thành 7 quyển (mỗi quyển 10 bài). Đánh dấu tự do, không cần theo đúng thứ tự. Hoàn thành trọn 70/70 bài mới đủ điều kiện cấp chứng chỉ ELOHIM ACADEMY.</p>
@@ -1388,6 +1392,7 @@
       <!-- ---- Sub-tab: Lễ hội — nhập liệu theo từng lễ hội đang diễn ra (vd Lễ hội Lời tháng 8) ---- -->
       <div id="kvsub-lehoi" class="kv-subpanel">
         <div class="kh-muc" data-muc="lehoi" style="margin-bottom:16px;"></div>
+        <div class="kq-muc" data-muc="lehoi" style="margin-bottom:16px;"></div>
         <div class="card" id="lhNoneCard" style="display:none;">
           <p style="color:#94a3b8;margin:0;">Hiện không có lễ hội nào đang diễn ra.</p>
         </div>
@@ -1727,6 +1732,8 @@ const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', '
   'getBaoCaoTuan', 'getBaoCaoLuoi',
   // Kế hoạch Tin Lành tháng (04/10/2026)
   'getKeHoachThang', 'getAllKeHoachThang',
+  // Thực hiện kế hoạch theo từng mảng và từng tuần (20/10/2026)
+  'getKetQuaMuc', 'getAllKetQuaMuc',
   // ⚠️ Kỳ vận động KHÔNG có hàm nào riêng — nó dùng chung `getXepHang` (đã khai
   // ở trên), chỉ khoá cứng khoảng ngày theo kỳ.
   ]);
@@ -2882,6 +2889,398 @@ function saveKeHoachMuc_(muc, btn){
   }).saveKeHoachThang(monthKey, kv, m, noiDung, canHoTro);
 }
 
+/** ---------- THỰC HIỆN KẾ HOẠCH THEO TỪNG MẢNG & TỪNG TUẦN (20/10/2026) ---------- */
+const KQ_PLACEHOLDERS = {
+  daLam: 'Ghi những công việc đã thực hiện được trong tuần / tháng này...',
+  chuaLam: 'Ghi những công việc chưa thực hiện được và nguyên nhân / khó khăn cụ thể...'
+};
+
+function laTuanCoNhap_(state, tuanKey){
+  if (!state || !state.drafts || !state.saved) return false;
+  const d = state.drafts[tuanKey] || { daLam: '', chuaLam: '' };
+  const s = state.saved[tuanKey] || { daLam: '', chuaLam: '' };
+  return String(d.daLam || '').trim() !== String(s.daLam || '').trim() ||
+         String(d.chuaLam || '').trim() !== String(s.chuaLam || '').trim();
+}
+
+function renderNutTuanKetQua_(container){
+  if (!container || !container._kqState) return;
+  const st = container._kqState;
+  const strip = container.querySelector('.kq-tuan-strip');
+  if (!strip) return;
+
+  const thangSo = Number(String(st.thang || '').slice(5, 7)) || String(st.thang || '').slice(5, 7);
+  const muc = st.muc;
+  const dsNut = [];
+
+  (st.dsTuan || []).forEach(function(w){
+    const k = String(w.tuan);
+    const active = String(st.activeTuan) === k;
+    const coNhap = laTuanCoNhap_(st, k);
+    const bg = active ? '#1d4ed8' : '#f1f5f9';
+    const color = active ? '#ffffff' : '#334155';
+    const border = active ? '#1d4ed8' : '#cbd5e1';
+    const dotColor = active ? '#fde047' : '#d97706';
+    dsNut.push(
+      '<button type="button" class="kq-tuan-btn' + (active ? ' active' : '') + '" data-tuan-btn="' + esc(k) + '" ' +
+        'onclick="selectTuanKetQua_(\'' + esc(muc) + '\', ' + Number(w.tuan) + ')" ' +
+        'style="padding:5px 11px;border-radius:999px;border:1px solid ' + border + ';background:' + bg + ';color:' + color + ';font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">' +
+        '<span>Tuần ' + esc(w.tuan) + ' (' + esc(w.tuNgay) + '–' + esc(w.denNgay) + '/' + esc(thangSo) + ')</span>' +
+        (coNhap ? '<span class="kq-draft-dot" title="Có nội dung chưa lưu" style="color:' + dotColor + ';font-size:10px;line-height:1;">●</span>' : '') +
+      '</button>'
+    );
+  });
+
+  // Nút Tổng kết tháng (tuan = 0)
+  const active0 = String(st.activeTuan) === '0';
+  const coNhap0 = laTuanCoNhap_(st, '0');
+  const bg0 = active0 ? '#0f766e' : '#f0fdfa';
+  const color0 = active0 ? '#ffffff' : '#0f766e';
+  const border0 = active0 ? '#0f766e' : '#99f6e4';
+  const dotColor0 = active0 ? '#fde047' : '#d97706';
+  dsNut.push(
+    '<button type="button" class="kq-tuan-btn' + (active0 ? ' active' : '') + '" data-tuan-btn="0" ' +
+      'onclick="selectTuanKetQua_(\'' + esc(muc) + '\', 0)" ' +
+      'style="padding:5px 12px;border-radius:999px;border:1px solid ' + border0 + ';background:' + bg0 + ';color:' + color0 + ';font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">' +
+      '<span>📌 Tổng kết tháng</span>' +
+      (coNhap0 ? '<span class="kq-draft-dot" title="Có nội dung chưa lưu" style="color:' + dotColor0 + ';font-size:10px;line-height:1;">●</span>' : '') +
+    '</button>'
+  );
+
+  strip.innerHTML = dsNut.join('');
+}
+
+function capNhatThoiGianKetQua_(container){
+  if (!container || !container._kqState) return;
+  const st = container._kqState;
+  const lblTime = container.querySelector('.kq-time-label');
+  if (!lblTime) return;
+
+  const activeKey = String(st.activeTuan);
+  const info = (st.saved && st.saved[activeKey]) || null;
+  if (info && info.capNhatLuc) {
+    const email = info.nguoiCapNhat ? ' (' + info.nguoiCapNhat + ')' : '';
+    lblTime.textContent = 'Cập nhật lần cuối: ' + fmtNgayGio_(info.capNhatLuc) + email;
+    lblTime.style.color = '#64748b';
+  } else {
+    lblTime.textContent = 'Chưa có cập nhật cho mục này';
+    lblTime.style.color = '#94a3b8';
+  }
+}
+
+function selectTuanKetQua_(muc, tuanMoi){
+  const container = document.querySelector('#kvsub-' + muc + ' .kq-muc[data-muc="' + muc + '"]');
+  if (!container || container.getAttribute('data-loaded') !== '1' || !container._kqState) return;
+
+  const st = container._kqState;
+  const txtDaLam = container.querySelector('.kq-dalam');
+  const txtChuaLam = container.querySelector('.kq-chualam');
+  const saveInd = container.querySelector('.kq-save-indicator');
+
+  // Lưu lại chữ đang gõ của tuần hiện tại vào bộ nhớ nháp trước khi chuyển
+  const curKey = String(st.activeTuan);
+  if (!st.drafts[curKey]) st.drafts[curKey] = { daLam: '', chuaLam: '' };
+  if (txtDaLam) st.drafts[curKey].daLam = txtDaLam.value;
+  if (txtChuaLam) st.drafts[curKey].chuaLam = txtChuaLam.value;
+
+  const nextTuan = Number(tuanMoi);
+  const nextKey = String(nextTuan);
+  st.activeTuan = nextTuan;
+  container.setAttribute('data-tuan', nextKey);
+
+  const nextDraft = st.drafts[nextKey] || { daLam: '', chuaLam: '' };
+  if (txtDaLam) txtDaLam.value = nextDraft.daLam || '';
+  if (txtChuaLam) txtChuaLam.value = nextDraft.chuaLam || '';
+  if (saveInd) saveInd.style.display = 'none';
+
+  renderNutTuanKetQua_(container);
+  capNhatThoiGianKetQua_(container);
+}
+
+function onInputKetQuaMuc_(muc){
+  const container = document.querySelector('#kvsub-' + muc + ' .kq-muc[data-muc="' + muc + '"]');
+  if (!container || container.getAttribute('data-loaded') !== '1' || !container._kqState) return;
+
+  const st = container._kqState;
+  const curKey = String(st.activeTuan);
+  const txtDaLam = container.querySelector('.kq-dalam');
+  const txtChuaLam = container.querySelector('.kq-chualam');
+  const saveInd = container.querySelector('.kq-save-indicator');
+
+  if (!st.drafts[curKey]) st.drafts[curKey] = { daLam: '', chuaLam: '' };
+  if (txtDaLam) st.drafts[curKey].daLam = txtDaLam.value;
+  if (txtChuaLam) st.drafts[curKey].chuaLam = txtChuaLam.value;
+  if (saveInd) saveInd.style.display = 'none';
+
+  renderNutTuanKetQua_(container);
+}
+
+function loadKetQuaMuc_(muc){
+  if (!selectedKV || !muc) return;
+  const container = document.querySelector('#kvsub-' + muc + ' .kq-muc[data-muc="' + muc + '"]');
+  if (!container) return;
+
+  const kv = selectedKV;
+  const monthKey = kvMonthKey();
+  const mName = KH_MUC_NAMES[muc] || muc;
+
+  // Gắn bộ ba (khu vực, tháng, mảng) và khoá hộp cho tới khi tải xong
+  container.setAttribute('data-kv', kv);
+  container.setAttribute('data-thang', monthKey);
+  container.setAttribute('data-muc', muc);
+  container.setAttribute('data-tuan', '');
+  container.setAttribute('data-loaded', '0');
+  container._kqState = null;
+
+  const coQuyen = duocSuaKeHoach_(kv);
+
+  container.innerHTML =
+    '<div class="card" style="margin-bottom:0;">' +
+      '<div class="toolbar" style="margin-bottom:8px;">' +
+        '<h3 style="margin:0;font-size:15px;">✅ Thực hiện kế hoạch — ' + esc(mName) + ' — <span class="kq-kv-label">' + esc(kv) + '</span> (tháng ' + esc(monthKey) + ')</h3>' +
+        '<span class="kq-save-indicator" style="font-size:12px;color:#16a34a;display:none;font-weight:600;">✓ Đã lưu</span>' +
+      '</div>' +
+      '<div class="kq-tuan-strip" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;">' +
+        '<span style="font-size:12px;color:#94a3b8;">Đang tải danh sách tuần...</span>' +
+      '</div>' +
+      '<div style="margin-bottom:10px;">' +
+        '<label style="font-size:12px;font-weight:600;color:#15803d;display:block;margin-bottom:4px;">✔️ Đã làm được:</label>' +
+        '<textarea class="kq-dalam" rows="3" oninput="onInputKetQuaMuc_(\'' + esc(muc) + '\')" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kết quả..." disabled></textarea>' +
+      '</div>' +
+      '<div style="margin-bottom:10px;">' +
+        '<label style="font-size:12px;font-weight:600;color:#b45309;display:block;margin-bottom:4px;">⚠️ Chưa làm được, vì sao:</label>' +
+        '<textarea class="kq-chualam" rows="2" oninput="onInputKetQuaMuc_(\'' + esc(muc) + '\')" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #fcd34d;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kết quả..." disabled></textarea>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
+        (coQuyen ? '<button type="button" class="kq-save-btn" onclick="saveKetQuaMuc_(\'' + esc(muc) + '\', this)" disabled style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;">💾 Lưu kết quả</button>' : '') +
+        '<span class="kq-time-label" style="font-size:12px;color:#64748b;"></span>' +
+      '</div>' +
+      (!coQuyen ? '<div style="font-size:12px;color:#d97706;margin-top:8px;">ℹ️ Bạn đang xem ở chế độ chỉ đọc (chỉ Khu vực trưởng phụ trách khu vực này hoặc Trưởng phòng mới có quyền chỉnh sửa).</div>' : '') +
+    '</div>';
+
+  google.script.run.withSuccessHandler(function(res){
+    // Chống đọc/ghi nhầm: nếu bộ ba trên hộp đã đổi thì bỏ qua
+    if (container.getAttribute('data-kv') !== kv || container.getAttribute('data-thang') !== monthKey || container.getAttribute('data-muc') !== muc) {
+      return;
+    }
+
+    const dsTuan = Array.isArray(res && res.tuan) ? res.tuan : [];
+    const tHienTai = Number(res && res.tuanHienTai) || 0;
+    const coTHienTai = tHienTai > 0 && dsTuan.some(function(w){ return Number(w.tuan) === tHienTai; });
+    const macDinhTuan = coTHienTai ? tHienTai : (dsTuan.length ? Number(dsTuan[0].tuan) : 1);
+
+    const st = {
+      kv: kv,
+      thang: monthKey,
+      muc: muc,
+      coQuyen: coQuyen,
+      activeTuan: macDinhTuan,
+      dsTuan: dsTuan,
+      saved: {},
+      drafts: {}
+    };
+
+    dsTuan.forEach(function(w){
+      const k = String(w.tuan);
+      const dl = (w && w.daLam) || '';
+      const cl = (w && w.chuaLam) || '';
+      st.saved[k] = {
+        daLam: dl,
+        chuaLam: cl,
+        nguoiCapNhat: (w && w.nguoiCapNhat) || '',
+        capNhatLuc: (w && w.capNhatLuc) || ''
+      };
+      st.drafts[k] = { daLam: dl, chuaLam: cl };
+    });
+
+    const tk = (res && res.tongKet) || {};
+    const dl0 = tk.daLam || '';
+    const cl0 = tk.chuaLam || '';
+    st.saved['0'] = {
+      daLam: dl0,
+      chuaLam: cl0,
+      nguoiCapNhat: tk.nguoiCapNhat || '',
+      capNhatLuc: tk.capNhatLuc || ''
+    };
+    st.drafts['0'] = { daLam: dl0, chuaLam: cl0 };
+
+    container._kqState = st;
+    container.setAttribute('data-tuan', String(macDinhTuan));
+    container.setAttribute('data-loaded', '1');
+
+    const txtDaLam = container.querySelector('.kq-dalam');
+    const txtChuaLam = container.querySelector('.kq-chualam');
+    const saveBtn = container.querySelector('.kq-save-btn');
+    const initDraft = st.drafts[String(macDinhTuan)] || { daLam: '', chuaLam: '' };
+
+    if (txtDaLam) {
+      txtDaLam.placeholder = KQ_PLACEHOLDERS.daLam;
+      txtDaLam.value = initDraft.daLam || '';
+      txtDaLam.disabled = false;
+      txtDaLam.readOnly = !coQuyen;
+      txtDaLam.style.background = coQuyen ? '#fff' : '#f8fafc';
+    }
+    if (txtChuaLam) {
+      txtChuaLam.placeholder = KQ_PLACEHOLDERS.chuaLam;
+      txtChuaLam.value = initDraft.chuaLam || '';
+      txtChuaLam.disabled = false;
+      txtChuaLam.readOnly = !coQuyen;
+      txtChuaLam.style.background = coQuyen ? '#fffbeb' : '#f8fafc';
+    }
+    if (saveBtn && coQuyen) {
+      saveBtn.disabled = false;
+    }
+
+    renderNutTuanKetQua_(container);
+    capNhatThoiGianKetQua_(container);
+  }).withFailureHandler(function(err){
+    if (container.getAttribute('data-kv') !== kv || container.getAttribute('data-thang') !== monthKey || container.getAttribute('data-muc') !== muc) {
+      return;
+    }
+    container.setAttribute('data-loaded', '0');
+    container._kqState = null;
+
+    const strip = container.querySelector('.kq-tuan-strip');
+    const txtDaLam = container.querySelector('.kq-dalam');
+    const txtChuaLam = container.querySelector('.kq-chualam');
+    const saveBtn = container.querySelector('.kq-save-btn');
+    const lblTime = container.querySelector('.kq-time-label');
+
+    if (strip) {
+      strip.innerHTML = '<span style="font-size:12px;color:#dc2626;">Không tải được danh sách tuần.</span>';
+    }
+    if (txtDaLam) {
+      txtDaLam.disabled = true;
+      txtDaLam.placeholder = 'Không tải được kết quả, vui lòng tải lại trang';
+    }
+    if (txtChuaLam) {
+      txtChuaLam.disabled = true;
+      txtChuaLam.placeholder = 'Không tải được kết quả, vui lòng tải lại trang';
+    }
+    if (saveBtn) {
+      saveBtn.disabled = true;
+    }
+    if (lblTime) {
+      lblTime.textContent = '⚠️ Lỗi tải dữ liệu';
+      lblTime.style.color = '#dc2626';
+    }
+    showMsg('Lỗi tải kết quả thực hiện: ' + (err ? err.message : ''), false);
+  }).getKetQuaMuc(monthKey, kv, muc);
+}
+
+function saveKetQuaMuc_(muc, btn){
+  const container = btn ? btn.closest('.kq-muc') : document.querySelector('.kq-muc[data-muc="' + muc + '"]');
+  if (!container) return;
+
+  // Chặn lưu khi dữ liệu chưa tải xong hoặc tải lỗi
+  if (container.getAttribute('data-loaded') !== '1' || !container._kqState) {
+    showMsg('Kết quả thực hiện chưa tải xong, vui lòng đợi hoặc tải lại trang.', false);
+    return;
+  }
+
+  // Đọc bộ ba (khu vực, tháng, mảng) và tuần từ chính hộp đó — KHÔNG đọc biến toàn cục!
+  const kv = container.getAttribute('data-kv');
+  const monthKey = container.getAttribute('data-thang');
+  const m = container.getAttribute('data-muc') || muc;
+  const tuanAttr = container.getAttribute('data-tuan');
+
+  if (!kv || !monthKey || !m || tuanAttr === null || tuanAttr === '' || isNaN(Number(tuanAttr))) {
+    showMsg('Lỗi: Không xác định được khu vực, tháng hoặc tuần cần lưu.', false);
+    return;
+  }
+
+  const tuanLuu = Number(tuanAttr);
+  const tuanKey = String(tuanLuu);
+  const st = container._kqState;
+
+  const txtDaLam = container.querySelector('.kq-dalam');
+  const txtChuaLam = container.querySelector('.kq-chualam');
+  const saveBtn = container.querySelector('.kq-save-btn');
+  const saveInd = container.querySelector('.kq-save-indicator');
+
+  // Đồng bộ ô chữ vào bản nháp của tuần đang lưu và chụp đúng đoạn chữ gửi đi (Điều kiện 1 - Tin #25)
+  if (String(st.activeTuan) === tuanKey) {
+    if (!st.drafts[tuanKey]) st.drafts[tuanKey] = { daLam: '', chuaLam: '' };
+    if (txtDaLam) st.drafts[tuanKey].daLam = txtDaLam.value;
+    if (txtChuaLam) st.drafts[tuanKey].chuaLam = txtChuaLam.value;
+  }
+  const draftGui = st.drafts[tuanKey] || { daLam: '', chuaLam: '' };
+  const sentDaLam = String(draftGui.daLam || '').trim();
+  const sentChuaLam = String(draftGui.chuaLam || '').trim();
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Đang lưu...';
+  }
+
+  google.script.run.withSuccessHandler(function(res){
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Lưu kết quả';
+    }
+    // Nếu hộp đã đổi khu vực / tháng / mảng trong lúc chờ lưu thì bỏ qua cập nhật giao diện hộp
+    if (container.getAttribute('data-kv') !== kv || container.getAttribute('data-thang') !== monthKey || container.getAttribute('data-muc') !== m) {
+      return;
+    }
+
+    const curState = container._kqState;
+    if (curState) {
+      const savedDaLam = (res && res.daLam !== undefined) ? res.daLam : sentDaLam;
+      const savedChuaLam = (res && res.chuaLam !== undefined) ? res.chuaLam : sentChuaLam;
+      curState.saved[tuanKey] = {
+        daLam: savedDaLam,
+        chuaLam: savedChuaLam,
+        nguoiCapNhat: (res && res.nguoiCapNhat) || '',
+        capNhatLuc: (res && res.capNhatLuc) || ''
+      };
+
+      // Điều kiện 1 (Tin #25): chỉ đặt lại drafts[tuanKey] cho khớp khi chữ nháp hiện tại
+      // bằng đúng đoạn đã gửi (nếu người dùng gõ thêm trong lúc lưu đang bay thì giữ nguyên nháp mới).
+      if (String(curState.activeTuan) === tuanKey) {
+        if (!curState.drafts[tuanKey]) curState.drafts[tuanKey] = { daLam: '', chuaLam: '' };
+        if (txtDaLam) curState.drafts[tuanKey].daLam = txtDaLam.value;
+        if (txtChuaLam) curState.drafts[tuanKey].chuaLam = txtChuaLam.value;
+      }
+      const curDraft = curState.drafts[tuanKey] || { daLam: '', chuaLam: '' };
+      const chuaGoThem = String(curDraft.daLam || '').trim() === sentDaLam &&
+                         String(curDraft.chuaLam || '').trim() === sentChuaLam;
+      if (chuaGoThem) {
+        curState.drafts[tuanKey] = { daLam: savedDaLam, chuaLam: savedChuaLam };
+        if (String(curState.activeTuan) === tuanKey) {
+          if (txtDaLam) txtDaLam.value = savedDaLam;
+          if (txtChuaLam) txtChuaLam.value = savedChuaLam;
+        }
+      }
+
+      renderNutTuanKetQua_(container);
+      // Điều kiện 2 (Tin #25): dòng "Cập nhật lần cuối" luôn vẽ từ saved[tuần đang chọn]
+      capNhatThoiGianKetQua_(container);
+
+      // Điều kiện 2 (Tin #25): "✓ Đã lưu" chỉ hiện khi tuần vừa lưu trùng tuần đang chọn
+      // và tuần đó không có chữ mới gõ thêm
+      if (saveInd) {
+        if (String(curState.activeTuan) === tuanKey && !laTuanCoNhap_(curState, tuanKey)) {
+          saveInd.style.display = 'inline';
+          setTimeout(function(){
+            if (container._kqState && String(container._kqState.activeTuan) === tuanKey && !laTuanCoNhap_(container._kqState, tuanKey)) {
+              saveInd.style.display = 'none';
+            }
+          }, 3000);
+        } else {
+          saveInd.style.display = 'none';
+        }
+      }
+    }
+    showMsg('Đã lưu kết quả thực hiện thành công!', true);
+  }).withFailureHandler(function(err){
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Lưu kết quả';
+    }
+    showMsg('Lỗi lưu kết quả thực hiện: ' + (err ? err.message : ''), false);
+  }).saveKetQuaMuc(monthKey, kv, m, tuanLuu, sentDaLam, sentChuaLam);
+}
+
 
 function renderMtcnSelect_(list){
   const sel = document.getElementById('mtcn_ten');
@@ -3768,6 +4167,7 @@ function loadKVSubTab(){
 
   if (['tp', 'trudo', 'edu', 'daotao', 'lehoi'].indexOf(kvActiveSubTab) >= 0) {
     loadKeHoachMuc_(kvActiveSubTab);
+    loadKetQuaMuc_(kvActiveSubTab);
   }
 }
 

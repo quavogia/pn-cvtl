@@ -35,6 +35,7 @@ import * as troLy from './handlers/tro-ly.js';
 import * as baoCao from './handlers/bao-cao.js';
 import * as leTrongThe from './handlers/le-trong-the.js';
 import * as keHoach from './handlers/ke-hoach.js';
+import * as ketQua from './handlers/ket-qua.js';
 import * as nhatKy from './nhat-ky.js';
 
 export const DANH_MUC = {
@@ -114,6 +115,11 @@ export const DANH_MUC = {
   getKeHoachThang:          { doc: true,  fn: keHoach.getKeHoachThang },
   saveKeHoachThang:         { doc: false, fn: keHoach.saveKeHoachThang },
   getAllKeHoachThang:       { doc: true,  fn: keHoach.getAllKeHoachThang },
+
+  // --- Thực hiện kế hoạch theo từng mảng và từng tuần (20/10/2026) ---
+  getKetQuaMuc:             { doc: true,  fn: ketQua.getKetQuaMuc },
+  saveKetQuaMuc:            { doc: false, fn: ketQua.saveKetQuaMuc },
+  getAllKetQuaMuc:          { doc: true,  chuThoi: true, fn: ketQua.getAllKetQuaMuc },
 
   // --- Giáo dục thành viên ---
   getGiaoDucMembers:       { doc: true,  fn: mucTieuGiaoDuc.getGiaoDucMembers },

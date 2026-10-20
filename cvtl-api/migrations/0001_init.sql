@@ -547,3 +547,20 @@ CREATE TABLE IF NOT EXISTS ke_hoach_muc (
 );
 CREATE INDEX IF NOT EXISTS ix_khm_thang ON ke_hoach_muc (thang);
 
+-- ---------------------------------------------------------------------
+-- 26. Thực hiện kế hoạch theo từng mảng và từng tuần (20/10/2026)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ket_qua_muc (
+  thang          TEXT NOT NULL,
+  khu_vuc        TEXT NOT NULL,
+  muc            TEXT NOT NULL,
+  tuan           INTEGER NOT NULL,
+  da_lam         TEXT NOT NULL DEFAULT '',
+  chua_lam       TEXT NOT NULL DEFAULT '',
+  nguoi_cap_nhat TEXT,
+  cap_nhat_luc   TEXT,
+  PRIMARY KEY (thang, khu_vuc, muc, tuan)
+);
+CREATE INDEX IF NOT EXISTS ix_kqm_thang ON ket_qua_muc (thang);
+
+
