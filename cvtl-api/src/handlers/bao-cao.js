@@ -33,11 +33,12 @@ import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 export const AN_HAN_NGAY = 2;
 
 /**
- * Tuần lớn nhất mà các bảng NHẬP TAY chấp nhận.
+ * Tuần lớn nhất mà các bảng NHẬP TAY chấp nhận (và trần áp dụng cho Trudo, Đào tạo).
  * Thờ phượng / Điểm danh / Giáo dục chỉ cho tuần 1..5. Đã rà lịch 2026-2030
  * (xem CVTL-KE-HOACH-BAO-CAO.md mục 5.4): tuần 6 chỉ bao giờ gồm ngày 30/31
  * nên KHÔNG BAO GIỜ có Thứ Ba hay Thứ Bảy → giới hạn 5 là ĐÚNG, không phải
- * lỗi. Ở tuần 6 các hạng mục đó phải hiện "—", tuyệt đối không hiện "thiếu".
+ * lỗi. Tuần 6 cũng không đòi báo Trudo, Đào tạo — anh Rise chốt 20/10/2026
+ * (T-008). Ở tuần 6 các hạng mục đó phải hiện "—", tuyệt đối không hiện "thiếu".
  */
 export const TUAN_TOI_DA_NHAP_TAY = 5;
 
@@ -307,7 +308,12 @@ function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
     if (!t.ngayT3 && !t.ngayT7) return 'khong_ap_dung';
     if (t.tuan > TUAN_TOI_DA_NHAP_TAY) return 'khong_ap_dung';
   }
-  if (maHangMuc === 'giao_duc' && t.tuan > TUAN_TOI_DA_NHAP_TAY) return 'khong_ap_dung';
+  if (
+    (maHangMuc === 'giao_duc' || maHangMuc === 'trudo_truyen_dao' || maHangMuc === 'dao_tao') &&
+    t.tuan > TUAN_TOI_DA_NHAP_TAY
+  ) {
+    return 'khong_ap_dung';
+  }
   if (maHangMuc === 'le_hoi') {
     if (!leHoi) return 'khong_ap_dung';
     const dauTuan = ngayKey(thang, t.tuNgay);

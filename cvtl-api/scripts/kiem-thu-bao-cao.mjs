@@ -223,11 +223,21 @@ console.log('\n4) ⚠️ BẪY 2 — Tuần 6 phải là "—", tuyệt đối k
     o(r.result, 6, 'tho_phuong') === 'khong_ap_dung', String(gy(r.result, 6, 'tho_phuong')));
   kiem('tuần 6: Giáo dục = không áp dụng (bảng nhập tay chỉ có tuần 1..5)',
     o(r.result, 6, 'giao_duc') === 'khong_ap_dung', String(gy(r.result, 6, 'giao_duc')));
+  kiem('tuần 6: Trudo — truyền đạo = không áp dụng (T-008)',
+    o(r.result, 6, 'trudo_truyen_dao') === 'khong_ap_dung', String(o(r.result, 6, 'trudo_truyen_dao')));
+  kiem('tuần 6: Đào tạo = không áp dụng (T-008)',
+    o(r.result, 6, 'dao_tao') === 'khong_ap_dung', String(o(r.result, 6, 'dao_tao')));
+  kiem('đối chứng T-008: tuần 5 Trudo chưa tích + quá hạn VẪN là "tre"',
+    o(r.result, 5, 'trudo_truyen_dao') === 'tre', String(o(r.result, 5, 'trudo_truyen_dao')));
+  kiem('đối chứng T-008: tuần 5 Đào tạo chưa tích + quá hạn VẪN là "tre"',
+    o(r.result, 5, 'dao_tao') === 'tre', String(o(r.result, 5, 'dao_tao')));
   const t = r.result.tuan.find((x) => x.tuan === 6);
   kiem('tuần 6 vẫn CÓ trong bảng (không bị gộp vào tuần 5)', !!t);
   kiem('tuần 6 KHÔNG có ô nào bị chấm "trễ"',
     t.hangMuc.every((x) => x.trangThai !== 'tre'),
     JSON.stringify(t.hangMuc.map((x) => x.ma + '=' + x.trangThai)));
+  kiem('tuần 6 tháng không có lễ hội: soApDung === 0 và soTre === 0',
+    t.soApDung === 0 && t.soTre === 0, `soApDung=${t.soApDung}, soTre=${t.soTre}`);
 }
 
 // =====================================================================
@@ -723,10 +733,12 @@ console.log('\n21) Tổng theo hạng mục trong lưới');
   kiem('đủ + trễ + chưa = số tuần áp dụng',
     d.theoHangMuc.tho_phuong.du + d.theoHangMuc.tho_phuong.tre + d.theoHangMuc.tho_phuong.chua
       === d.theoHangMuc.tho_phuong.apDung);
-  // ⚠️ Đổi 27/08/2026: trước đây Đào tạo không có nhật ký thì mọi tuần ra ❓ nên
-  // apDung = 0. Nay không còn ❓ — Đào tạo áp dụng MỌI tuần, chưa tích thì trễ.
-  kiem('Đào tạo áp dụng mọi tuần (không còn ❓ để loại khỏi mẫu số)',
-    d.theoHangMuc.dao_tao.apDung === 6, JSON.stringify(d.theoHangMuc.dao_tao));
+  // ⚠️ Đổi 27/08/2026 + cập nhật 20/10/2026 (T-008): không còn ❓ để loại khỏi
+  // mẫu số, và tuần 6 không áp dụng cho Đào tạo / Trudo -> chỉ tính 5 tuần áp dụng.
+  kiem('Đào tạo áp dụng 5 tuần (không còn ❓, tuần 6 là khong_ap_dung)',
+    d.theoHangMuc.dao_tao.apDung === 5, JSON.stringify(d.theoHangMuc.dao_tao));
+  kiem('Trudo — truyền đạo chỉ tính 5 tuần áp dụng (tuần 6 là khong_ap_dung)',
+    d.theoHangMuc.trudo_truyen_dao.apDung === 5, JSON.stringify(d.theoHangMuc.trudo_truyen_dao));
   kiem('...và chưa ai tích thì du = 0',
     d.theoHangMuc.dao_tao.du === 0, JSON.stringify(d.theoHangMuc.dao_tao));
   kiem('lưới liệt kê đủ 5 hạng mục', r.result.hangMuc.length === 5);
