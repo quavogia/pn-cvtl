@@ -1008,10 +1008,6 @@
               <div style="font-size:13px;font-weight:600;color:#1e293b;margin-bottom:6px;">📋 Kế hoạch:</div>
               <div id="khDetailNoiDung" style="font-size:13px;color:#334155;background:#f8fafc;padding:10px 12px;border-radius:6px;border:1px solid #e2e8f0;white-space:pre-wrap;line-height:1.6;min-height:48px;"></div>
             </div>
-            <div style="margin-bottom:16px;">
-              <div style="font-size:13px;font-weight:600;color:#b45309;margin-bottom:6px;">🆘 Cần hỗ trợ từ Si-ôn:</div>
-              <div id="khDetailCanHoTro" style="font-size:13px;color:#78350f;background:#fffbeb;padding:10px 12px;border-radius:6px;border:1px solid #fef3c7;white-space:pre-wrap;line-height:1.6;min-height:36px;"></div>
-            </div>
             <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;padding-top:12px;font-size:12px;color:#64748b;">
               <span id="khDetailInfo"></span>
               <button type="button" class="secondary" onclick="closeKeHoachDetailModal_()">Đóng</button>
@@ -2709,24 +2705,19 @@ const KH_MUC_NAMES = {
 
 const KH_PLACEHOLDERS = {
   tp: {
-    noiDung: 'Kế hoạch thờ phượng tháng này (duy trì số người dự lễ ≥ 4 lần/tháng, thăm viếng thánh đồ yếu đuối, tổ chức các buổi nhóm...)...',
-    canHoTro: 'Khó khăn trong mảng Thờ phượng cần Si-ôn hỗ trợ hoặc đồng hành...'
+    noiDung: 'Kế hoạch thờ phượng tháng này (duy trì số người dự lễ ≥ 4 lần/tháng, thăm viếng thánh đồ yếu đuối, tổ chức các buổi nhóm...)...'
   },
   trudo: {
-    noiDung: 'Kế hoạch truyền đạo & kết trái tháng này (mục tiêu chia sẻ Đơn thuần, dẫn dắt học viên nghe bài, đồng hành Báp-têm...)...',
-    canHoTro: 'Khó khăn trong mảng Truyền đạo & chăm sóc học viên cần Si-ôn hỗ trợ...'
+    noiDung: 'Kế hoạch truyền đạo & kết trái tháng này (mục tiêu chia sẻ Đơn thuần, dẫn dắt học viên nghe bài, đồng hành Báp-têm...)...'
   },
   edu: {
-    noiDung: 'Kế hoạch giáo dục tháng này (hoàn thành EDU LMS, duy trì Trực tuyến 127 ngày, khích lệ thánh đồ học Lời...)...',
-    canHoTro: 'Khó khăn trong việc tham gia các chương trình giáo dục cần Si-ôn hỗ trợ...'
+    noiDung: 'Kế hoạch giáo dục tháng này (hoàn thành EDU LMS, duy trì Trực tuyến 127 ngày, khích lệ thánh đồ học Lời...)...'
   },
   daotao: {
-    noiDung: 'Kế hoạch đào tạo người giúp việc tháng này (rèn luyện phát biểu Elohim Academy 70 bài, kèm cặp nhân viên mới, phân công nhiệm vụ...)...',
-    canHoTro: 'Khó khăn trong việc rèn luyện và đào tạo người giúp việc cần Si-ôn hỗ trợ...'
+    noiDung: 'Kế hoạch đào tạo người giúp việc tháng này (rèn luyện phát biểu Elohim Academy 70 bài, kèm cặp nhân viên mới, phân công nhiệm vụ...)...'
   },
   lehoi: {
-    noiDung: 'Kế hoạch lễ hội / kỳ vận động trong tháng (chuẩn bị dự lễ, phát biểu bài lễ hội, thi đua truyền đạo...)...',
-    canHoTro: 'Khó khăn trong kỳ lễ hội cần Si-ôn hỗ trợ...'
+    noiDung: 'Kế hoạch lễ hội / kỳ vận động trong tháng (chuẩn bị dự lễ, phát biểu bài lễ hội, thi đua truyền đạo...)...'
   }
 };
 
@@ -2746,7 +2737,7 @@ function loadKeHoachMuc_(muc){
   container.setAttribute('data-loaded', '0');
 
   const coQuyen = duocSuaKeHoach_(kv);
-  const ph = KH_PLACEHOLDERS[muc] || { noiDung: 'Nhập kế hoạch...', canHoTro: 'Việc cần hỗ trợ...' };
+  const ph = KH_PLACEHOLDERS[muc] || { noiDung: 'Nhập kế hoạch...' };
 
   container.innerHTML =
     '<div class="card" style="margin-bottom:0;">' +
@@ -2757,10 +2748,6 @@ function loadKeHoachMuc_(muc){
       '<div style="margin-bottom:10px;">' +
         '<label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:4px;">📋 Kế hoạch tháng:</label>' +
         '<textarea class="kh-noidung" rows="3" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kế hoạch..." disabled></textarea>' +
-      '</div>' +
-      '<div style="margin-bottom:10px;">' +
-        '<label style="font-size:12px;font-weight:600;color:#b45309;display:block;margin-bottom:4px;">🆘 Cần hỗ trợ từ Si-ôn:</label>' +
-        '<textarea class="kh-canhotro" rows="2" style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #fcd34d;border-radius:6px;font-family:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#f8fafc;" placeholder="Đang tải kế hoạch..." disabled></textarea>' +
       '</div>' +
       '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">' +
         (coQuyen ? '<button type="button" class="kh-save-btn" onclick="saveKeHoachMuc_(\'' + muc + '\', this)" disabled style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;font-size:13px;">💾 Lưu kế hoạch</button>' : '') +
@@ -2776,7 +2763,6 @@ function loadKeHoachMuc_(muc){
     }
     container.setAttribute('data-loaded', '1');
     const txtNoiDung = container.querySelector('.kh-noidung');
-    const txtCanHoTro = container.querySelector('.kh-canhotro');
     const saveBtn = container.querySelector('.kh-save-btn');
     const lblTime = container.querySelector('.kh-time-label');
 
@@ -2786,14 +2772,6 @@ function loadKeHoachMuc_(muc){
       if (coQuyen) {
         txtNoiDung.disabled = false;
         txtNoiDung.style.background = '#fff';
-      }
-    }
-    if (txtCanHoTro) {
-      txtCanHoTro.placeholder = ph.canHoTro;
-      txtCanHoTro.value = (res && res.canHoTro) || '';
-      if (coQuyen) {
-        txtCanHoTro.disabled = false;
-        txtCanHoTro.style.background = '#fffbeb';
       }
     }
     if (saveBtn && coQuyen) {
@@ -2809,17 +2787,12 @@ function loadKeHoachMuc_(muc){
     }
     container.setAttribute('data-loaded', '0');
     const txtNoiDung = container.querySelector('.kh-noidung');
-    const txtCanHoTro = container.querySelector('.kh-canhotro');
     const saveBtn = container.querySelector('.kh-save-btn');
     const lblTime = container.querySelector('.kh-time-label');
 
     if (txtNoiDung) {
       txtNoiDung.disabled = true;
       txtNoiDung.placeholder = 'Không tải được kế hoạch, vui lòng tải lại trang';
-    }
-    if (txtCanHoTro) {
-      txtCanHoTro.disabled = true;
-      txtCanHoTro.placeholder = 'Không tải được kế hoạch, vui lòng tải lại trang';
     }
     if (saveBtn) {
       saveBtn.disabled = true;
@@ -2853,13 +2826,11 @@ function saveKeHoachMuc_(muc, btn){
   }
 
   const txtNoiDung = container.querySelector('.kh-noidung');
-  const txtCanHoTro = container.querySelector('.kh-canhotro');
   const saveBtn = container.querySelector('.kh-save-btn');
   const saveInd = container.querySelector('.kh-save-indicator');
   const lblTime = container.querySelector('.kh-time-label');
 
   const noiDung = (txtNoiDung ? txtNoiDung.value : '').trim();
-  const canHoTro = (txtCanHoTro ? txtCanHoTro.value : '').trim();
 
   if (saveBtn) {
     saveBtn.disabled = true;
@@ -2886,7 +2857,7 @@ function saveKeHoachMuc_(muc, btn){
       saveBtn.textContent = '💾 Lưu kế hoạch';
     }
     showMsg('Lỗi lưu kế hoạch: ' + (err ? err.message : ''), false);
-  }).saveKeHoachThang(monthKey, kv, m, noiDung, canHoTro);
+  }).saveKeHoachThang(monthKey, kv, m, noiDung);
 }
 
 /** ---------- THỰC HIỆN KẾ HOẠCH THEO TỪNG MẢNG & TỪNG TUẦN (20/10/2026) ---------- */
@@ -3615,19 +3586,15 @@ function loadKVTongKeHoach_(){
       mucs.forEach(function(m){
         const item = theoKV[kv] && theoKV[kv][m.key];
         const nd = (item && item.noiDung) ? item.noiDung.trim() : '';
-        const cht = (item && item.canHoTro) ? item.canHoTro.trim() : '';
-        const hasContent = nd.length > 0 || cht.length > 0;
+        const hasContent = nd.length > 0;
 
         html += '<td style="padding:8px 10px;vertical-align:top;">';
         if (!hasContent) {
           html += '<span style="color:#94a3b8;font-style:italic;font-size:12px;">chưa ghi</span>';
         } else {
-          const trichNgan = nd ? (nd.length > 45 ? nd.slice(0, 45) + '…' : nd) : (cht.length > 45 ? cht.slice(0, 45) + '…' : cht);
+          const trichNgan = nd.length > 45 ? nd.slice(0, 45) + '…' : nd;
           html += '<div onclick="openKeHoachDetailModal_(\'' + esc(kv) + '\',\'' + m.key + '\')" style="cursor:pointer;padding:6px 8px;border-radius:6px;background:#f8fafc;border:1px solid #e2e8f0;transition:all 0.15s ease;" onmouseover="this.style.background=\'#f1f5f9\'" onmouseout="this.style.background=\'#f8fafc\'">';
-          html += '<div style="font-size:12px;color:#334155;line-height:1.4;margin-bottom:3px;">' + esc(trichNgan) + '</div>';
-          if (cht) {
-            html += '<span style="display:inline-block;font-size:10px;color:#92400e;background:#fef3c7;padding:1px 5px;border-radius:4px;font-weight:500;">🆘 Cần hỗ trợ</span>';
-          }
+          html += '<div style="font-size:12px;color:#334155;line-height:1.4;">' + esc(trichNgan) + '</div>';
           html += '</div>';
         }
         html += '</td>';
@@ -3654,14 +3621,11 @@ function openKeHoachDetailModal_(kv, mucKey){
   document.getElementById('khDetailSub').textContent = 'Tháng ' + monthKey;
 
   const nd = item.noiDung ? item.noiDung.trim() : '';
-  const cht = item.canHoTro ? item.canHoTro.trim() : '';
 
   const elND = document.getElementById('khDetailNoiDung');
-  const elCHT = document.getElementById('khDetailCanHoTro');
   const elInfo = document.getElementById('khDetailInfo');
 
   if (elND) elND.textContent = nd || '(Chưa ghi nội dung kế hoạch)';
-  if (elCHT) elCHT.textContent = cht || '(Không có nội dung cần hỗ trợ)';
   if (elInfo) {
     const timeStr = item.capNhatLuc ? fmtNgayGio_(item.capNhatLuc) : '';
     const email = item.nguoiCapNhat ? ' (' + item.nguoiCapNhat + ')' : '';

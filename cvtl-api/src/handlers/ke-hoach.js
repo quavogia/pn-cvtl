@@ -6,7 +6,7 @@
 //   khu_vuc        TEXT NOT NULL,
 //   muc            TEXT NOT NULL,
 //   noi_dung       TEXT NOT NULL DEFAULT '',
-//   can_ho_tro     TEXT NOT NULL DEFAULT '',
+//   can_ho_tro     TEXT NOT NULL DEFAULT '', -- ⚠️ Không còn dùng từ 20/10/2026 (T-007), giữ lại cột để không mất chữ đã nhập trên D1
 //   nguoi_cap_nhat TEXT,
 //   cap_nhat_luc   TEXT,
 //   PRIMARY KEY (thang, khu_vuc, muc)
@@ -51,37 +51,35 @@ export async function getKeHoachThang({ db }, thang, khuVuc, muc) {
 
   try {
     const row = await db.first(
-      'SELECT thang, khu_vuc, muc, noi_dung, can_ho_tro, nguoi_cap_nhat, cap_nhat_luc FROM ke_hoach_muc WHERE thang = ? AND khu_vuc = ? AND muc = ?',
+      'SELECT thang, khu_vuc, muc, noi_dung, nguoi_cap_nhat, cap_nhat_luc FROM ke_hoach_muc WHERE thang = ? AND khu_vuc = ? AND muc = ?',
       [t, kv, m]
     );
     if (!row) {
-      return { thang: t, khuVuc: kv, muc: m, noiDung: '', canHoTro: '', nguoiCapNhat: '', capNhatLuc: '' };
+      return { thang: t, khuVuc: kv, muc: m, noiDung: '', nguoiCapNhat: '', capNhatLuc: '' };
     }
     return {
       thang: chuoi(row.thang),
       khuVuc: chuoi(row.khu_vuc),
       muc: chuoi(row.muc),
       noiDung: chuoi(row.noi_dung),
-      canHoTro: chuoi(row.can_ho_tro),
       nguoiCapNhat: chuoi(row.nguoi_cap_nhat),
       capNhatLuc: chuoi(row.cap_nhat_luc),
     };
   } catch (e) {
     if (e && String(e.message || e).includes('no such table')) {
-      return { thang: t, khuVuc: kv, muc: m, noiDung: '', canHoTro: '', nguoiCapNhat: '', capNhatLuc: '' };
+      return { thang: t, khuVuc: kv, muc: m, noiDung: '', nguoiCapNhat: '', capNhatLuc: '' };
     }
     throw e;
   }
 }
 
-/** Lưu kế hoạch của một khu vực theo mảng (hàm ghi). */
-export async function saveKeHoachThang({ db, nguoiGoi }, thang, khuVuc, muc, noiDung, canHoTro) {
+/** Lưu kế hoạch của một khu vực theo mảng (hàm ghi, không đụng cột can_ho_tro). */
+export async function saveKeHoachThang({ db, nguoiGoi }, thang, khuVuc, muc, noiDung) {
   await damBaoBang_(db);
   const t = kiemTraThang(thang);
   const kv = batBuoc(khuVuc, 'Khu vực');
   const m = kiemTraMuc_(muc);
   const nd = chuoi(noiDung);
-  const cht = chuoi(canHoTro);
 
   const nguoi = nguoiGoi
     ? {
@@ -99,14 +97,13 @@ export async function saveKeHoachThang({ db, nguoiGoi }, thang, khuVuc, muc, noi
   const capNhatLuc = new Date().toISOString();
 
   await db.run(
-    `INSERT INTO ke_hoach_muc (thang, khu_vuc, muc, noi_dung, can_ho_tro, nguoi_cap_nhat, cap_nhat_luc)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO ke_hoach_muc (thang, khu_vuc, muc, noi_dung, nguoi_cap_nhat, cap_nhat_luc)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT (thang, khu_vuc, muc) DO UPDATE SET
        noi_dung = excluded.noi_dung,
-       can_ho_tro = excluded.can_ho_tro,
        nguoi_cap_nhat = excluded.nguoi_cap_nhat,
        cap_nhat_luc = excluded.cap_nhat_luc`,
-    [t, kv, m, nd, cht, email, capNhatLuc]
+    [t, kv, m, nd, email, capNhatLuc]
   );
 
   return {
@@ -115,7 +112,6 @@ export async function saveKeHoachThang({ db, nguoiGoi }, thang, khuVuc, muc, noi
     khuVuc: kv,
     muc: m,
     noiDung: nd,
-    canHoTro: cht,
     nguoiCapNhat: email,
     capNhatLuc,
   };
@@ -127,7 +123,7 @@ export async function getAllKeHoachThang({ db }, thang) {
 
   try {
     const rows = await db.all(
-      'SELECT thang, khu_vuc, muc, noi_dung, can_ho_tro, nguoi_cap_nhat, cap_nhat_luc FROM ke_hoach_muc WHERE thang = ? ORDER BY khu_vuc, muc',
+      'SELECT thang, khu_vuc, muc, noi_dung, nguoi_cap_nhat, cap_nhat_luc FROM ke_hoach_muc WHERE thang = ? ORDER BY khu_vuc, muc',
       [t]
     );
 
@@ -139,7 +135,6 @@ export async function getAllKeHoachThang({ db }, thang) {
         khuVuc: chuoi(r.khu_vuc),
         muc: chuoi(r.muc),
         noiDung: chuoi(r.noi_dung),
-        canHoTro: chuoi(r.can_ho_tro),
         nguoiCapNhat: chuoi(r.nguoi_cap_nhat),
         capNhatLuc: chuoi(r.cap_nhat_luc),
       };
@@ -156,5 +151,3 @@ export async function getAllKeHoachThang({ db }, thang) {
     throw e;
   }
 }
-
-
