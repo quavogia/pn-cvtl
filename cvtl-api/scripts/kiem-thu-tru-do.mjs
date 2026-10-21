@@ -321,51 +321,106 @@ console.log('\n7) Thứ hạng — cùng điểm thì cùng hạng');
 }
 
 // =====================================================================
-console.log('\n8) Tự động phát hiện vừa vượt mốc');
+console.log('\n8) Tự động ghi sổ khi vừa vượt mốc (T-010)');
 {
   taoCSDL();
-  let r = await goi('addStudent', [{ ten: 'HV Một', to: 'K My', tienDo: 'B1', ndd1: 'N Thị Ngân' }]);
-  const id1 = r.result?.row;
-  kiem('học viên B1 chưa vượt mốc nào', (r.result?.ghiSo || []).length === 0, JSON.stringify(r));
+  const gocNow = Date.now;
+  try {
+    // Cố định ngày giả '2026-08-12' (giờ VN)
+    Date.now = () => Date.parse('2026-08-12T03:00:00Z');
 
-  r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B2', ndd1: 'N Thị Ngân' }]);
-  kiem('B1 lên B2 -> hỏi ghi sổ Hữu hiệu',
-    (r.result?.ghiSo || []).length === 1 && r.result.ghiSo[0].moc === 'huu_hieu', JSON.stringify(r));
-  kiem('đã điền sẵn người dẫn dắt', r.result.ghiSo[0].nguoiDanDat[0] === 'N Thị Ngân');
-  kiem('có gợi ý ngày hôm nay', /^\d{4}-\d{2}-\d{2}$/.test(r.result.ghiSo[0].ngayGoiY));
-  // ⚠️ 30/08/2026 — bỏ hẳn trường `diem` khỏi gợi ý ghi sổ: web không còn
-  // thang điểm nào để nói "mốc này được N điểm".
-  kiem('⚠️ KHÔNG còn kèm số điểm của mốc', r.result.ghiSo[0].diem === undefined);
+    let r = await goi('addStudent', [{ ten: 'HV Một', to: 'K My', tienDo: 'B1', ndd1: 'N Thị Ngân' }]);
+    const id1 = r.result?.row;
+    kiem('thêm học viên B1 chưa vượt mốc -> không ghi sổ (so_moc = 0)',
+      (r.result?.ghiSo || []).length === 0 && dem('SELECT COUNT(*) c FROM so_moc') === 0, JSON.stringify(r));
 
-  r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B10', ndd1: 'N Thị Ngân' }]);
-  kiem('B2 lên B10 -> KHÔNG hỏi lại', (r.result?.ghiSo || []).length === 0, JSON.stringify(r.result?.ghiSo));
+    r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B2', ndd1: 'N Thị Ngân' }]);
+    const dong1 = sqlite.prepare("SELECT * FROM so_moc WHERE ten='HV Một' AND moc='huu_hieu'").get();
+    kiem('B1 lên B2 -> tự ghi 1 dòng huu_hieu vào so_moc',
+      (r.result?.ghiSo || []).length === 1 && r.result.ghiSo[0].moc === 'huu_hieu' && dem('SELECT COUNT(*) c FROM so_moc') === 1,
+      JSON.stringify(r));
+    kiem('dòng tự ghi có đúng ngày giả cố định 2026-08-12 và tháng 2026-08',
+      dong1?.ngay === '2026-08-12' && dong1?.thang === '2026-08' && dong1?.ghi_chu === 'Tự ghi khi nhập tiến độ',
+      JSON.stringify(dong1));
+    kiem('đã điền sẵn người dẫn dắt và người ghi',
+      r.result.ghiSo[0].nguoiDanDat[0] === 'N Thị Ngân' && dong1?.ndd1 === 'N Thị Ngân' && dong1?.nguoi_ghi === 'nv@gmail.com');
+    kiem('⚠️ KHÔNG còn kèm số điểm của mốc', r.result.ghiSo[0].diem === undefined);
 
-  r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'BT', ndd1: 'N Thị Ngân' }]);
-  kiem('lên BT -> hỏi ghi sổ Báp-têm',
-    (r.result?.ghiSo || []).some((x) => x.moc === 'bap_tem'), JSON.stringify(r.result?.ghiSo));
+    r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B3', ndd1: 'N Thị Ngân' }]);
+    r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B10', ndd1: 'N Thị Ngân' }]);
+    kiem('B2 lên B3, B10 -> KHÔNG ghi thêm, so_moc vẫn đúng 1 dòng',
+      (r.result?.ghiSo || []).length === 0 && dem('SELECT COUNT(*) c FROM so_moc') === 1, JSON.stringify(r.result?.ghiSo));
 
-  r = await goi('addStudent', [{ ten: 'HV Hai', to: 'K My', tienDo: 'B1', ndd1: 'P Ngọc Đức' }]);
-  const id2 = r.result?.row;
-  kiem('thêm được học viên thứ hai', Number.isInteger(id2), JSON.stringify(r));
-  r = await goi('updateStudent', [id2, { ten: 'HV Hai', to: 'K My', tienDo: 'BT', ndd1: 'P Ngọc Đức' }]);
-  kiem('nhảy thẳng B1 -> BT thì hỏi cả Hữu hiệu lẫn Báp-têm',
-    (r.result?.ghiSo || []).length === 2, JSON.stringify(r));
+    Date.now = () => Date.parse('2026-09-05T03:00:00Z');
+    r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'BT', ndd1: 'N Thị Ngân' }]);
+    const dongBT1 = sqlite.prepare("SELECT * FROM so_moc WHERE ten='HV Một' AND moc='bap_tem'").get();
+    kiem('lên BT -> chỉ tự ghi thêm 1 dòng bap_tem (so_moc = 2), đúng tháng 2026-09',
+      (r.result?.ghiSo || []).length === 1 && r.result.ghiSo[0].moc === 'bap_tem' &&
+      dongBT1?.ngay === '2026-09-05' && dongBT1?.thang === '2026-09' && dem('SELECT COUNT(*) c FROM so_moc') === 2,
+      JSON.stringify(r.result?.ghiSo));
 
-  r = await goi('addStudent', [{ ten: 'HV Ba', to: 'K Long', tienDo: 'BT', ndd1: 'V Hoàng Long' }]);
-  kiem('thêm mới thẳng ở mức BT cũng hỏi cả hai mốc',
-    (r.result?.ghiSo || []).length === 2, JSON.stringify(r));
+    r = await goi('addStudent', [{ ten: 'HV Hai', to: 'K My', tienDo: 'B1', ndd1: 'P Ngọc Đức' }]);
+    const id2 = r.result?.row;
+    kiem('thêm học viên thứ hai ở B1 -> so_moc vẫn 2 dòng',
+      Number.isInteger(id2) && dem('SELECT COUNT(*) c FROM so_moc') === 2, JSON.stringify(r));
+    r = await goi('updateStudent', [id2, { ten: 'HV Hai', to: 'K My', tienDo: 'BT', ndd1: 'P Ngọc Đức' }]);
+    kiem('nhảy thẳng B1 -> BT thì tự ghi CẢ Hữu hiệu lẫn Báp-têm (so_moc = 4)',
+      (r.result?.ghiSo || []).length === 2 && dem('SELECT COUNT(*) c FROM so_moc') === 4, JSON.stringify(r));
 
-  await goi('addSoMoc', [{ moc: 'huu_hieu', ten: 'HV Bốn', khuVuc: 'K My', ndd1: 'N X Kiều My' }]);
-  r = await goi('addStudent', [{ ten: 'HV Bốn', to: 'K My', tienDo: 'B5', ndd1: 'N X Kiều My' }]);
-  kiem('người đã có trong sổ thì không hỏi lại',
-    (r.result?.ghiSo || []).length === 0, JSON.stringify(r));
+    r = await goi('addStudent', [{ ten: 'HV Ba', to: 'K Long', tienDo: 'BT', ndd1: 'V Hoàng Long' }]);
+    kiem('thêm mới thẳng ở mức BT cũng tự ghi cả hai mốc (so_moc = 6)',
+      (r.result?.ghiSo || []).length === 2 && dem('SELECT COUNT(*) c FROM so_moc') === 6, JSON.stringify(r));
 
-  r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B1', ndd1: 'N Thị Ngân' }]);
-  kiem('tụt về B1 không hỏi gì', (r.result?.ghiSo || []).length === 0);
-  await goi('addSoMoc', [{ moc: 'huu_hieu', ten: 'HV Một', khuVuc: 'K My', ndd1: 'N Thị Ngân' }]);
-  r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B2', ndd1: 'N Thị Ngân' }]);
-  kiem('lên lại B2 mà đã ghi sổ rồi thì không hỏi nữa',
-    (r.result?.ghiSo || []).length === 0, JSON.stringify(r.result?.ghiSo));
+    r = await goi('addStudent', [{ ten: 'HV Ba Phẩy', to: 'K Long', tienDo: 'B2', ndd1: 'V Hoàng Long' }]);
+    kiem('thêm mới ở mức B2 tự ghi ngay 1 dòng huu_hieu (so_moc = 7)',
+      (r.result?.ghiSo || []).length === 1 && r.result.ghiSo[0].moc === 'huu_hieu' && dem('SELECT COUNT(*) c FROM so_moc') === 7);
+
+    // Đã có dòng huu_hieu ghi tay trước đó -> nhảy B1 lên BT chỉ ghi thêm bap_tem, KHÔNG đè ngày ghi tay
+    await goi('addSoMoc', [{ moc: 'huu_hieu', ngay: '2026-07-05', ten: 'HV Bốn', khuVuc: 'K My', ndd1: 'N X Kiều My', ghiChu: 'Ghi tay' }]);
+    r = await goi('addStudent', [{ ten: 'HV Bốn', to: 'K My', tienDo: 'B1', ndd1: 'N X Kiều My' }]);
+    const id4 = r.result?.row;
+    r = await goi('updateStudent', [id4, { ten: 'HV Bốn', to: 'K My', tienDo: 'BT', ndd1: 'N X Kiều My' }]);
+    const dongGhiTay = sqlite.prepare("SELECT * FROM so_moc WHERE ten='HV Bốn' AND moc='huu_hieu'").get();
+    kiem('nhảy B1 -> BT khi đã có huu_hieu ghi tay: chỉ ghi thêm bap_tem, KHÔNG đè ngày/ghi chú ghi tay (so_moc = 9)',
+      (r.result?.ghiSo || []).length === 1 && r.result.ghiSo[0].moc === 'bap_tem' &&
+      dongGhiTay?.ngay === '2026-07-05' && dongGhiTay?.ghi_chu === 'Ghi tay' && dem('SELECT COUNT(*) c FROM so_moc') === 9,
+      JSON.stringify({ ghiSo: r.result?.ghiSo, dongGhiTay }));
+
+    // Hạ tiến độ không xoá dòng sổ; lên lại B2 không nhân đôi
+    r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B1', ndd1: 'N Thị Ngân' }]);
+    kiem('hạ tiến độ về B1 KHÔNG xoá dòng sổ (so_moc vẫn 9 dòng)',
+      (r.result?.ghiSo || []).length === 0 && dem('SELECT COUNT(*) c FROM so_moc') === 9);
+    r = await goi('updateStudent', [id1, { ten: 'HV Một', to: 'K My', tienDo: 'B2', ndd1: 'N Thị Ngân' }]);
+    kiem('lên lại B2 mà đã có trong sổ thì không nhân đôi (so_moc vẫn 9 dòng)',
+      (r.result?.ghiSo || []).length === 0 && dem('SELECT COUNT(*) c FROM so_moc') === 9, JSON.stringify(r.result?.ghiSo));
+
+    // Đối chứng "chỉ khi vừa vượt mốc": người đã ≥B2 từ trước (chưa có trong sổ) mà chỉ sửa thông tin khác -> KHÔNG ghi
+    sqlite.prepare(
+      "INSERT INTO hoc_vien (ten, khu_vuc, tien_do, ndd1, dia_chi) VALUES ('HV Cũ B5', 'K My', 'B5', 'N Thị Ngân', 'Địa chỉ cũ')"
+    ).run();
+    const idCu = sqlite.prepare("SELECT id FROM hoc_vien WHERE ten='HV Cũ B5'").get().id;
+    r = await goi('updateStudent', [idCu, { ten: 'HV Cũ B5', to: 'K My', tienDo: 'B5', ndd1: 'N Thị Ngân', diaChi: 'Địa chỉ mới', danhGia: 'Học tốt' }]);
+    kiem('sửa thông tin khác của người đã ≥B2 từ trước (không vượt mốc) -> KHÔNG tự ghi (so_moc vẫn 9 dòng)',
+      (r.result?.ghiSo || []).length === 0 && dem('SELECT COUNT(*) c FROM so_moc') === 9, JSON.stringify(r));
+
+    // Đối chứng các hàm đếm từ sổ (demMocTheoThang, demMocTheoTuan, demNguoiDiTiepTheoThang) = 0 lệnh ghi
+    const { demMocTheoThang, demMocTheoTuan, demNguoiDiTiepTheoThang } = await import(join(goc, 'src/handlers/tru-do.js'));
+    let soLenhGhi = 0;
+    const dbChiDoc = {
+      async all(sql, p = []) { return db.all(sql, p); },
+      async first(sql, p = []) { return db.first(sql, p); },
+      async run() { soLenhGhi++; throw new Error('CẤM GHI'); },
+      async batch() { soLenhGhi++; throw new Error('CẤM GHI'); },
+    };
+    const mThang8 = await demMocTheoThang(dbChiDoc, '2026-08');
+    const mTuan9 = await demMocTheoTuan(dbChiDoc, '2026-09');
+    const diTiep9 = await demNguoiDiTiepTheoThang(dbChiDoc, '2026-09');
+    kiem('demMocTheoThang, demMocTheoTuan, demNguoiDiTiepTheoThang: đối chứng 0 lệnh ghi',
+      soLenhGhi === 0 && mThang8.huuHieu['K My'] === 1 && mTuan9.bt['K My']?.reduce((s, x) => s + x, 0) === 3 && diTiep9['K My'] === 3,
+      JSON.stringify({ soLenhGhi, mThang8, mTuan9, diTiep9 }));
+  } finally {
+    Date.now = gocNow;
+  }
 }
 
 // =====================================================================
@@ -493,7 +548,8 @@ console.log('\n14) Độ phủ — chạm hết các hàm của tru-do.js');
   const truDo = await import(join(goc, 'src/handlers/tru-do.js'));
   const canPhu = Object.keys(truDo).filter((k) => typeof truDo[k] === 'function' && k !== 'dsNguoiDanDat');
   const trongDanhMuc = Object.keys(DANH_MUC);
-  const thieu = canPhu.filter((t) => t !== 'mocVuaDat' && !trongDanhMuc.includes(t));
+  const hamNoiBo = ['tuGhiSoMoc', 'demMocTheoThang', 'demMocTheoTuan', 'demNguoiDiTiepTheoThang'];
+  const thieu = canPhu.filter((t) => !hamNoiBo.includes(t) && !trongDanhMuc.includes(t));
   kiem('mọi hàm đều đã nối vào danh mục (trừ hàm nội bộ)',
     thieu.length === 0, 'còn thiếu: ' + thieu.join(', '));
   kiem('danh mục có đủ 106 hàm', trongDanhMuc.length === 106, 'thực tế: ' + trongDanhMuc.length);

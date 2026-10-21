@@ -33,8 +33,9 @@
 // =====================================================================
 
 import {
-  chuoi, soNguyen, batBuoc, chuanNgay, homNay, thangCuaNgay, laHuuHieu, laBT,
+  chuoi, soNguyen, batBuoc, chuanNgay, homNay, thangCuaNgay, laHuuHieu, laBT, tuanTrongThang,
 } from '../tien-ich.js';
+import { cacTuanCuaThang } from '../lich-tuan.js';
 
 /**
  * Các mốc được ghi vào sổ `so_moc` (mỗi người mỗi mốc chỉ một dòng).
@@ -252,19 +253,17 @@ export async function getMocDaGhi({ db }, ten, khuVuc) {
 }
 
 /**
- * Học viên vừa vượt mốc nào? Dùng ngay sau khi thêm/sửa học viên.
- *
- * Trả về danh sách mốc CẦN HỎI để ghi sổ — giao diện sẽ bật ô hỏi ngày cho
- * từng mốc, đã điền sẵn người dẫn dắt. Không tự ghi ngay vì phải để người
- * dùng nhập đúng ngày đạt mốc (có thể là ngày trong quá khứ).
- *
- * Quy ước: đã Báp-têm thì đương nhiên đã qua Hữu hiệu. Nên nếu ai đó nhập
- * thẳng từ B1 lên BT mà chưa từng ghi sổ Hữu hiệu, hệ thống hỏi cả hai mốc.
- *
- * Chỉ hỏi khi VỪA VƯỢT MỐC. Học viên đã ở B5 từ trước khi có tính năng này
- * thì sửa hồ sơ sẽ không bị hỏi — dùng nút "Thêm thủ công" để nhập bù.
+ * Tự động ghi vào sổ `so_moc` khi học viên VỪA VƯỢT MỐC (B2 cho Hữu hiệu, BT cho
+ * Báp-têm). Đổi từ 20/10/2026 (T-010, anh Rise chốt):
+ *   - Ngày nào nhập tiến độ B2/BT thì tính vào ngày và tháng đó (homNay()).
+ *   - Báp-têm mà chưa có Hữu hiệu trong sổ thì ghi cả hai.
+ *   - Dùng INSERT OR IGNORE trên khoá UNIQUE (moc, ten, khu_vuc): mỗi học viên
+ *     mỗi mốc chỉ một lần, tuyệt đối không ghi đè dòng sổ đã ghi tay trước đó.
+ *   - Không tự ghi cho học viên đã ≥B2 từ trước mà chỉ sửa thông tin khác.
+ *   - Hạ tiến độ về sau không xoá dòng sổ.
  */
-export async function mocVuaDat(ctx, tienDoCu, hocVien) {
+export async function tuGhiSoMoc(ctx, tienDoCu, hocVien) {
+  const { db, nguoiGoi } = ctx;
   const cuBT = laBT(tienDoCu);
   const cuHH = laHuuHieu(tienDoCu) || cuBT;
   const moiBT = laBT(hocVien?.tienDo);
@@ -279,20 +278,115 @@ export async function mocVuaDat(ctx, tienDoCu, hocVien) {
   const khuVuc = chuoi(hocVien?.khuVuc);
   if (!ten || !khuVuc) return [];
 
-  const daGhi = await getMocDaGhi(ctx, ten, khuVuc);
-  return can
-    .filter((m) => !daGhi[m])
-    .map((m) => ({
-      moc: m,
-      tenMoc: TEN_MOC[m],
-      ten,
-      khuVuc,
-      ngayGoiY: homNay(),
-      ndd1: chuoi(hocVien?.ndd1),
-      ndd2: chuoi(hocVien?.ndd2),
-      ndd3: chuoi(hocVien?.ndd3),
-      nguoiDanDat: dsNguoiDanDat(hocVien),
-    }));
+  const ngay = homNay();
+  const thang = thangCuaNgay(ngay);
+  const nguoiGhi = chuoi(nguoiGoi?.email);
+  const daGhi = [];
+
+  for (const moc of can) {
+    const kq = await db.run(
+      `INSERT OR IGNORE INTO so_moc
+         (moc, ngay, thang, ten, khu_vuc, ndd1, ndd2, ndd3, ghi_chu, nguoi_ghi, tao_luc)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        moc, ngay, thang, ten, khuVuc,
+        chuoi(hocVien?.ndd1), chuoi(hocVien?.ndd2), chuoi(hocVien?.ndd3),
+        'Tự ghi khi nhập tiến độ', nguoiGhi, Date.now(),
+      ]
+    );
+    if (soDongDaGhi(kq) > 0) {
+      daGhi.push({
+        moc,
+        tenMoc: TEN_MOC[moc],
+        ten,
+        khuVuc,
+        ngay,
+        thang,
+        ndd1: chuoi(hocVien?.ndd1),
+        ndd2: chuoi(hocVien?.ndd2),
+        ndd3: chuoi(hocVien?.ndd3),
+        nguoiDanDat: dsNguoiDanDat(hocVien),
+      });
+    }
+  }
+  return daGhi;
+}
+
+/**
+ * Đếm số ca Hữu hiệu và Báp-têm trong một tháng từ sổ `so_moc`, gom theo Khu vực.
+ * Nguồn đếm duy nhất của cả web (T-010, 20/10/2026).
+ */
+export async function demMocTheoThang(db, thang) {
+  const rows = await db.all(
+    `SELECT khu_vuc, moc, COUNT(*) AS so
+       FROM so_moc
+      WHERE thang = ? AND moc IN ('huu_hieu', 'bap_tem')
+      GROUP BY khu_vuc, moc`,
+    [thang]
+  );
+  const huuHieu = {};
+  const bt = {};
+  for (const r of rows) {
+    const kv = chuoi(r.khu_vuc);
+    if (!kv) continue;
+    const so = soNguyen(r.so);
+    if (r.moc === 'huu_hieu') huuHieu[kv] = so;
+    else if (r.moc === 'bap_tem') bt[kv] = so;
+  }
+  return { huuHieu, bt };
+}
+
+/**
+ * Đếm số ca Hữu hiệu và Báp-têm theo từng tuần trong tháng từ sổ `so_moc`.
+ * Dùng cùng hàm `tuanTrongThang` / `cacTuanCuaThang` với biểu đồ tuần Đơn thuần
+ * để tổng các tuần luôn bằng đúng tổng tháng.
+ */
+export async function demMocTheoTuan(db, thang) {
+  const rows = await db.all(
+    `SELECT khu_vuc, moc, ngay
+       FROM so_moc
+      WHERE thang = ? AND moc IN ('huu_hieu', 'bap_tem')`,
+    [thang]
+  );
+  const soTuan = cacTuanCuaThang(thang).length || 5;
+  const huuHieu = {};
+  const bt = {};
+  for (const r of rows) {
+    const kv = chuoi(r.khu_vuc);
+    const tuan = tuanTrongThang(r.ngay);
+    if (!kv || !tuan || tuan > soTuan) continue;
+    if (r.moc === 'huu_hieu') {
+      if (!huuHieu[kv]) huuHieu[kv] = new Array(soTuan).fill(0);
+      huuHieu[kv][tuan - 1]++;
+    } else if (r.moc === 'bap_tem') {
+      if (!bt[kv]) bt[kv] = new Array(soTuan).fill(0);
+      bt[kv][tuan - 1]++;
+    }
+  }
+  return { soTuan, huuHieu, bt };
+}
+
+/**
+ * Đếm số người KHÁC NHAU có ít nhất một mốc ('huu_hieu' hoặc 'bap_tem')
+ * trong tháng từ sổ `so_moc`, gom theo Khu vực: { [khuVuc]: so }.
+ * Một người nhảy B1 lên BT cùng tháng (hai dòng sổ) chỉ đếm một; người Báp-têm
+ * đã hữu hiệu từ tháng trước (chỉ có dòng 'bap_tem' trong tháng này) vẫn được đếm.
+ */
+export async function demNguoiDiTiepTheoThang(db, thang) {
+  const rows = await db.all(
+    `SELECT khu_vuc, COUNT(DISTINCT ten) AS so
+       FROM so_moc
+      WHERE thang = ? AND moc IN ('huu_hieu', 'bap_tem')
+      GROUP BY khu_vuc`,
+    [thang]
+  );
+  const map = {};
+  for (const r of rows) {
+    const kv = chuoi(r.khu_vuc);
+    if (!kv) continue;
+    map[kv] = soNguyen(r.so);
+  }
+  return map;
 }
 
 // =====================================================================

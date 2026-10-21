@@ -155,7 +155,7 @@
     const h1Add = pAdd.querySelector('h1'); if (h1Add) h1Add.remove();
     document.getElementById('trudo-sub-donthuan').appendChild(pDT);
     const oHH = document.getElementById('trudo-sub-huuhieu');
-    oHH.innerHTML = '<div id="trudoChuaGhi"></div>';
+    oHH.innerHTML = '';
     oHH.appendChild(pAdd);
     const khungSo = document.createElement('div');
     khungSo.className = 'card';
@@ -251,7 +251,8 @@
       '<h3 style="margin:0">Sổ ' + TEN_MOC[moc] + '</h3>' +
       '<span class="trudo-nho">' + ds.length + ' người</span>' +
       '<button type="button" class="trudo-nut trudo-them" style="margin-left:auto">+ Thêm thủ công</button>' +
-      '</div>';
+      '</div>' +
+      '<div class="trudo-nho" style="margin:-4px 0 10px">Học viên từ B2 trở lên tự vào sổ vào ngày nhập tiến độ; sửa ngày ở đây nếu cần.</div>';
     if (!ds.length) {
       h += '<div class="trudo-nho" style="padding:16px 0">Chưa có ai trong sổ ở khoảng thời gian này.</div>';
     } else {
@@ -274,7 +275,7 @@
         ds.map(function (x) { return [ngayVN(x.ngay), x.ten, x.khuVuc, x.nguoiDanDat.join(', '), x.ghiChu]; }));
     };
     const nutThem = o.querySelector('.trudo-them');
-    if (nutThem) nutThem.onclick = function () { moHopGhiSo({ moc: moc, ngayGoiY: homNay() }, function () { veSo(moc, oId); lamMoiChuaGhi(); }); };
+    if (nutThem) nutThem.onclick = function () { moHopGhiSo({ moc: moc, ngayGoiY: homNay() }, function () { veSo(moc, oId); }); };
     o.querySelectorAll('[data-sua]').forEach(function (b) {
       const x = ds.find(function (y) { return String(y.row) === b.getAttribute('data-sua'); });
       b.onclick = function () { moHopGhiSo(Object.assign({ suaRow: x.row }, x), function () { veSo(moc, oId); }); };
@@ -283,7 +284,7 @@
       b.onclick = async function () {
         const x = ds.find(function (y) { return String(y.row) === b.getAttribute('data-xoa'); });
         if (!confirm('Xoá ' + x.ten + ' khỏi sổ ' + TEN_MOC[moc] + '?')) return;
-        try { await goi('deleteSoMoc', [x.row]); showMsg('Đã xoá khỏi sổ.', true); veSo(moc, oId); lamMoiChuaGhi(); }
+        try { await goi('deleteSoMoc', [x.row]); showMsg('Đã xoá khỏi sổ.', true); veSo(moc, oId); }
         catch (e) { showMsg('Lỗi xoá: ' + e.message, false); }
       };
     });
@@ -336,57 +337,7 @@
   }
 
   // =====================================================================
-  // 5. Khối "chưa ghi sổ" ở tab Hữu hiệu
-  //
-  // Thay cho việc bật ô hỏi ngay lúc sửa Tiến độ: ở đây liệt kê MỌI học viên
-  // đã đạt mốc mà chưa có trong sổ — kể cả người đã đạt từ trước khi có tính
-  // năng này. Nhờ vậy vừa không bỏ sót ca mới, vừa nhập bù được ca cũ.
-  // =====================================================================
-  async function lamMoiChuaGhi() {
-    const o = document.getElementById('trudoChuaGhi');
-    if (!o) return;
-    let hv = [], so = [];
-    try {
-      hv = await goi('getStudents', []);
-      so = await goi('getSoMoc', ['', '', '', '']);
-    } catch (e) { o.innerHTML = ''; return; }
-    const daCo = {};
-    so.forEach(function (x) { daCo[x.moc + '|' + x.ten + '|' + x.khuVuc] = true; });
-
-    const thieu = [];
-    hv.forEach(function (x) {
-      const td = String(x.tienDo || '').trim();
-      const buoi = td.match(/^B(\d+)$/i);
-      const laBT = td === 'BT';
-      const laHH = laBT || (buoi && Number(buoi[1]) >= 2);
-      if (!laHH || !x.ten || !x.to) return;
-      ['huu_hieu'].concat(laBT ? ['bap_tem'] : []).forEach(function (m) {
-        if (!daCo[m + '|' + x.ten + '|' + x.to]) {
-          thieu.push({ moc: m, ten: x.ten, khuVuc: x.to, ndd1: x.ndd1, ndd2: x.ndd2, ndd3: x.ndd3 });
-        }
-      });
-    });
-
-    if (!thieu.length) { o.innerHTML = ''; return; }
-    o.innerHTML = '<div class="trudo-chua"><b>⚠️ ' + thieu.length + ' mốc chưa được ghi vào sổ</b>' +
-      '<div class="trudo-nho" style="margin:4px 0 10px">Chưa ghi sổ thì người dẫn dắt không được tính điểm khen thưởng.</div>' +
-      thieu.map(function (x, i) {
-        return '<div style="display:flex;align-items:center;gap:9px;padding:5px 0">' +
-          '<b>' + esc(x.ten) + '</b><span class="trudo-nho">' + esc(x.khuVuc) + ' · ' + TEN_MOC[x.moc] + '</span>' +
-          '<button type="button" class="trudo-nut on" data-ghi="' + i + '" style="margin-left:auto">Ghi sổ</button></div>';
-      }).join('') + '</div>';
-    o.querySelectorAll('[data-ghi]').forEach(function (b) {
-      b.onclick = function () {
-        const x = thieu[Number(b.getAttribute('data-ghi'))];
-        moHopGhiSo(Object.assign({ ngayGoiY: homNay() }, x), function () {
-          lamMoiChuaGhi(); veSo('huu_hieu', 'trudoSoHuuHieu');
-        });
-      };
-    });
-  }
-
-  // =====================================================================
-  // 6. Bảng xếp hạng chung
+  // 5. Bảng xếp hạng chung
   // =====================================================================
   async function veXepHang() {
     const o = document.getElementById('trudo-sub-xephang');
@@ -521,7 +472,7 @@
   // 8. Nối vào vòng đời của trang
   // =====================================================================
   function taiTabCon() {
-    if (trangThai.sub === 'huuhieu') { lamMoiChuaGhi(); veSo('huu_hieu', 'trudoSoHuuHieu'); }
+    if (trangThai.sub === 'huuhieu') veSo('huu_hieu', 'trudoSoHuuHieu');
     else if (trangThai.sub === 'baptem') veSo('bap_tem', 'trudo-sub-baptem');
     else if (trangThai.sub === 'xephang') veXepHang();
   }

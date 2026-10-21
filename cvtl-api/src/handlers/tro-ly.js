@@ -29,13 +29,14 @@
 // ⚠️⚠️ HAI ĐIỀU VỀ PHỄU, SAI LÀ ĐỌC SỐ RA NGHĨA NGƯỢC — bộ kiểm thử đã bắt
 // được đúng chỗ này ngày 24/08/2026:
 //
-//   a) Trong hệ thống này **Hữu hiệu và Báp-têm là HAI NHÓM RIÊNG, không lồng
-//      nhau**: "laHuuHieu" chỉ nhận B2..B16, còn người đã Báp-têm mang tiến độ
-//      "BT" nên KHÔNG được đếm vào Hữu hiệu (xem demHuuHieuVaBT ở hoc-vien.js).
-//      Vì vậy phép "Báp-têm / Hữu hiệu" KHÔNG phải tỉ lệ chuyển đổi — nó là tỉ
-//      lệ giữa hai nhóm rời nhau, đọc lên sẽ hiểu sai hoàn toàn. Số đúng phải
-//      là "Báp-têm / (Hữu hiệu + Báp-têm)" = trong những người đã đi tiếp,
-//      bao nhiêu đã tới đích.
+//   a) Từ 20/10/2026 (T-010): **Hữu hiệu và Báp-têm đều đếm từ sổ `so_moc`**.
+//      Số người "đi tiếp" trong tháng được đếm bằng số người KHÁC NHAU có ít
+//      nhất một mốc (`huu_hieu` hoặc `bap_tem`) trong tháng đó (xem hàm
+//      demNguoiDiTiepTheoThang ở tru-do.js). Nhờ vậy:
+//        - Người nhảy thẳng B1 lên BT trong cùng tháng (2 dòng sổ) chỉ đếm 1;
+//        - Người Báp-têm trong tháng này nhưng đã đạt Hữu hiệu từ tháng trước
+//          vẫn nằm trong "đi tiếp", nên tỉ lệ tới đích `bt / diTiep` không bao
+//          giờ vượt quá 100%.
 //
 //   b) Đây vẫn là tỉ lệ TRONG CÙNG MỘT THÁNG, không phải theo dõi đúng nhóm
 //      người đó đi qua từng khâu — người nghe tháng 7 có thể báp-têm tháng 9.
@@ -45,6 +46,7 @@
 
 import { kiemTraThang, thangHopLe, thangTruoc, homNay, chuoi, soNguyen, soBuoi, laBT } from '../tien-ich.js';
 import { getAllKhuVucOverview, getStats } from './hoc-vien.js';
+import { demNguoiDiTiepTheoThang } from './tru-do.js';
 import { getTPSummary } from './tho-phuong.js';
 import { getMembersDecreasedTP } from './thong-ke-tp.js';
 
@@ -146,12 +148,13 @@ export async function getTroLy({ db }, thang, ngayHomNay) {
   const ngay = chuoi(ngayHomNay) || homNay();
   const daQua = phanThangDaQua(t, ngay);
 
-  const [overview, tpTong, dangNghe, giamTP, ganDich] = await Promise.all([
+  const [overview, tpTong, dangNghe, giamTP, ganDich, diTiepTheoKV] = await Promise.all([
     getAllKhuVucOverview({ db }, t),
     getTPSummary({ db }, t),
     getStats({ db }),
     getMembersDecreasedTP({ db }, t),
     nguoiGanDich(db),
+    demNguoiDiTiepTheoThang(db, t),
   ]);
 
   const dangNgheTheoKV = {};
@@ -169,6 +172,7 @@ export async function getTroLy({ db }, thang, ngayHomNay) {
     const a = o.goalSummary.actual, g = o.goalSummary.goal, p = o.goalSummary.percent;
     const at = o.prevGoalSummary.actual;
     const tp = tpTheoKV[o.khuVuc] || { oneLan: {}, fourLan: {} };
+    const diTiep = soNguyen(diTiepTheoKV[o.khuVuc]);
     return {
       khuVuc: o.khuVuc,
       thucTe: { donThuan: a.donThuan, huuHieu: a.huuHieu, bt: a.bt },
@@ -180,10 +184,10 @@ export async function getTroLy({ db }, thang, ngayHomNay) {
         bt: soSanh(a.bt, at.bt),
       },
       // Xem lời cảnh báo (a) và (b) ở đầu file trước khi đọc hai số này.
-      // "Đi tiếp" = Hữu hiệu + Báp-têm, vì hai nhóm này RỜI NHAU.
+      // Từ 20/10/2026 (T-010): "Đi tiếp" = số người khác nhau có ít nhất một mốc trong tháng (diTiep).
       tyLeTrongThang: {
-        diTiepTrenDonThuan: tyLe(a.huuHieu + a.bt, a.donThuan),
-        btTrenDiTiep: tyLe(a.bt, a.huuHieu + a.bt),
+        diTiepTrenDonThuan: tyLe(diTiep, a.donThuan),
+        btTrenDiTiep: tyLe(a.bt, diTiep),
       },
       dangNghe: dangNgheTheoKV[o.khuVuc] || 0,
       ganDich: (ganDich[o.khuVuc] || []).length,

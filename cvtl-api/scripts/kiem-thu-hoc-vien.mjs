@@ -431,8 +431,15 @@ console.log('\n6) Thống kê tổng hợp');
   await goi('saveGoalCaNhan', [TH, 'K My', 'A Minh', { donThuan: 10, huuHieu: 2, bt: 1, truc127: 127 }]);
   await goi('saveGoalCaNhan', [TH, 'K My', 'C Lan', { donThuan: 5, huuHieu: 1, bt: 0, truc127: 0 }]);
 
-  const themHV = (ten, to, tienDo, ngay, ngayDau, ndd1, ndd2) =>
-    goi('addStudent', [{ ten, to, tienDo, ngay, ngayDau, ndd1, ndd2 }]);
+  const themHV = async (ten, to, tienDo, ngay, ngayDau, ndd1, ndd2) => {
+    const gocNow = Date.now;
+    try {
+      Date.now = () => Date.parse((ngayDau || ngay) + 'T03:00:00Z');
+      return await goi('addStudent', [{ ten, to, tienDo, ngay, ngayDau, ndd1, ndd2 }]);
+    } finally {
+      Date.now = gocNow;
+    }
+  };
   await themHV('HV1', 'K My', 'B2', '2026-08-10', '2026-08-03', 'A Minh', 'C Lan');
   await themHV('HV2', 'K My', 'BT', '2026-08-15', '2026-08-15', 'A Minh');
   await themHV('HV3', 'K My', 'B1', '2026-08-16', '2026-08-16', 'C Lan');
@@ -449,10 +456,10 @@ console.log('\n6) Thống kê tổng hợp');
   kiem('mục tiêu Khu vực = tổng mục tiêu cá nhân',
     kmy?.goal.donThuan === 15 && kmy?.goal.huuHieu === 3 && kmy?.goal.bt === 1, JSON.stringify(kmy?.goal));
   kiem('Đơn thuần thực tế cộng đúng trong tháng', kmy?.actual.donThuan === 10, JSON.stringify(kmy?.actual));
-  kiem('"BT" KHÔNG tính là Hữu hiệu (chỉ B2 trở lên)',
-    kmy?.actual.huuHieu === 2 && kmy?.actual.bt === 1, JSON.stringify(kmy?.actual));
+  kiem('Hữu hiệu & BT đếm từ sổ so_moc (HV2 ở mức BT được ghi cả huu_hieu lẫn bap_tem -> huuHieu=3, bt=1)',
+    kmy?.actual.huuHieu === 3 && kmy?.actual.bt === 1, JSON.stringify(kmy?.actual));
   kiem('phần trăm làm tròn 1 chữ số',
-    kmy?.percent.donThuan === 66.7 && kmy?.percent.huuHieu === 66.7 && kmy?.percent.bt === 100,
+    kmy?.percent.donThuan === 66.7 && kmy?.percent.huuHieu === 100 && kmy?.percent.bt === 100,
     JSON.stringify(kmy?.percent));
   kiem('Khu vực chưa đặt mục tiêu → percent null',
     r.result?.find((x) => x.khuVuc === 'SĐ')?.percent.donThuan === null, JSON.stringify(r.result));
@@ -464,7 +471,7 @@ console.log('\n6) Thống kê tổng hợp');
   kiem('getMonthlySummaryOverall cộng đúng mục tiêu mọi Khu vực',
     tong?.goal.donThuan === 15 && tong?.goal.huuHieu === 3, JSON.stringify(tong?.goal));
   kiem('getMonthlySummaryOverall cộng đúng thực tế mọi Khu vực',
-    tong?.actual.donThuan === 10 && tong?.actual.huuHieu === 3 && tong?.actual.bt === 1,
+    tong?.actual.donThuan === 10 && tong?.actual.huuHieu === 4 && tong?.actual.bt === 1,
     JSON.stringify(tong?.actual));
   kiem('getMonthlySummaryOverall trả monthKey và thẻ EDU LMS',
     tong?.monthKey === TH && tong?.eduLms?.count === 3, JSON.stringify(tong?.eduLms));
@@ -499,10 +506,10 @@ console.log('\n6) Thống kê tổng hợp');
   //
   //   Đơn thuần K My: 03/08 (T2, tuần 2) = 4 · 22/08 (T7, tuần 4) = 6
   //     -> [0,4,0,6,0,0]           (cũ: [4,0,0,6,0])
-  //   Hữu hiệu (B2..B16, theo ngay_dau_chia_se):
-  //     HV1 B2 03/08 -> tuần 2 · HV6 B2 20/08 -> tuần 4  (HV3 B1 không tính)
-  //     -> [0,1,0,1,0,0]           (cũ: [1,0,1,0,0])
-  //   BT: HV2 15/08 (T7, tuần 3) -> [0,0,1,0,0,0]   (cũ: [0,0,1,0,0])
+  //   Hữu hiệu (từ so_moc, T-010):
+  //     HV1 B2 03/08 -> tuần 2 · HV2 BT 15/08 -> tuần 3 · HV6 B2 20/08 -> tuần 4
+  //     -> [0,1,1,1,0,0]
+  //   BT: HV2 15/08 (T7, tuần 3) -> [0,0,1,0,0,0]
   //
   // Tháng 8/2026 có SÁU tuần (30–31/8 là tuần 6) nên mảng dài 6, không phải 5.
   // ⚠️ Ca "cộng mọi tuần = actual" bên dưới KHÔNG đổi và vẫn xanh — đó là bằng
@@ -512,8 +519,8 @@ console.log('\n6) Thống kê tổng hợp');
   const wkmy = tuan.find((x) => x.khuVuc === 'K My');
   kiem('getAllKhuVucWeekly chia Đơn thuần đúng tuần',
     JSON.stringify(wkmy?.donThuan) === JSON.stringify([0, 4, 0, 6, 0, 0]), JSON.stringify(wkmy?.donThuan));
-  kiem('getAllKhuVucWeekly chia Hữu hiệu/BT theo tuần của "Ngày đầu chia sẻ"',
-    JSON.stringify(wkmy?.huuHieu) === JSON.stringify([0, 1, 0, 1, 0, 0]) &&
+  kiem('getAllKhuVucWeekly chia Hữu hiệu/BT theo tuần của ngày ghi sổ so_moc (T-010)',
+    JSON.stringify(wkmy?.huuHieu) === JSON.stringify([0, 1, 1, 1, 0, 0]) &&
     JSON.stringify(wkmy?.bt) === JSON.stringify([0, 0, 1, 0, 0, 0]),
     JSON.stringify({ hh: wkmy?.huuHieu, bt: wkmy?.bt }));
   const cong = (a) => a.reduce((s, x) => s + x, 0);
@@ -535,6 +542,41 @@ console.log('\n6) Thống kê tổng hợp');
     sd?.donThuan.every((x) => x === 0),
     JSON.stringify(sd));
   kiem('tháng 8/2026 phải có ĐÚNG 6 tuần (30–31/8 là tuần 6)', sd?.soTuan === 6, String(sd?.soTuan));
+
+  // --- Đối chứng T-010: Thực tế khớp số dòng sổ và getXepHang; gặp T9 đạt B2 ở T10 ---
+  const xhKMy = (await goi('getXepHang', ['2026-08-01', '2026-08-31', 'K My'])).result;
+  kiem('T-010: Thực tế Hữu hiệu/BT của K My khớp tuyệt đối với getXepHang và so_moc',
+    okmy?.goalSummary.actual.huuHieu === xhKMy?.tomTat.soHuuHieu &&
+    okmy?.goalSummary.actual.bt === xhKMy?.tomTat.soBapTem,
+    JSON.stringify({ actual: okmy?.goalSummary.actual, tomTat: xhKMy?.tomTat }));
+
+  const gocNowT10 = Date.now;
+  try {
+    Date.now = () => Date.parse('2026-09-10T03:00:00Z');
+    const rT9 = await goi('addStudent', [{
+      ten: 'HV Gặp T9 Đạt T10', to: 'K My', tienDo: 'B1',
+      ngay: '2026-09-10', ngayDau: '2026-09-10', ndd1: 'A Minh',
+    }]);
+    const idT9 = rT9.result?.row;
+    Date.now = () => Date.parse('2026-10-05T03:00:00Z');
+    await goi('updateStudent', [idT9, {
+      ten: 'HV Gặp T9 Đạt T10', to: 'K My', tienDo: 'B2',
+      ngay: '2026-10-05', ngayDau: '2026-09-10', ndd1: 'A Minh',
+    }]);
+    Date.now = () => Date.parse('2026-11-02T03:00:00Z');
+    await goi('updateStudent', [idT9, {
+      ten: 'HV Gặp T9 Đạt T10', to: 'K My', tienDo: 'B3',
+      ngay: '2026-11-02', ngayDau: '2026-09-10', ndd1: 'A Minh',
+    }]);
+  } finally {
+    Date.now = gocNowT10;
+  }
+  const sumT9 = (await goi('getMonthlySummaryByKV', ['2026-09'])).result?.find((x) => x.khuVuc === 'K My');
+  const sumT10 = (await goi('getMonthlySummaryByKV', ['2026-10'])).result?.find((x) => x.khuVuc === 'K My');
+  const sumT11 = (await goi('getMonthlySummaryByKV', ['2026-11'])).result?.find((x) => x.khuVuc === 'K My');
+  kiem('T-010: học viên gặp tháng 9 (B1), đạt B2 tháng 10 -> tính vào tháng 10 (1), tháng 9 không có (0), lên B3 tháng 11 không tính lại (0)',
+    sumT9?.actual.huuHieu === 0 && sumT10?.actual.huuHieu === 1 && sumT11?.actual.huuHieu === 0,
+    JSON.stringify({ t9: sumT9?.actual, t10: sumT10?.actual, t11: sumT11?.actual }));
 
   // --- getTopNguoiDanDat ---
   r = await goi('getTopNguoiDanDat', [TH]);

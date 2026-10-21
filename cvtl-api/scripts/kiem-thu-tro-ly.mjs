@@ -53,10 +53,26 @@ const mucTieu = (kv, thang, dt, hh, bt) =>
     .run(thang, kv, 'TV' + (++demNguoi), dt, hh, bt);
 const donThuan = (kv, ngay, so) =>
   sqlite.prepare('INSERT INTO nhat_ky_don_thuan (ngay, khu_vuc, don_thuan) VALUES (?,?,?)').run(ngay, kv, so);
-/** Một học viên: ngayDau quyết định tháng tính Hữu hiệu/Báp-têm. */
-const hocVien = (kv, ten, ngayDau, tienDo) =>
+/**
+ * Một học viên: từ T-010 (20/10/2026), Hữu hiệu và Báp-têm đếm từ sổ `so_moc`
+ * (học viên B2..B16 có dòng huu_hieu; học viên BT có cả dòng huu_hieu lẫn bap_tem).
+ */
+const hocVien = (kv, ten, ngay, tienDo) => {
   sqlite.prepare('INSERT INTO hoc_vien (ten, khu_vuc, ngay_dau_chia_se, ngay_chia_se_cuoi, tien_do) VALUES (?,?,?,?,?)')
-    .run(ten, kv, ngayDau, ngayDau, tienDo);
+    .run(ten, kv, ngay, ngay, tienDo);
+  const thang = String(ngay).slice(0, 7);
+  const m = String(tienDo || '').match(/^B(\d+)$/i);
+  const laBT = tienDo === 'BT';
+  const laHH = laBT || (m && Number(m[1]) >= 2);
+  if (laHH) {
+    sqlite.prepare('INSERT OR IGNORE INTO so_moc (moc, ngay, thang, ten, khu_vuc, tao_luc) VALUES (?,?,?,?,?,?)')
+      .run('huu_hieu', ngay, thang, ten, kv, Date.now());
+  }
+  if (laBT) {
+    sqlite.prepare('INSERT OR IGNORE INTO so_moc (moc, ngay, thang, ten, khu_vuc, tao_luc) VALUES (?,?,?,?,?,?)')
+      .run('bap_tem', ngay, thang, ten, kv, Date.now());
+  }
+};
 const thoPhuong = (kv, thang, loai, tuan, so) =>
   sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
     .run(thang, kv, loai, tuan, so);
@@ -229,15 +245,67 @@ console.log('\n10) Tỉ lệ trong tháng + chặn tháng sai');
   hocVien('K My', 'C', '2026-08-04', 'BT');
   const tl = (await goi('getTroLy', ['2026-08', '2026-08-20'])).result;
   const k = tl.khuVuc.find((x) => x.khuVuc === 'K My');
-  // ⭐ A(B5) + B(B6) = Hữu hiệu 2; C(BT) = Báp-têm 1. Hai nhóm RỜI NHAU.
-  kiem('đếm đúng Hữu hiệu 2, Báp-têm 1 (không lồng nhau)',
-    k.thucTe.huuHieu === 2 && k.thucTe.bt === 1, JSON.stringify(k.thucTe));
-  kiem('"đi tiếp"/Đơn thuần = (2+1)/10 = 30%', k.tyLeTrongThang.diTiepTrenDonThuan === 30,
+  // ⭐ T-010 (20/10/2026): đếm từ so_moc, C(BT) được ghi cả huu_hieu lẫn bap_tem
+  // nên K My có huuHieu = 3 (A, B, C đều đã đi tiếp qua Hữu hiệu) và bt = 1 (C).
+  kiem('đếm từ so_moc: Hữu hiệu = 3 (A, B, C), Báp-têm = 1 (C)',
+    k.thucTe.huuHieu === 3 && k.thucTe.bt === 1, JSON.stringify(k.thucTe));
+  kiem('"đi tiếp"/Đơn thuần = huuHieu/donThuan = 3/10 = 30%', k.tyLeTrongThang.diTiepTrenDonThuan === 30,
     String(k.tyLeTrongThang.diTiepTrenDonThuan));
-  kiem('⭐ Báp-têm/"đi tiếp" = 1/3 = 33% (KHÔNG phải 1/2 = 50%)',
+  kiem('⭐ Báp-têm/"đi tiếp" = bt/huuHieu = 1/3 = 33%',
     k.tyLeTrongThang.btTrenDiTiep === 33, String(k.tyLeTrongThang.btTrenDiTiep));
   kiem('⭐ mẫu số = 0 thì trả null chứ không phải 0%',
     tl.khuVuc.find((x) => x.khuVuc === 'TT Châu').tyLeTrongThang.btTrenDiTiep === null);
+
+  // Ca kiểm thử mới T-010 (Điều kiện 1d): học viên nhảy thẳng B1 lên BT trong tháng
+  // chỉ được đếm MỘT lần vào "đi tiếp", và btTrenDiTiep = 100% (không phải 50%).
+  taoCSDL();
+  sqlite.prepare("INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('tien_do','B1',1),('tien_do','BT',2)").run();
+  donThuan('K My', '2026-08-05', 10);
+  const gocNow = Date.now;
+  try {
+    Date.now = () => Date.parse('2026-08-10T03:00:00Z');
+    const rAdd = await goi('addStudent', [{ ten: 'HV Nhảy Thẳng BT', to: 'K My', tienDo: 'B1', ngay: '2026-08-10' }]);
+    await goi('updateStudent', [rAdd.result.row, { ten: 'HV Nhảy Thẳng BT', to: 'K My', tienDo: 'BT', ngay: '2026-08-10' }]);
+  } finally {
+    Date.now = gocNow;
+  }
+  const tlNhay = (await goi('getTroLy', ['2026-08', '2026-08-20'])).result;
+  const kNhay = tlNhay.khuVuc.find((x) => x.khuVuc === 'K My');
+  kiem('T-010: nhảy thẳng B1 -> BT trong tháng chỉ đếm 1 lần vào "đi tiếp" (diTiepTrenDonThuan = 1/10 = 10%, không phải 20%)',
+    kNhay.thucTe.huuHieu === 1 && kNhay.thucTe.bt === 1 && kNhay.tyLeTrongThang.diTiepTrenDonThuan === 10,
+    JSON.stringify({ thucTe: kNhay.thucTe, tyLe: kNhay.tyLeTrongThang }));
+  kiem('T-010: nhảy thẳng B1 -> BT có btTrenDiTiep = 1/1 = 100% (không phải 1/2 = 50%)',
+    kNhay.tyLeTrongThang.btTrenDiTiep === 100, String(kNhay.tyLeTrongThang.btTrenDiTiep));
+
+  // Ca (ii) & (iii) của #50:
+  // Tháng 8 có 1 Hữu hiệu mới (HV Mới B2) + 2 người Báp-têm (HV Cũ 1, HV Cũ 2 đã đạt B2 từ tháng 7,
+  // nên trong tháng 8 chỉ có dòng 'bap_tem').
+  // -> diTiep phải đếm cả 3 người khác nhau (diTiep = 3), diTiepTrenDonThuan = 3/10 = 30%,
+  //    và btTrenDiTiep = 2/3 = 67% <= 100% (không bị vọt lên 200%).
+  taoCSDL();
+  sqlite.prepare("INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('tien_do','B2',1),('tien_do','BT',2)").run();
+  donThuan('K My', '2026-08-05', 10);
+  const gocNow2 = Date.now;
+  try {
+    Date.now = () => Date.parse('2026-07-10T03:00:00Z');
+    const rCu1 = await goi('addStudent', [{ ten: 'HV Cũ 1', to: 'K My', tienDo: 'B2', ngay: '2026-07-10' }]);
+    const rCu2 = await goi('addStudent', [{ ten: 'HV Cũ 2', to: 'K My', tienDo: 'B2', ngay: '2026-07-12' }]);
+    Date.now = () => Date.parse('2026-08-10T03:00:00Z');
+    await goi('addStudent', [{ ten: 'HV Mới B2', to: 'K My', tienDo: 'B2', ngay: '2026-08-10' }]);
+    await goi('updateStudent', [rCu1.result.row, { ten: 'HV Cũ 1', to: 'K My', tienDo: 'BT', ngay: '2026-08-10' }]);
+    await goi('updateStudent', [rCu2.result.row, { ten: 'HV Cũ 2', to: 'K My', tienDo: 'BT', ngay: '2026-08-10' }]);
+  } finally {
+    Date.now = gocNow2;
+  }
+  const tlThangSau = (await goi('getTroLy', ['2026-08', '2026-08-20'])).result;
+  const kThangSau = tlThangSau.khuVuc.find((x) => x.khuVuc === 'K My');
+  kiem('T-010 (#50 ii): người Báp-têm đã hữu hiệu từ tháng trước vẫn được đếm vào diTiep (diTiep = 3 -> diTiepTrenDonThuan = 30%)',
+    kThangSau.thucTe.huuHieu === 1 && kThangSau.thucTe.bt === 2 && kThangSau.tyLeTrongThang.diTiepTrenDonThuan === 30,
+    JSON.stringify({ thucTe: kThangSau.thucTe, tyLe: kThangSau.tyLeTrongThang }));
+  kiem('T-010 (#50 iii): 1 Hữu hiệu mới + 2 Báp-têm (hữu hiệu tháng trước) có btTrenDiTiep = 2/3 = 67% <= 100% (không vọt 200%)',
+    kThangSau.tyLeTrongThang.btTrenDiTiep === 67 && kThangSau.tyLeTrongThang.btTrenDiTiep <= 100,
+    String(kThangSau.tyLeTrongThang.btTrenDiTiep));
+
   const r = await goi('getTroLy', ['2026-13']);
   kiem('chặn tháng không hợp lệ', !!r.error, JSON.stringify(r));
 }

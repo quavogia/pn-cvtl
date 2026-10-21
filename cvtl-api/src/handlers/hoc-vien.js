@@ -18,7 +18,7 @@
 // =====================================================================
 
 import { KHU_VUC_LIST } from '../hang-so.js';
-import { mocVuaDat } from './tru-do.js';
+import { tuGhiSoMoc, demMocTheoThang, demMocTheoTuan } from './tru-do.js';
 import {
   kiemTraThang, thangTruoc, phanTram, laHuuHieu, laBT, soBuoi, BT_STATUS_VALUE,
   chuanNgay, ngayVN, tuanTrongThang, chuoi, soNguyen, batBuoc,
@@ -83,13 +83,11 @@ async function layDanhSachKhuVuc(db) {
  * (bảng này chỉ vài trăm dòng nên đọc hết là nhanh nhất, giống cách bản cũ
  * gọi getAllStudentRows_ một lần).
  *
- * Mỗi học viên được kèm sẵn 3 thứ đã tính trước cho tiện:
+ * Mỗi học viên được kèm sẵn:
  *   - thangChiaSe: tháng của "Ngày chia sẻ cuối cùng" — dùng cho các bảng nói
  *     về HOẠT ĐỘNG trong tháng (bảng buổi/tiến độ, xếp hạng người dẫn dắt).
- *   - thangMoc / tuanMoc: tháng & tuần của "Ngày đầu chia sẻ" (không có thì
- *     lấy tạm Ngày chia sẻ cuối cùng) — dùng để đếm Hữu hiệu / BT, để một
- *     người luôn được tính vào ĐÚNG tháng lúc bắt đầu nghe, khớp với con số
- *     Đơn thuần của tháng đó.
+ *   (Từ 20/10/2026 — T-010: Hữu hiệu và Báp-têm đếm từ sổ `so_moc` qua
+ *    demMocTheoThang / demMocTheoTuan nên không còn tính thangMoc / tuanMoc).
  * Ngày trong CSDL được chuẩn hóa lại bằng chuanNgay() nên dù dữ liệu cũ nhập
  * kiểu "dd/MM/yyyy" hay "yyyy-MM-dd" đều đọc đúng.
  */
@@ -104,15 +102,12 @@ async function docHocVien(db) {
   return rows.map((r) => {
     const ngayChiaSe = chuanNgay(r.ngay_chia_se_cuoi);
     const ngayDau = chuanNgay(r.ngay_dau_chia_se);
-    const ngayMoc = ngayDau || ngayChiaSe;
     return {
       id: r.id,
       ten: chuoi(r.ten),
       ngayChiaSe,
       ngayDau,
       thangChiaSe: ngayChiaSe ? ngayChiaSe.slice(0, 7) : '',
-      thangMoc: ngayMoc ? ngayMoc.slice(0, 7) : '',
-      tuanMoc: ngayMoc ? tuanTrongThang(ngayMoc) : 0,
       diaChi: chuoi(r.dia_chi),
       ndd1: chuoi(r.ndd1),
       ndd2: chuoi(r.ndd2),
@@ -218,18 +213,6 @@ async function mucTieuTheoKV(db, thang) {
     map[chuoi(r.khu_vuc)] = { donThuan: soNguyen(r.dt), huuHieu: soNguyen(r.hh), bt: soNguyen(r.bt) };
   }
   return map;
-}
-
-/** Đếm Hữu hiệu / BT của tháng, gom theo Khu vực (tính theo tháng mốc). */
-function demHuuHieuVaBT(dsHocVien, thang) {
-  const huuHieu = {};
-  const bt = {};
-  for (const hv of dsHocVien) {
-    if (!hv.khuVuc || hv.thangMoc !== thang) continue;
-    if (laHuuHieu(hv.tienDo)) huuHieu[hv.khuVuc] = (huuHieu[hv.khuVuc] || 0) + 1;
-    if (laBT(hv.tienDo)) bt[hv.khuVuc] = (bt[hv.khuVuc] || 0) + 1;
-  }
-  return { huuHieu, bt };
 }
 
 /** Một dòng "Mục tiêu / Thực tế / %" của 1 Khu vực. */
@@ -386,7 +369,7 @@ async function kiemTraDuLieuHocVien(db, data) {
   }
 }
 
-export async function addStudent({ db, env, ctx }, data) {
+export async function addStudent({ db, env, ctx, nguoiGoi }, data) {
   const d = data || {};
   await kiemTraDuLieuHocVien(db, d);
   const ten = batBuoc(d.ten, 'Tên học viên');
@@ -408,8 +391,8 @@ export async function addStudent({ db, env, ctx }, data) {
       new Date().toISOString(),
     ]
   );
-  // Học viên mới mà nhập thẳng ở mức Hữu hiệu / Báp-têm thì phải ghi sổ luôn.
-  const ghiSo = await mocVuaDat({ db }, '', {
+  // Học viên mới mà nhập thẳng ở mức Hữu hiệu / Báp-têm thì tự ghi sổ luôn.
+  const ghiSo = await tuGhiSoMoc({ db, nguoiGoi }, '', {
     ten, khuVuc: chuoi(d.to), tienDo: chuoi(d.tienDo),
     ndd1: chuoi(d.ndd1), ndd2: chuoi(d.ndd2), ndd3: chuoi(d.ndd3),
   });
@@ -424,10 +407,10 @@ export async function addStudent({ db, env, ctx }, data) {
 /**
  * Sửa thông tin 1 học viên. Tham số `row` giữ nguyên tên như bản cũ nhưng
  * giá trị là `id` của học viên (xem ghi chú đầu file).
- * "Ngày đầu chia sẻ" đã dùng để tính Hữu hiệu nên KHÔNG cho sửa lại: nếu học
- * viên đã có ngày đó rồi thì giữ nguyên, chỉ điền khi trước đây còn trống.
+ * "Ngày đầu chia sẻ" không cho sửa lại: nếu học viên đã có ngày đó rồi thì
+ * giữ nguyên, chỉ điền khi trước đây còn trống.
  */
-export async function updateStudent({ db, env, ctx }, row, data) {
+export async function updateStudent({ db, env, ctx, nguoiGoi }, row, data) {
   const id = soNguyen(row);
   if (!id) throw new Error('Thiếu mã học viên cần sửa.');
   const d = data || {};
@@ -455,9 +438,8 @@ export async function updateStudent({ db, env, ctx }, row, data) {
     ]
   );
 
-  // Vừa vượt mốc Hữu hiệu / Báp-têm thì báo cho giao diện hỏi ngày để ghi sổ.
-  // KHÔNG tự ghi ở đây vì ngày đạt mốc có thể là ngày trong quá khứ.
-  const ghiSo = await mocVuaDat({ db }, chuoi(cu.tien_do), {
+  // Vừa vượt mốc Hữu hiệu / Báp-têm thì tự ghi vào sổ `so_moc` (T-010, 20/10/2026).
+  const ghiSo = await tuGhiSoMoc({ db, nguoiGoi }, chuoi(cu.tien_do), {
     ten, khuVuc: chuoi(d.to), tienDo: chuoi(d.tienDo),
     ndd1: chuoi(d.ndd1), ndd2: chuoi(d.ndd2), ndd3: chuoi(d.ndd3),
   });
@@ -607,13 +589,12 @@ export async function deleteDonThuanLog({ db }, row) {
  */
 export async function getMonthlySummaryByKV({ db }, monthKey) {
   const thang = kiemTraThang(monthKey);
-  const [dsKV, donThuanMap, mucTieuMap, dsHV] = await Promise.all([
+  const [dsKV, donThuanMap, mucTieuMap, { huuHieu, bt }] = await Promise.all([
     layDanhSachKhuVuc(db),
     tongDonThuanTheoKV(db, thang),
     mucTieuTheoKV(db, thang),
-    docHocVien(db),
+    demMocTheoThang(db, thang),
   ]);
-  const { huuHieu, bt } = demHuuHieuVaBT(dsHV, thang);
   return dsKV.map((kv) => dongMucTieu(kv, mucTieuMap, donThuanMap, huuHieu, bt));
 }
 
@@ -657,16 +638,16 @@ export async function getMonthlySummaryOverall(ctx, monthKey) {
  */
 async function tinhOverviewTatCa(db, thang) {
   const truoc = thangTruoc(thang);
-  const [dsKV, dsHV, dtNay, dtTruoc, mtNay, mtTruoc] = await Promise.all([
+  const [dsKV, dsHV, dtNay, dtTruoc, mtNay, mtTruoc, nay, cu] = await Promise.all([
     layDanhSachKhuVuc(db),
     docHocVien(db),
     tongDonThuanTheoKV(db, thang),
     tongDonThuanTheoKV(db, truoc),
     mucTieuTheoKV(db, thang),
     mucTieuTheoKV(db, truoc),
+    demMocTheoThang(db, thang),
+    demMocTheoThang(db, truoc),
   ]);
-  const nay = demHuuHieuVaBT(dsHV, thang);
-  const cu = demHuuHieuVaBT(dsHV, truoc);
 
   // Tổng số học viên của mỗi Khu vực — tính TOÀN BỘ, không lọc theo tháng.
   const tongHV = {};
@@ -712,36 +693,24 @@ export async function getAllKhuVucOverview({ db }, monthKey) {
 }
 
 /**
- * Số liệu chia theo 5 tuần trong tháng, cho tất cả Khu vực.
- * Trả về: [ { khuVuc, donThuan[5], huuHieu[5], bt[5] } ]
+ * Số liệu chia theo tuần trong tháng, cho tất cả Khu vực.
+ * Trả về: [ { khuVuc, soTuan, donThuan[], huuHieu[], bt[] } ]
  * Đơn thuần chia theo tuần của ngày ghi nhật ký; Hữu hiệu/BT chia theo tuần
- * của "ngày mốc" (Ngày đầu chia sẻ) — cùng cách tính với con số theo tháng ở
- * getAllKhuVucOverview, nên cộng 5 tuần lại sẽ khớp với tổng tháng.
+ * của ngày đạt mốc trong sổ `so_moc` — cùng nguồn với con số theo tháng ở
+ * getAllKhuVucOverview, nên cộng các tuần lại sẽ khớp với tổng tháng.
  */
 export async function getAllKhuVucWeekly({ db }, monthKey) {
   const thang = kiemTraThang(monthKey);
-  const [dsKV, dtTuan, dsHV] = await Promise.all([
+  const [dsKV, dtTuan, mocTuan] = await Promise.all([
     layDanhSachKhuVuc(db),
     donThuanTheoTuanVaKV(db, thang),
-    docHocVien(db),
+    demMocTheoTuan(db, thang),
   ]);
 
   // ⚠️ Số tuần lấy theo LỊCH THẬT của tháng (5 hoặc 6), không cứng 5.
-  const soTuan = soTuanCuaThang(thang);
-  const hhTuan = {};
-  const btTuan = {};
-  for (const hv of dsHV) {
-    if (!hv.khuVuc || hv.thangMoc !== thang || !hv.tuanMoc) continue;
-    if (hv.tuanMoc > soTuan) continue;
-    if (laHuuHieu(hv.tienDo)) {
-      if (!hhTuan[hv.khuVuc]) hhTuan[hv.khuVuc] = mangTuan(soTuan);
-      hhTuan[hv.khuVuc][hv.tuanMoc - 1]++;
-    }
-    if (laBT(hv.tienDo)) {
-      if (!btTuan[hv.khuVuc]) btTuan[hv.khuVuc] = mangTuan(soTuan);
-      btTuan[hv.khuVuc][hv.tuanMoc - 1]++;
-    }
-  }
+  const soTuan = mocTuan.soTuan || soTuanCuaThang(thang);
+  const hhTuan = mocTuan.huuHieu;
+  const btTuan = mocTuan.bt;
 
   return dsKV.map((kv) => ({
     khuVuc: kv,
