@@ -5049,6 +5049,12 @@ function veNhacBaoCaoXong_(box, d){
       + esc(d.khuVuc) + ' · ' + esc(w.baoCao.nhan) + link;
     return;
   }
+  if (w.soApDung === 0) {
+    box.style.background = '#f8fafc';
+    box.style.color = '#475569';
+    box.innerHTML = '📋 <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') không có hạng mục nào cần tích V.</b> · ' + esc(d.khuVuc) + link;
+    return;
+  }
   const conThieu = w.soTre + w.soChua;
   box.style.background = '#fffbeb';
   box.style.color = '#92400e';
