@@ -246,6 +246,7 @@ export async function saveKetQuaMuc({ db, nguoiGoi }, thang, khuVuc, muc, tuan, 
  */
 export async function getAllKetQuaMuc({ db }, thang) {
   const t = kiemThang_(thang);
+  const tuan = cacTuanCuaThang(t);
 
   let rows = [];
   try {
@@ -255,7 +256,7 @@ export async function getAllKetQuaMuc({ db }, thang) {
     );
   } catch (e) {
     if (laLoiChuaCoBang_(e)) {
-      return { thang: t, danhSach: [], theoKhuVuc: {} };
+      return { thang: t, tuan, danhSach: [], theoKhuVuc: {} };
     }
     throw e;
   }
@@ -288,6 +289,7 @@ export async function getAllKetQuaMuc({ db }, thang) {
 
   return {
     thang: t,
+    tuan,
     danhSach,
     theoKhuVuc,
   };

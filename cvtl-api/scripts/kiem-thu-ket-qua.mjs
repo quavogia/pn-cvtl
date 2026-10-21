@@ -118,7 +118,7 @@ console.log('--- KIỂM THỬ: Thực hiện kế hoạch theo mảng & tuần (
   assert.deepEqual(r1.tongKet, { daLam: '', chuaLam: '', nguoiCapNhat: '', capNhatLuc: '' });
 
   const rAll = await getAllKetQuaMuc({ db: spy }, '2026-10');
-  assert.deepEqual(rAll, { thang: '2026-10', danhSach: [], theoKhuVuc: {} });
+  assert.deepEqual(rAll, { thang: '2026-10', tuan: cacTuanCuaThang('2026-10'), danhSach: [], theoKhuVuc: {} });
   assert.equal(laySoLanGhi(), 0, 'Đọc khi chưa có bảng không được phát sinh lệnh ghi');
   console.log('✓ 1. Bảng chưa tồn tại: getKetQuaMuc & getAllKetQuaMuc trả rỗng hợp lệ, 0 lệnh ghi');
 }
@@ -477,11 +477,14 @@ const adminCtx = { db, nguoiGoi: adminNguoiGoi };
 }
 
 // =====================================================================
-// 11. getAllKetQuaMuc gom đúng cấu trúc theoKhuVuc[khuVuc][muc][tuan]
+// 11. getAllKetQuaMuc gom đúng cấu trúc theoKhuVuc[khuVuc][muc][tuan] + trả tuan từ cacTuanCuaThang
 // =====================================================================
 {
-  const all10 = await getAllKetQuaMuc({ db }, '2026-10');
+  const { spy, laySoLanGhi } = taoSpyDB(db);
+  const all10 = await getAllKetQuaMuc({ db: spy }, '2026-10');
   assert.equal(all10.thang, '2026-10');
+  assert.deepEqual(all10.tuan, cacTuanCuaThang('2026-10'), 'getAllKetQuaMuc tháng 5 tuần (2026-10) phải trả đúng mảng tuan từ cacTuanCuaThang');
+  assert.equal(all10.tuan.length, 5);
   assert.equal(all10.danhSach.length, 9);
   assert.equal(all10.theoKhuVuc['K My'].tp[1].daLam, 'Mẫu đã làm tuần 1 TP (đã cập nhật)');
   assert.equal(all10.theoKhuVuc['K My'].tp[2].daLam, 'Đã làm tuần 2 TP');
@@ -490,9 +493,15 @@ const adminCtx = { db, nguoiGoi: adminNguoiGoi };
   assert.equal(all10.theoKhuVuc['K Long'].tp[1].daLam, 'Đã làm K Long TP T1');
   assert.equal(all10.theoKhuVuc['K Thành'].edu[2].daLam, 'K Thành Edu T2');
 
-  const allRong = await getAllKetQuaMuc({ db }, '2026-12');
-  assert.deepEqual(allRong, { thang: '2026-12', danhSach: [], theoKhuVuc: {} });
-  console.log('✓ 11. getAllKetQuaMuc gom đúng theoKhuVuc[khuVuc][muc][tuan]');
+  const all08 = await getAllKetQuaMuc({ db: spy }, '2026-08');
+  assert.equal(all08.thang, '2026-08');
+  assert.deepEqual(all08.tuan, cacTuanCuaThang('2026-08'), 'getAllKetQuaMuc tháng 6 tuần (2026-08) phải trả đúng 6 tuần từ cacTuanCuaThang');
+  assert.equal(all08.tuan.length, 6);
+
+  const allRong = await getAllKetQuaMuc({ db: spy }, '2026-12');
+  assert.deepEqual(allRong, { thang: '2026-12', tuan: cacTuanCuaThang('2026-12'), danhSach: [], theoKhuVuc: {} });
+  assert.equal(laySoLanGhi(), 0, 'getAllKetQuaMuc ở cả 3 tháng tuyệt đối 0 lệnh ghi');
+  console.log('✓ 11. getAllKetQuaMuc gom đúng theoKhuVuc[khuVuc][muc][tuan] + trả tuan khớp cacTuanCuaThang (5 tuần & 6 tuần, 0 lệnh ghi)');
 }
 
 // =====================================================================

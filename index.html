@@ -234,10 +234,24 @@
   .tl-bang td.thieu{color:#94a3b8;}
   .tl-ghi{font-size:12px;color:#64748b;background:#f8fafc;border:1px dashed var(--border);
           border-radius:8px;padding:10px 12px;margin-top:10px;line-height:1.55;}
+  .kq-kh-full{display:none;}
   @media print{
     #sidebar,.nav-btn,#msg,.tl-khong-in{display:none !important;}
     #main{padding:0;}
     .tl-the,.tl-viec,.tl-o{break-inside:avoid;}
+    body.printing-kq-tong > *:not(#main),
+    body.printing-kq-tong #main > *:not(#panel-kv),
+    body.printing-kq-tong #panel-kv > *:not(#kvsub-tong),
+    body.printing-kq-tong #kvsub-tong > *:not(#kvtongKetQuaCard),
+    body.printing-kq-tong .kq-tong-controls{display:none !important;}
+    body.printing-kq-tong #main,
+    body.printing-kq-tong #panel-kv,
+    body.printing-kq-tong #kvsub-tong{display:block !important;padding:0 !important;margin:0 !important;}
+    body.printing-kq-tong #kvtongKetQuaCard{display:block !important;border:none !important;box-shadow:none !important;margin:0 !important;padding:0 !important;width:100% !important;}
+    body.printing-kq-tong .kq-kh-short{display:none !important;}
+    body.printing-kq-tong .kq-kh-full{display:block !important;}
+    .kq-tong-kv-block.kq-print-page-break{break-before:page;page-break-before:always;}
+    .kq-tong-muc-box{break-inside:avoid;page-break-inside:avoid;}
   }
 
   /* ===== BẢNG ĐIỂM DANH CÔNG VIỆC (thêm 23/08/2026, sửa lại cùng ngày) ===
@@ -993,6 +1007,40 @@
             Tổng hợp kế hoạch Tin Lành theo từng mảng của từng khu vực để Trưởng phòng và các anh em cùng theo dõi, hỗ trợ kịp thời. Bấm vào ô để xem toàn văn chi tiết.
           </div>
           <div id="kvtongKeHoach_noiDung" style="overflow-x:auto;color:#94a3b8;">Đang tải…</div>
+        </div>
+
+        <!-- Card: Đọc gộp Thực hiện kế hoạch các Khu vực (T-006, 21/10/2026, chỉ Chủ tài khoản thấy) -->
+        <div class="card" style="margin-top:16px;display:none;" id="kvtongKetQuaCard">
+          <div class="toolbar" style="margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+            <div>
+              <h3 style="margin:0 0 4px 0;">📋 Thực hiện kế hoạch các Khu vực — tháng <span id="kvtongKetQua_monthLabel"></span></h3>
+              <div style="color:#64748b;font-size:13px;">
+                Tổng hợp việc đã làm được và chưa làm được dựa trên kế hoạch tháng của từng khu vực.
+              </div>
+            </div>
+            <div class="kq-tong-controls tl-khong-in" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <button type="button" class="secondary" onclick="inBaoCaoKetQuaTong_()" style="padding:6px 12px;font-size:13px;">🖨️ In hoặc lưu PDF</button>
+              <button type="button" class="secondary" onclick="saoChepBaoCaoKetQuaTong_(this)" style="padding:6px 12px;font-size:13px;">📋 Sao chép chữ</button>
+              <span id="kvtongKetQua_copyMsg" style="font-size:12px;color:#16a34a;font-weight:600;display:none;">Đã sao chép</span>
+            </div>
+          </div>
+          <div class="kq-tong-controls tl-khong-in" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;padding:10px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;">
+            <div style="display:inline-flex;gap:4px;background:#e2e8f0;padding:3px;border-radius:8px;">
+              <button type="button" id="kvtongKetQua_modeKV" onclick="setModeKetQuaTong_('kv')" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:#1d4ed8;color:#fff;">Theo khu vực</button>
+              <button type="button" id="kvtongKetQua_modeMuc" onclick="setModeKetQuaTong_('muc')" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:6px;border:none;cursor:pointer;background:transparent;color:#334155;">Theo mảng</button>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:6px;">
+              <label id="kvtongKetQua_targetLabel" for="kvtongKetQua_filterTarget" style="margin:0;font-size:12px;color:#475569;font-weight:600;">Khu vực:</label>
+              <select id="kvtongKetQua_filterTarget" onchange="renderBaoCaoKetQuaTong_()" style="padding:5px 10px;font-size:13px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;"></select>
+            </div>
+            <div style="display:inline-flex;align-items:center;gap:6px;">
+              <label for="kvtongKetQua_filterTuan" style="margin:0;font-size:12px;color:#475569;font-weight:600;">Thời gian:</label>
+              <select id="kvtongKetQua_filterTuan" onchange="renderBaoCaoKetQuaTong_()" style="padding:5px 10px;font-size:13px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;">
+                <option value="all">Cả tháng</option>
+              </select>
+            </div>
+          </div>
+          <div id="kvtongKetQua_noiDung" style="color:#94a3b8;">Đang tải…</div>
         </div>
 
         <!-- Modal: Chi tiết Kế hoạch Tin Lành mảng (07/10/2026) -->
@@ -3561,6 +3609,7 @@ function loadKVTongPanel(){
   loadThiDua();
   loadTPDecreasedPanel();
   loadKVTongKeHoach_();
+  loadKVTongKetQua_();
 }
 
 function loadTPDecreasedPanel(){
@@ -3681,6 +3730,546 @@ function openKeHoachDetailModal_(kv, mucKey){
 function closeKeHoachDetailModal_(){
   const modal = document.getElementById('khDetailModal');
   if (modal) modal.style.display = 'none';
+}
+
+// =====================================================================
+// ĐỌC GỘP "THỰC HIỆN KẾ HOẠCH" CHO CHỦ TÀI KHOẢN Ở MÀN HÌNH TỔNG (T-006, 21/10/2026)
+// =====================================================================
+
+const KQ_TONG_MUCS = [
+  { key: 'tp', label: 'Thờ phượng' },
+  { key: 'trudo', label: 'Trudo' },
+  { key: 'edu', label: 'Giáo dục' },
+  { key: 'daotao', label: 'Đào tạo' },
+  { key: 'lehoi', label: 'Lễ hội' }
+];
+
+window._kqTongData = null;
+var _kqTongReqSeq = 0;
+var _kqTongMode = 'kv';
+
+/**
+ * Hàm thuần: tạo nhãn tuần từ đối tượng tuần { tuan, tuNgay, denNgay } do máy chủ trả về.
+ * Tuyệt đối không tự tính tuần ở giao diện.
+ */
+function nhanTuanKetQua_(w, thang){
+  if (!w) return '';
+  const mm = Number(String(thang || '').slice(5, 7)) || String(thang || '').slice(5, 7);
+  if (w.tuNgay === w.denNgay) {
+    return 'Tuần ' + w.tuan + ' (' + w.tuNgay + '/' + mm + ')';
+  }
+  return 'Tuần ' + w.tuan + ' (' + w.tuNgay + '–' + w.denNgay + '/' + mm + ')';
+}
+
+/**
+ * Hàm thuần: gom các dòng có chữ của một trường ('daLam' hoặc 'chuaLam')
+ * theo đúng thứ tự tuần 1..N rồi tới Tổng kết tháng (tuan = 0).
+ */
+function gopDongKetQuaMuc_(mucObj, dsTuan, thang, locTuan, truong){
+  const mObj = mucObj || {};
+  const listTuan = Array.isArray(dsTuan)
+    ? dsTuan.slice().sort(function(a, b){ return Number(a.tuan) - Number(b.tuan); })
+    : [];
+  const loc = String(locTuan === undefined || locTuan === null || locTuan === '' ? 'all' : locTuan);
+  const cacDong = [];
+  let capNhatLucMax = '';
+  let nguoiCapNhatMax = '';
+
+  function xetCapNhat_(rec){
+    if (!rec || !rec.capNhatLuc) return;
+    const t = String(rec.capNhatLuc);
+    if (!capNhatLucMax || t >= capNhatLucMax) {
+      capNhatLucMax = t;
+      nguoiCapNhatMax = String(rec.nguoiCapNhat || '');
+    }
+  }
+
+  if (loc === 'all') {
+    listTuan.forEach(function(w){
+      const rec = mObj[w.tuan] || mObj[String(w.tuan)];
+      if (!rec) return;
+      const val = String(rec[truong] || '').trim();
+      if (!val) return;
+      xetCapNhat_(rec);
+      cacDong.push({
+        tuan: Number(w.tuan),
+        nhan: nhanTuanKetQua_(w, thang),
+        noiDung: val,
+        capNhatLuc: String(rec.capNhatLuc || ''),
+        nguoiCapNhat: String(rec.nguoiCapNhat || '')
+      });
+    });
+    const rec0 = mObj[0] || mObj['0'];
+    if (rec0) {
+      const val0 = String(rec0[truong] || '').trim();
+      if (val0) {
+        xetCapNhat_(rec0);
+        cacDong.push({
+          tuan: 0,
+          nhan: 'Tổng kết tháng',
+          noiDung: val0,
+          capNhatLuc: String(rec0.capNhatLuc || ''),
+          nguoiCapNhat: String(rec0.nguoiCapNhat || '')
+        });
+      }
+    }
+  } else if (loc === '0') {
+    const rec0 = mObj[0] || mObj['0'];
+    if (rec0) {
+      const val0 = String(rec0[truong] || '').trim();
+      if (val0) {
+        xetCapNhat_(rec0);
+        cacDong.push({
+          tuan: 0,
+          nhan: 'Tổng kết tháng',
+          noiDung: val0,
+          capNhatLuc: String(rec0.capNhatLuc || ''),
+          nguoiCapNhat: String(rec0.nguoiCapNhat || '')
+        });
+      }
+    }
+  } else {
+    const soT = Number(loc);
+    const wObj = listTuan.find(function(w){ return Number(w.tuan) === soT; }) || { tuan: soT, tuNgay: '', denNgay: '' };
+    const rec = mObj[soT] || mObj[String(soT)];
+    if (rec) {
+      const val = String(rec[truong] || '').trim();
+      if (val) {
+        xetCapNhat_(rec);
+        const nhan = (wObj.tuNgay !== '' && wObj.denNgay !== '') ? nhanTuanKetQua_(wObj, thang) : ('Tuần ' + soT);
+        cacDong.push({
+          tuan: soT,
+          nhan: nhan,
+          noiDung: val,
+          capNhatLuc: String(rec.capNhatLuc || ''),
+          nguoiCapNhat: String(rec.nguoiCapNhat || '')
+        });
+      }
+    }
+  }
+
+  return {
+    cacDong: cacDong,
+    capNhatLuc: capNhatLucMax,
+    nguoiCapNhat: nguoiCapNhatMax
+  };
+}
+
+function dongCapNhatHtml_(capNhatLuc, nguoiCapNhat){
+  if (!capNhatLuc) return '';
+  const tg = fmtNgayGio_(capNhatLuc);
+  const em = nguoiCapNhat ? ' (' + esc(nguoiCapNhat) + ')' : '';
+  return '<div style="font-size:11px;color:#94a3b8;margin-top:4px;">Cập nhật: ' + esc(tg) + em + '</div>';
+}
+
+/**
+ * Hàm thuần: dựng HTML 3 khối (Kế hoạch tháng, Đã làm được, Chưa làm được, vì sao)
+ * cho 1 mảng của 1 khu vực.
+ * Nếu kế hoạch dài (> 220 ký tự hoặc > 4 dòng): thu gọn trong <details class="kq-kh-details kq-kh-short">
+ * trên màn hình, và kèm khối <div class="kq-kh-full"> chứa toàn văn để khi in (@media print) luôn in đủ chữ.
+ */
+function dungHtmlMotMucKetQua_(khItem, mucObj, dsTuan, thang, locTuan){
+  const kh = khItem || {};
+  const ndKeHoach = String(kh.noiDung || '').trim();
+  let htmlKeHoach = '';
+  if (!ndKeHoach) {
+    htmlKeHoach = '<span class="kq-chua-ghi" style="color:#94a3b8;font-style:italic;">chưa ghi</span>';
+  } else {
+    const soDongKH = ndKeHoach.split(/\r?\n/).length;
+    const laDai = ndKeHoach.length > 220 || soDongKH > 4;
+    if (laDai) {
+      const tomTat = ndKeHoach.slice(0, 180) + '…';
+      htmlKeHoach =
+        '<details class="kq-kh-details kq-kh-short" style="cursor:pointer;">' +
+          '<summary style="font-size:13px;color:#334155;line-height:1.5;">' + esc(tomTat) + ' <span style="color:#2563eb;font-size:12px;font-weight:600;">(Xem toàn văn)</span></summary>' +
+          '<div style="white-space:pre-wrap;font-size:13px;color:#1e293b;line-height:1.55;margin-top:6px;padding-top:6px;border-top:1px dashed #cbd5e1;">' + esc(ndKeHoach) + '</div>' +
+        '</details>' +
+        '<div class="kq-kh-full" style="white-space:pre-wrap;font-size:13px;color:#1e293b;line-height:1.55;">' + esc(ndKeHoach) + '</div>';
+    } else {
+      htmlKeHoach = '<div style="white-space:pre-wrap;font-size:13px;color:#1e293b;line-height:1.55;">' + esc(ndKeHoach) + '</div>';
+    }
+    htmlKeHoach += dongCapNhatHtml_(kh.capNhatLuc, kh.nguoiCapNhat);
+  }
+
+  function veKhoiKetQua_(gop){
+    if (!gop.cacDong.length) {
+      return '<span class="kq-chua-ghi" style="color:#94a3b8;font-style:italic;">chưa ghi</span>';
+    }
+    const items = gop.cacDong.map(function(d){
+      return '<div style="margin-bottom:5px;font-size:13px;color:#1e293b;line-height:1.55;">' +
+        '<b style="color:#0f172a;">' + esc(d.nhan) + ':</b> ' +
+        '<span style="white-space:pre-wrap;">' + esc(d.noiDung) + '</span>' +
+      '</div>';
+    }).join('');
+    return items + dongCapNhatHtml_(gop.capNhatLuc, gop.nguoiCapNhat);
+  }
+
+  const gopDaLam = gopDongKetQuaMuc_(mucObj, dsTuan, thang, locTuan, 'daLam');
+  const gopChuaLam = gopDongKetQuaMuc_(mucObj, dsTuan, thang, locTuan, 'chuaLam');
+
+  return (
+    '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;">' +
+      '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 10px;">' +
+        '<div style="font-size:12px;font-weight:700;color:#475569;margin-bottom:4px;">📝 Kế hoạch tháng</div>' +
+        htmlKeHoach +
+      '</div>' +
+      '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 10px;">' +
+        '<div style="font-size:12px;font-weight:700;color:#15803d;margin-bottom:4px;">✔️ Đã làm được</div>' +
+        veKhoiKetQua_(gopDaLam) +
+      '</div>' +
+      '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:8px 10px;">' +
+        '<div style="font-size:12px;font-weight:700;color:#b45309;margin-bottom:4px;">⚠️ Chưa làm được, vì sao</div>' +
+        veKhoiKetQua_(gopChuaLam) +
+      '</div>' +
+    '</div>'
+  );
+}
+
+/**
+ * Hàm thuần: dựng toàn bộ HTML báo cáo đọc gộp từ dữ liệu và bộ lọc.
+ */
+function dungHtmlBaoCaoKetQuaTong_(data, opts){
+  const d = data || {};
+  const o = opts || {};
+  const thang = String(d.thang || '');
+  const dsKV = Array.isArray(d.dsKhuVuc) ? d.dsKhuVuc : [];
+  const dsMuc = Array.isArray(d.dsMuc) && d.dsMuc.length ? d.dsMuc : KQ_TONG_MUCS;
+  const dsTuan = Array.isArray(d.dsTuan) ? d.dsTuan : [];
+  const khTheoKV = d.keHoachTheoKV || {};
+  const kqTheoKV = d.ketQuaTheoKV || {};
+  const mode = o.mode === 'muc' ? 'muc' : 'kv';
+  const target = String(o.target || (mode === 'kv' ? 'all' : 'tp'));
+  const locTuan = String(o.locTuan === undefined || o.locTuan === null || o.locTuan === '' ? 'all' : o.locTuan);
+
+  if (!dsKV.length) {
+    return '<div style="color:#94a3b8;">Chưa có danh sách khu vực.</div>';
+  }
+
+  if (mode === 'kv') {
+    const kvCanXem = target === 'all'
+      ? dsKV
+      : dsKV.filter(function(kv){ return kv === target; });
+    if (!kvCanXem.length) {
+      return '<div style="color:#94a3b8;">Không tìm thấy khu vực đã chọn.</div>';
+    }
+
+    return kvCanXem.map(function(kv, idx){
+      const pageBreakCls = (target === 'all' && idx > 0) ? ' kq-print-page-break' : '';
+      const mucBoxes = dsMuc.map(function(m){
+        const khItem = (khTheoKV[kv] && khTheoKV[kv][m.key]) || null;
+        const mucObj = (kqTheoKV[kv] && kqTheoKV[kv][m.key]) || null;
+        return (
+          '<div class="kq-tong-muc-box" style="margin-bottom:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;">' +
+            '<div style="font-size:13px;font-weight:700;color:#1e3a8a;margin-bottom:6px;">▪ ' + esc(m.label) + '</div>' +
+            dungHtmlMotMucKetQua_(khItem, mucObj, dsTuan, thang, locTuan) +
+          '</div>'
+        );
+      }).join('');
+
+      return (
+        '<div class="kq-tong-kv-block' + pageBreakCls + '" data-kv="' + esc(kv) + '" style="margin-bottom:18px;padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;">' +
+          '<h4 style="margin:0 0 10px 0;font-size:15px;color:#0f172a;border-bottom:2px solid #cbd5e1;padding-bottom:6px;">📍 Khu vực: ' + esc(kv) + ' (tháng ' + esc(thang) + ')</h4>' +
+          mucBoxes +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  // mode === 'muc'
+  const mucChon = dsMuc.find(function(m){ return m.key === target; }) || dsMuc[0];
+  const kvRows = dsKV.map(function(kv){
+    const khItem = (khTheoKV[kv] && khTheoKV[kv][mucChon.key]) || null;
+    const mucObj = (kqTheoKV[kv] && kqTheoKV[kv][mucChon.key]) || null;
+    return (
+      '<div class="kq-tong-muc-box" data-kv="' + esc(kv) + '" style="margin-bottom:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;">' +
+        '<div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:6px;">📍 Khu vực: ' + esc(kv) + '</div>' +
+        dungHtmlMotMucKetQua_(khItem, mucObj, dsTuan, thang, locTuan) +
+      '</div>'
+    );
+  }).join('');
+
+  return (
+    '<div class="kq-tong-muc-block" data-muc="' + esc(mucChon.key) + '" style="padding:12px 14px;border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;">' +
+      '<h4 style="margin:0 0 10px 0;font-size:15px;color:#1e3a8a;border-bottom:2px solid #cbd5e1;padding-bottom:6px;">📂 Mảng: ' + esc(mucChon.label) + ' (tháng ' + esc(thang) + ')</h4>' +
+      kvRows +
+    '</div>'
+  );
+}
+
+/**
+ * Hàm thuần: dựng văn bản thuần (plain text) trực tiếp từ dữ liệu (KHÔNG đọc từ DOM)
+ * để phục vụ nút "Sao chép chữ". Toàn văn Kế hoạch, Đã làm, Chưa làm đều giữ đủ 100%, không cắt ngắn.
+ */
+function dungTextBaoCaoKetQuaTong_(data, opts){
+  const d = data || {};
+  const o = opts || {};
+  const thang = String(d.thang || '');
+  const dsKV = Array.isArray(d.dsKhuVuc) ? d.dsKhuVuc : [];
+  const dsMuc = Array.isArray(d.dsMuc) && d.dsMuc.length ? d.dsMuc : KQ_TONG_MUCS;
+  const dsTuan = Array.isArray(d.dsTuan) ? d.dsTuan : [];
+  const khTheoKV = d.keHoachTheoKV || {};
+  const kqTheoKV = d.ketQuaTheoKV || {};
+  const mode = o.mode === 'muc' ? 'muc' : 'kv';
+  const target = String(o.target || (mode === 'kv' ? 'all' : 'tp'));
+  const locTuan = String(o.locTuan === undefined || o.locTuan === null || o.locTuan === '' ? 'all' : o.locTuan);
+
+  function textMotMuc_(khItem, mucObj){
+    const ndKH = String((khItem && khItem.noiDung) || '').trim();
+    const gopDL = gopDongKetQuaMuc_(mucObj, dsTuan, thang, locTuan, 'daLam');
+    const gopCL = gopDongKetQuaMuc_(mucObj, dsTuan, thang, locTuan, 'chuaLam');
+
+    const dongKH = '  - Kế hoạch tháng: ' + (ndKH || 'chưa ghi');
+    const dongDL = gopDL.cacDong.length
+      ? '  - Đã làm được:\n' + gopDL.cacDong.map(function(x){ return '    + ' + x.nhan + ': ' + x.noiDung; }).join('\n')
+      : '  - Đã làm được: chưa ghi';
+    const dongCL = gopCL.cacDong.length
+      ? '  - Chưa làm được, vì sao:\n' + gopCL.cacDong.map(function(x){ return '    + ' + x.nhan + ': ' + x.noiDung; }).join('\n')
+      : '  - Chưa làm được, vì sao: chưa ghi';
+
+    return [dongKH, dongDL, dongCL].join('\n');
+  }
+
+  const lines = ['THỰC HIỆN KẾ HOẠCH CÁC KHU VỰC — THÁNG ' + thang];
+
+  if (mode === 'kv') {
+    const kvCanXem = target === 'all'
+      ? dsKV
+      : dsKV.filter(function(kv){ return kv === target; });
+    kvCanXem.forEach(function(kv){
+      lines.push('');
+      lines.push('=== KHU VỰC: ' + kv + ' ===');
+      dsMuc.forEach(function(m){
+        const khItem = (khTheoKV[kv] && khTheoKV[kv][m.key]) || null;
+        const mucObj = (kqTheoKV[kv] && kqTheoKV[kv][m.key]) || null;
+        lines.push('[' + m.label + ']');
+        lines.push(textMotMuc_(khItem, mucObj));
+      });
+    });
+  } else {
+    const mucChon = dsMuc.find(function(m){ return m.key === target; }) || dsMuc[0];
+    lines.push('');
+    lines.push('=== MẢNG: ' + mucChon.label + ' ===');
+    dsKV.forEach(function(kv){
+      const khItem = (khTheoKV[kv] && khTheoKV[kv][mucChon.key]) || null;
+      const mucObj = (kqTheoKV[kv] && kqTheoKV[kv][mucChon.key]) || null;
+      lines.push('[' + kv + ']');
+      lines.push(textMotMuc_(khItem, mucObj));
+    });
+  }
+
+  return lines.join('\n');
+}
+
+function capNhatSelectTargetKetQuaTong_(giuGiaTriCu){
+  const selTarget = document.getElementById('kvtongKetQua_filterTarget');
+  const lblTarget = document.getElementById('kvtongKetQua_targetLabel');
+  if (!selTarget) return;
+
+  const cu = giuGiaTriCu ? selTarget.value : '';
+  const data = window._kqTongData || {};
+  const dsKV = Array.isArray(data.dsKhuVuc) && data.dsKhuVuc.length
+    ? data.dsKhuVuc
+    : ((typeof khuVucList !== 'undefined' && Array.isArray(khuVucList)) ? khuVucList : []);
+
+  if (_kqTongMode === 'kv') {
+    if (lblTarget) lblTarget.textContent = 'Khu vực:';
+    let optsHtml = '<option value="all">Tất cả khu vực</option>';
+    dsKV.forEach(function(kv){
+      optsHtml += '<option value="' + esc(kv) + '">' + esc(kv) + '</option>';
+    });
+    selTarget.innerHTML = optsHtml;
+    if (cu && (cu === 'all' || dsKV.indexOf(cu) >= 0)) selTarget.value = cu;
+    else selTarget.value = 'all';
+  } else {
+    if (lblTarget) lblTarget.textContent = 'Mảng:';
+    let optsHtml = '';
+    KQ_TONG_MUCS.forEach(function(m){
+      optsHtml += '<option value="' + esc(m.key) + '">' + esc(m.label) + '</option>';
+    });
+    selTarget.innerHTML = optsHtml;
+    if (cu && KQ_TONG_MUCS.some(function(m){ return m.key === cu; })) selTarget.value = cu;
+    else selTarget.value = 'tp';
+  }
+}
+
+function capNhatSelectTuanKetQuaTong_(dsTuan, thang, giuGiaTriCu){
+  const selTuan = document.getElementById('kvtongKetQua_filterTuan');
+  if (!selTuan) return;
+  const cu = giuGiaTriCu ? selTuan.value : 'all';
+  const list = Array.isArray(dsTuan) ? dsTuan : [];
+
+  let html = '<option value="all">Cả tháng</option>';
+  list.forEach(function(w){
+    html += '<option value="' + esc(String(w.tuan)) + '">' + esc(nhanTuanKetQua_(w, thang)) + '</option>';
+  });
+  html += '<option value="0">Tổng kết tháng</option>';
+  selTuan.innerHTML = html;
+
+  const coCu = cu === 'all' || cu === '0' || list.some(function(w){ return String(w.tuan) === String(cu); });
+  selTuan.value = coCu ? cu : 'all';
+}
+
+function setModeKetQuaTong_(mode){
+  _kqTongMode = mode === 'muc' ? 'muc' : 'kv';
+  const btnKV = document.getElementById('kvtongKetQua_modeKV');
+  const btnMuc = document.getElementById('kvtongKetQua_modeMuc');
+  if (btnKV) {
+    btnKV.style.background = _kqTongMode === 'kv' ? '#1d4ed8' : 'transparent';
+    btnKV.style.color = _kqTongMode === 'kv' ? '#fff' : '#334155';
+  }
+  if (btnMuc) {
+    btnMuc.style.background = _kqTongMode === 'muc' ? '#1d4ed8' : 'transparent';
+    btnMuc.style.color = _kqTongMode === 'muc' ? '#fff' : '#334155';
+  }
+  capNhatSelectTargetKetQuaTong_(false);
+  renderBaoCaoKetQuaTong_();
+}
+
+function layTuyChonKetQuaTong_(){
+  const selTarget = document.getElementById('kvtongKetQua_filterTarget');
+  const selTuan = document.getElementById('kvtongKetQua_filterTuan');
+  return {
+    mode: _kqTongMode,
+    target: selTarget ? selTarget.value : (_kqTongMode === 'kv' ? 'all' : 'tp'),
+    locTuan: selTuan ? selTuan.value : 'all'
+  };
+}
+
+function renderBaoCaoKetQuaTong_(){
+  const box = document.getElementById('kvtongKetQua_noiDung');
+  if (!box) return;
+  if (!window._kqTongData) return;
+  box.innerHTML = dungHtmlBaoCaoKetQuaTong_(window._kqTongData, layTuyChonKetQuaTong_());
+}
+
+function loadKVTongKetQua_(){
+  const card = document.getElementById('kvtongKetQuaCard');
+  const box = document.getElementById('kvtongKetQua_noiDung');
+  const lblMonth = document.getElementById('kvtongKetQua_monthLabel');
+  if (!card || !box) return;
+
+  // Chỉ Chủ tài khoản mới thấy và mới gọi getAllKetQuaMuc
+  if (!isChuTaiKhoan_()) {
+    card.style.display = 'none';
+    box.innerHTML = '';
+    window._kqTongData = null;
+    return;
+  }
+
+  const monthKey = kvMonthKey();
+  const reqId = ++_kqTongReqSeq;
+  card.style.display = '';
+  card.setAttribute('data-thang', monthKey);
+  card.setAttribute('data-req-id', String(reqId));
+  if (lblMonth) lblMonth.textContent = monthKey;
+  box.innerHTML = '<div style="color:#94a3b8;padding:8px 0;">Đang tải báo cáo thực hiện kế hoạch…</div>';
+  window._kqTongData = null;
+
+  let resKQ = null;
+  let resKH = null;
+  let daXongKQ = false;
+  let daXongKH = false;
+  let daBaoLoi = false;
+
+  function kiemTraConHopLe_(){
+    return reqId === _kqTongReqSeq && kvMonthKey() === monthKey && isChuTaiKhoan_();
+  }
+
+  function thuHoanTat_(){
+    if (!kiemTraConHopLe_() || daBaoLoi || !daXongKQ || !daXongKH) return;
+    const khTheoKV = (resKH && resKH.theoKhuVuc) || {};
+    const kqTheoKV = (resKQ && resKQ.theoKhuVuc) || {};
+    const dsTuan = Array.isArray(resKQ && resKQ.tuan) ? resKQ.tuan : [];
+    const dsKV = (typeof khuVucList !== 'undefined' && Array.isArray(khuVucList) && khuVucList.length)
+      ? khuVucList.slice()
+      : Object.keys(Object.assign({}, khTheoKV, kqTheoKV));
+
+    window._kqTongData = {
+      thang: monthKey,
+      dsKhuVuc: dsKV,
+      dsMuc: KQ_TONG_MUCS,
+      dsTuan: dsTuan,
+      keHoachTheoKV: khTheoKV,
+      ketQuaTheoKV: kqTheoKV
+    };
+
+    capNhatSelectTargetKetQuaTong_(true);
+    capNhatSelectTuanKetQuaTong_(dsTuan, monthKey, false);
+    renderBaoCaoKetQuaTong_();
+  }
+
+  function xuLyLoi_(err){
+    if (!kiemTraConHopLe_() || daBaoLoi) return;
+    daBaoLoi = true;
+    window._kqTongData = null;
+    box.innerHTML = '<div style="color:#dc2626;">Lỗi tải báo cáo thực hiện kế hoạch: ' + esc(err && err.message ? err.message : String(err || '')) + '</div>';
+  }
+
+  google.script.run.withSuccessHandler(function(r){
+    if (!kiemTraConHopLe_()) return;
+    resKQ = r || {};
+    daXongKQ = true;
+    thuHoanTat_();
+  }).withFailureHandler(xuLyLoi_).getAllKetQuaMuc(monthKey);
+
+  google.script.run.withSuccessHandler(function(r){
+    if (!kiemTraConHopLe_()) return;
+    resKH = r || {};
+    daXongKH = true;
+    thuHoanTat_();
+  }).withFailureHandler(xuLyLoi_).getAllKeHoachThang(monthKey);
+}
+
+function inBaoCaoKetQuaTong_(){
+  if (!window._kqTongData) {
+    showMsg('Báo cáo chưa tải xong để in.', false);
+    return;
+  }
+  document.body.classList.add('printing-kq-tong');
+  const goIn_ = function(){
+    document.body.classList.remove('printing-kq-tong');
+    window.removeEventListener('afterprint', goIn_);
+  };
+  window.addEventListener('afterprint', goIn_);
+  window.print();
+  setTimeout(goIn_, 1000);
+}
+
+function saoChepBaoCaoKetQuaTong_(btn){
+  if (!window._kqTongData) {
+    showMsg('Báo cáo chưa tải xong để sao chép.', false);
+    return;
+  }
+  const text = dungTextBaoCaoKetQuaTong_(window._kqTongData, layTuyChonKetQuaTong_());
+  const msgEl = document.getElementById('kvtongKetQua_copyMsg');
+  function baoThanhCong_(){
+    if (msgEl) {
+      msgEl.style.display = 'inline';
+      setTimeout(function(){ msgEl.style.display = 'none'; }, 2000);
+    }
+    showMsg('Đã sao chép', true);
+  }
+  function saoChepDuPhong_(){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand('copy');
+      baoThanhCong_();
+    } catch (e) {
+      showMsg('Không thể sao chép tự động.', false);
+    }
+    document.body.removeChild(ta);
+  }
+  if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    navigator.clipboard.writeText(text).then(baoThanhCong_).catch(saoChepDuPhong_);
+  } else {
+    saoChepDuPhong_();
+  }
 }
 
 
@@ -7573,6 +8162,11 @@ function showUserBar_(email){
         if (noiDung) noiDung.innerHTML = '';
         if (pTroLy.classList.contains('active')) showPanel('stats');
       }
+      const kqCard = document.getElementById('kvtongKetQuaCard');
+      if (kqCard) kqCard.style.display = 'none';
+      const kqBody = document.getElementById('kvtongKetQua_noiDung');
+      if (kqBody) kqBody.innerHTML = '';
+      window._kqTongData = null;
     }
   }
 }
@@ -7580,6 +8174,11 @@ function hideUserBar_(){
   const bar = document.getElementById('userBar');
   if (bar) bar.style.display = 'none';
   if (_inactivityTimer) { clearTimeout(_inactivityTimer); _inactivityTimer = null; }
+  const kqCard = document.getElementById('kvtongKetQuaCard');
+  if (kqCard) kqCard.style.display = 'none';
+  const kqBody = document.getElementById('kvtongKetQua_noiDung');
+  if (kqBody) kqBody.innerHTML = '';
+  window._kqTongData = null;
 }
 
 function showAuthOverlay_(state, extra){
