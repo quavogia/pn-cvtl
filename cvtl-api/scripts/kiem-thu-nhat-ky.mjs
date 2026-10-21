@@ -110,7 +110,7 @@ console.log('\n5) Lấy đúng khu vực từ lời gọi (nguyên tắc 4)');
 {
   kiem('saveTPWeek — khuVuc ở vị trí 1', NK.khuVucCuaLoiGoi('saveTPWeek', ['2026-08', 'K My', '1lan', 1, 5]) === 'K My');
   kiem('addCVNguoi — khuVuc ở vị trí 0', NK.khuVucCuaLoiGoi('addCVNguoi', ['Đ Uyên', 'Chị A']) === 'Đ Uyên');
-  kiem('chotKy — khuVuc ở vị trí 3', NK.khuVucCuaLoiGoi('chotKy', ['2026-08', 'a', 'b', 'TT Châu']) === 'TT Châu');
+  kiem('chotKy — khuVuc ở vị trí 3', NK.khuVucCuaLoiGoi('chotKy', ['2026-08', 'a', 'b', 'K Châu']) === 'K Châu');
   kiem('hàm không gắn khu vực trả rỗng', NK.khuVucCuaLoiGoi('getStats', []) === '');
   kiem('hàm lạ trả rỗng, không ném', NK.khuVucCuaLoiGoi('khongHeCoHamNay', ['K My']) === '');
   kiem('thiếu tham số trả rỗng', NK.khuVucCuaLoiGoi('saveTPWeek', ['2026-08']) === '');

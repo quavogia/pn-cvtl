@@ -54,7 +54,7 @@ const THANG = HOM_NAY.slice(0, 7);
 const BD = THANG + '-01';
 const KT = THANG + '-' + String(
   new Date(Date.UTC(+THANG.slice(0, 4), +THANG.slice(5, 7), 0)).getUTCDate()).padStart(2, '0');
-const KV = ['Đ Uyên', 'K Thành', 'TT Châu', 'K My'];
+const KV = ['Đ Uyên', 'K Thành', 'K Châu', 'K My'];
 KV.forEach((k, i) => sqlite.prepare(
   "INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('khu_vuc',?,?)").run(k, i + 1));
 
@@ -153,7 +153,7 @@ async function vaoVai(vai, phamVi, laChu, kv) {
     Object.keys(_apiCache).forEach((x) => delete _apiCache[x]);
     showPanel('kv');
     document.getElementById('kvMonth').value = th;
-    khuVucList = ['Đ Uyên', 'K Thành', 'TT Châu', 'K My'];
+    khuVucList = ['Đ Uyên', 'K Thành', 'K Châu', 'K My'];
     showUserBar_('ai@do.com');
     renderKVPills();
     selectKV(k);

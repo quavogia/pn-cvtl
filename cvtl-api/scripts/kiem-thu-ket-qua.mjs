@@ -377,7 +377,7 @@ const adminCtx = { db, nguoiGoi: adminNguoiGoi };
 {
   const { spy, laySoLanGoiCSDL, datLai } = taoSpyDB(db);
   const kvtMyNguoi = { email: 'kvt.my@example.com', la_chu: 0, pham_vi: 'K My' };
-  const dvtNguoi = { email: 'dvt@example.com', la_chu: 0, pham_vi: 'Đ Uyên,K Thành,TT Châu' };
+  const dvtNguoi = { email: 'dvt@example.com', la_chu: 0, pham_vi: 'Đ Uyên,K Thành,K Châu' };
   const thuongNguoi = { email: 'thanhdo@example.com', la_chu: 0, pham_vi: '' };
 
   const kvtMyCtx = { db: spy, nguoiGoi: kvtMyNguoi };

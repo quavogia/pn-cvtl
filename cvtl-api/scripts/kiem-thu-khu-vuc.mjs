@@ -78,18 +78,18 @@ console.log('\n=== KIỂM THỬ QUẢN LÝ KHU VỰC — tách/thêm khu vực t
 console.log('1) themKhuVucMoi — chèn đúng vị trí');
 {
   taoCSDL();
-  let r = await goi('themKhuVucMoi', ['TT Châu', 'K Thành']);
+  let r = await goi('themKhuVucMoi', ['K Châu', 'K Thành']);
   kiem('thêm thành công', r.result?.success === true, JSON.stringify(r));
-  kiem('TT Châu nằm NGAY SAU K Thành', dsKhuVuc().join(',') ===
-    'Đ Uyên,K Thành,TT Châu,K Trâm,K My,K Long,K Đức,SĐ', dsKhuVuc().join(','));
+  kiem('K Châu nằm NGAY SAU K Thành', dsKhuVuc().join(',') ===
+    'Đ Uyên,K Thành,K Châu,K Trâm,K My,K Long,K Đức,SĐ', dsKhuVuc().join(','));
 
   r = await goi('themKhuVucMoi', ['Khu Cuối']);
   kiem('không truyền sauKhuVuc -> thêm vào cuối', r.result?.success === true);
   kiem('Khu Cuối nằm cuối danh sách', dsKhuVuc()[dsKhuVuc().length - 1] === 'Khu Cuối', dsKhuVuc().join(','));
 
-  r = await goi('themKhuVucMoi', ['TT Châu', 'K Trâm']);
+  r = await goi('themKhuVucMoi', ['K Châu', 'K Trâm']);
   kiem('thêm trùng tên đã có -> báo lỗi', /đã tồn tại/.test(r.error || ''), JSON.stringify(r));
-  kiem('danh sách KHÔNG đổi sau lỗi trùng tên', dsKhuVuc().filter((x) => x === 'TT Châu').length === 1);
+  kiem('danh sách KHÔNG đổi sau lỗi trùng tên', dsKhuVuc().filter((x) => x === 'K Châu').length === 1);
 
   r = await goi('themKhuVucMoi', ['Ma Không Có', 'Khu Không Tồn Tại']);
   kiem('chèn sau khu vực không tồn tại -> báo lỗi', /Không tìm thấy khu vực/.test(r.error || ''), JSON.stringify(r));
@@ -102,21 +102,21 @@ console.log('\n2) themKhuVucMoi — config_list còn trống (mới cài đặt)
 {
   taoCSDL(false);
   kiem('config_list chưa có khu_vuc nào', dsKhuVuc().length === 0);
-  const r = await goi('themKhuVucMoi', ['TT Châu', 'K Thành']);
+  const r = await goi('themKhuVucMoi', ['K Châu', 'K Thành']);
   kiem('vẫn thêm được', r.result?.success === true, JSON.stringify(r));
   kiem('tự khởi tạo đủ 7 khu vực cũ + 1 khu vực mới, đúng thứ tự',
-    dsKhuVuc().join(',') === 'Đ Uyên,K Thành,TT Châu,K Trâm,K My,K Long,K Đức,SĐ', dsKhuVuc().join(','));
+    dsKhuVuc().join(',') === 'Đ Uyên,K Thành,K Châu,K Trâm,K My,K Long,K Đức,SĐ', dsKhuVuc().join(','));
 }
 
 // =====================================================================
 console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 người qua nhiều bảng');
 {
   taoCSDL();
-  await goi('themKhuVucMoi', ['TT Châu', 'K Thành']);
+  await goi('themKhuVucMoi', ['K Châu', 'K Thành']);
 
   const ten = 'L N Bảo Châu';
   const kvCu = 'K Thành';
-  const kvMoi = 'TT Châu';
+  const kvMoi = 'K Châu';
 
   // Gieo dữ liệu ở NHIỀU bảng khác nhau cho người này ở Khu vực cũ.
   sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, phu_huynh, thu_tu) VALUES (?,?,?,?)')
@@ -169,7 +169,7 @@ console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 ngườ
   const r = await goi('chuyenThanhVienKhuVuc', [kvCu, [ten], kvMoi]);
   kiem('chuyển thành công', r.result?.success === true, JSON.stringify(r));
 
-  kiem('diem_danh_roster: đã chuyển sang TT Châu',
+  kiem('diem_danh_roster: đã chuyển sang K Châu',
     dem_(`SELECT khu_vuc FROM diem_danh_roster WHERE ten=?`, ten) === kvMoi);
   kiem('diem_danh: cả 2 dòng đều chuyển',
     demSo_(`SELECT COUNT(*) c FROM diem_danh WHERE ten=? AND khu_vuc=?`, ten, kvMoi) === 2);
@@ -208,7 +208,7 @@ console.log('\n3) chuyenThanhVienKhuVuc — chuyển đủ dữ liệu 1 ngườ
 
   kiem('roster K Thành đánh lại thu_tu liền mạch (1)',
     dem_(`SELECT thu_tu FROM diem_danh_roster WHERE ten=?`, tenKhac) === 1);
-  kiem('roster TT Châu đánh lại thu_tu liền mạch (1)',
+  kiem('roster K Châu đánh lại thu_tu liền mạch (1)',
     dem_(`SELECT thu_tu FROM diem_danh_roster WHERE ten=?`, ten) === 1);
 }
 
@@ -234,16 +234,16 @@ console.log('\n4) chuyenThanhVienKhuVuc — tự tạo Khu vực mới nếu ch�
 console.log('\n5) chuyenThanhVienKhuVuc — nhiều người cùng lúc');
 {
   taoCSDL();
-  await goi('themKhuVucMoi', ['TT Châu', 'K Thành']);
+  await goi('themKhuVucMoi', ['K Châu', 'K Thành']);
   const ds = ['Chị B', 'Chị C', 'Chị D'];
   for (const [i, ten] of ds.entries())
     sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, thu_tu) VALUES (?,?,?)').run('K Thành', ten, i + 1);
 
-  const r = await goi('chuyenThanhVienKhuVuc', ['K Thành', ds, 'TT Châu']);
+  const r = await goi('chuyenThanhVienKhuVuc', ['K Thành', ds, 'K Châu']);
   kiem('chuyển 3 người cùng lúc thành công', r.result?.success === true, JSON.stringify(r));
   kiem('kết quả trả về đủ 3 người', (r.result?.ketQua || []).length === 3, JSON.stringify(r.result?.ketQua));
-  kiem('cả 3 đều đã ở TT Châu',
-    demSo_(`SELECT COUNT(*) c FROM diem_danh_roster WHERE khu_vuc='TT Châu'`) === 3);
+  kiem('cả 3 đều đã ở K Châu',
+    demSo_(`SELECT COUNT(*) c FROM diem_danh_roster WHERE khu_vuc='K Châu'`) === 3);
 }
 
 // =====================================================================
@@ -271,16 +271,16 @@ console.log('\n6) chuyenThanhVienKhuVuc — trùng khoá ở Khu vực đích: B
 console.log('\n7) chuyenThanhVienKhuVuc — kiểm tra đầu vào');
 {
   taoCSDL();
-  let r = await goi('chuyenThanhVienKhuVuc', ['K Thành', [], 'TT Châu']);
+  let r = await goi('chuyenThanhVienKhuVuc', ['K Thành', [], 'K Châu']);
   kiem('danh sách rỗng -> báo lỗi', /Chưa chọn thành viên/.test(r.error || ''), JSON.stringify(r));
 
   r = await goi('chuyenThanhVienKhuVuc', ['K Thành', ['Ai đó'], 'K Thành']);
   kiem('khu vực cũ = khu vực mới -> báo lỗi', /phải khác nhau/.test(r.error || ''), JSON.stringify(r));
 
-  r = await goi('chuyenThanhVienKhuVuc', ['', ['Ai đó'], 'TT Châu']);
+  r = await goi('chuyenThanhVienKhuVuc', ['', ['Ai đó'], 'K Châu']);
   kiem('thiếu khu vực cũ -> báo lỗi', /Thiếu/.test(r.error || ''), JSON.stringify(r));
 
-  r = await goi('chuyenThanhVienKhuVuc', ['K Thành', ['Người không tồn tại'], 'TT Châu']);
+  r = await goi('chuyenThanhVienKhuVuc', ['K Thành', ['Người không tồn tại'], 'K Châu']);
   kiem('tên không có dữ liệu nào -> vẫn thành công (0 dòng ở mọi bảng), không lỗi',
     r.result?.success === true, JSON.stringify(r));
 }
@@ -289,18 +289,18 @@ console.log('\n7) chuyenThanhVienKhuVuc — kiểm tra đầu vào');
 console.log('\n8) Tích hợp: sau khi chuyển, getDiemDanhRoster / getTPSummary THẤY được Khu vực mới');
 {
   taoCSDL();
-  await goi('themKhuVucMoi', ['TT Châu', 'K Thành']);
+  await goi('themKhuVucMoi', ['K Châu', 'K Thành']);
   const ten = 'L N Bảo Châu';
   sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, thu_tu) VALUES (?,?,?)').run('K Thành', ten, 1);
   sqlite.prepare('INSERT INTO diem_danh (thang, khu_vuc, ten, tuan, buoi, gia_tri) VALUES (?,?,?,?,?,?)')
     .run('2026-08', 'K Thành', ten, 1, 'CNsang', 'x');
-  await goi('chuyenThanhVienKhuVuc', ['K Thành', [ten], 'TT Châu']);
+  await goi('chuyenThanhVienKhuVuc', ['K Thành', [ten], 'K Châu']);
 
   const roster = (await goi('getDiemDanhRoster', ['2026-08'])).result;
-  const nhomTTChau = roster.find((g) => g.nhom === 'TT Châu');
-  kiem('getDiemDanhRoster CÓ nhóm TT Châu (trước đây bị NHOM_DIEM_DANH cứng chặn mất)',
+  const nhomTTChau = roster.find((g) => g.nhom === 'K Châu');
+  kiem('getDiemDanhRoster CÓ nhóm K Châu (trước đây bị NHOM_DIEM_DANH cứng chặn mất)',
     !!nhomTTChau, JSON.stringify(roster.map((g) => g.nhom)));
-  kiem('TT Châu có đúng 1 thành viên vừa chuyển sang',
+  kiem('K Châu có đúng 1 thành viên vừa chuyển sang',
     nhomTTChau?.thanhVien?.length === 1 && nhomTTChau.thanhVien[0].ten === ten,
     JSON.stringify(nhomTTChau));
   const nhomKThanh = roster.find((g) => g.nhom === 'K Thành');
@@ -308,8 +308,8 @@ console.log('\n8) Tích hợp: sau khi chuyển, getDiemDanhRoster / getTPSummar
     !(nhomKThanh?.thanhVien || []).some((tv) => tv.ten === ten), JSON.stringify(nhomKThanh));
 
   const tp = (await goi('getTPSummary', ['2026-08'])).result;
-  kiem('getTPSummary CÓ khu vực TT Châu (trước đây bị KHU_VUC_LIST cứng chặn mất)',
-    tp.some((x) => x.khuVuc === 'TT Châu'), JSON.stringify(tp.map((x) => x.khuVuc)));
+  kiem('getTPSummary CÓ khu vực K Châu (trước đây bị KHU_VUC_LIST cứng chặn mất)',
+    tp.some((x) => x.khuVuc === 'K Châu'), JSON.stringify(tp.map((x) => x.khuVuc)));
 }
 
 // =====================================================================
@@ -409,16 +409,16 @@ console.log('\n12) donDepTPTatCaKhuVuc — dọn TẤT CẢ khu vực trong 1 l�
   kiem('gọi lại lần 2 vẫn thành công, tổng xoá = 0 (đã dọn sạch từ lần trước)',
     r.result?.success === true && r.result?.tongXoa === 0, JSON.stringify(r.result));
 
-  // Khu vực THÊM MỚI sau (TT Châu, qua themKhuVucMoi) cũng phải được dọn —
+  // Khu vực THÊM MỚI sau (K Châu, qua themKhuVucMoi) cũng phải được dọn —
   // xác nhận hàm đọc DANH SÁCH ĐỘNG (config_list), không phải KHU_VUC_LIST cứng.
-  await goi('themKhuVucMoi', ['TT Châu', null]);
+  await goi('themKhuVucMoi', ['K Châu', null]);
   sqlite.prepare('INSERT INTO tp_tho_phuong (thang, khu_vuc, loai, tuan, so_luong) VALUES (?,?,?,?,?)')
-    .run('2026-08', 'TT Châu', '4lan', 2, 5);
+    .run('2026-08', 'K Châu', '4lan', 2, 5);
   r = await goi('donDepTPTatCaKhuVuc', []);
-  kiem('khu vực mới thêm (TT Châu) CŨNG được tính vào tổng số khu vực (8)',
+  kiem('khu vực mới thêm (K Châu) CŨNG được tính vào tổng số khu vực (8)',
     r.result?.tongSoKhuVuc === 8, JSON.stringify(r.result));
-  kiem('khu vực mới thêm (TT Châu) CŨNG được dọn dẹp đúng',
-    r.result?.chiTiet?.find((x) => x.khuVuc === 'TT Châu')?.tpDaXoa === 1, JSON.stringify(r.result?.chiTiet));
+  kiem('khu vực mới thêm (K Châu) CŨNG được dọn dẹp đúng',
+    r.result?.chiTiet?.find((x) => x.khuVuc === 'K Châu')?.tpDaXoa === 1, JSON.stringify(r.result?.chiTiet));
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);

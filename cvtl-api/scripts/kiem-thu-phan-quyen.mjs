@@ -37,7 +37,7 @@ function bocSqlite(conn) {
   };
 }
 
-const KHU_VUC = ['Đ Uyên', 'K Thành', 'TT Châu', 'K Trâm', 'K My', 'K Long', 'K Đức', 'SĐ'];
+const KHU_VUC = ['Đ Uyên', 'K Thành', 'K Châu', 'K Trâm', 'K My', 'K Long', 'K Đức', 'SĐ'];
 
 function taoCSDL({ coCotPhamVi = true, coConfig = true } = {}) {
   sqlite = new DatabaseSync(':memory:');
@@ -106,7 +106,7 @@ console.log('1) Đăng ký hàm setPhamVi');
 console.log('\n2) tachPhamVi — đọc chuỗi thành danh sách');
 {
   kiem('chuỗi 1 khu vực', bang(AUTH.tachPhamVi('K My'), ['K My']));
-  kiem('chuỗi nhiều khu vực', bang(AUTH.tachPhamVi('Đ Uyên,K Thành,TT Châu'), ['Đ Uyên', 'K Thành', 'TT Châu']));
+  kiem('chuỗi nhiều khu vực', bang(AUTH.tachPhamVi('Đ Uyên,K Thành,K Châu'), ['Đ Uyên', 'K Thành', 'K Châu']));
   kiem('bỏ khoảng trắng thừa', bang(AUTH.tachPhamVi('  K My ,  K Long  '), ['K My', 'K Long']));
   kiem('bỏ ô rỗng giữa chừng', bang(AUTH.tachPhamVi('K My,,K Long,'), ['K My', 'K Long']));
   kiem('rỗng -> []', bang(AUTH.tachPhamVi(''), []));
@@ -132,13 +132,13 @@ console.log('\n4) phamViKhuVuc — ai xem được những khu vực nào');
 {
   const chu = { email: 'rise@x.com', laChu: true, phamVi: [] };
   const kvt = { email: 'my@x.com', laChu: false, phamVi: ['K My'] };
-  const dvt = { email: 'uyen@x.com', laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'TT Châu'] };
+  const dvt = { email: 'uyen@x.com', laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'K Châu'] };
   const chuaGan = { email: 'moi@x.com', laChu: false, phamVi: [] };
 
   kiem('Chủ/Admin thấy TOÀN BỘ', bang(AUTH.phamViKhuVuc(chu, KHU_VUC), KHU_VUC));
   kiem('Chủ thấy hết dù phamVi rỗng', AUTH.phamViKhuVuc(chu, KHU_VUC).length === 8);
   kiem('Khu vực trưởng chỉ thấy 1', bang(AUTH.phamViKhuVuc(kvt, KHU_VUC), ['K My']));
-  kiem('Địa vực trưởng thấy cả 3', bang(AUTH.phamViKhuVuc(dvt, KHU_VUC), ['Đ Uyên', 'K Thành', 'TT Châu']));
+  kiem('Địa vực trưởng thấy cả 3', bang(AUTH.phamViKhuVuc(dvt, KHU_VUC), ['Đ Uyên', 'K Thành', 'K Châu']));
   kiem('⚠️ CHƯA gán phạm vi -> KHÔNG thấy gì (không phải thấy hết)',
     bang(AUTH.phamViKhuVuc(chuaGan, KHU_VUC), []));
   kiem('người gọi null -> không thấy gì', bang(AUTH.phamViKhuVuc(null, KHU_VUC), []));
@@ -159,13 +159,13 @@ console.log('\n5) duocXemKhuVuc — chặn/cho từng khu vực');
 {
   const chu = { laChu: true, phamVi: [] };
   const kvt = { laChu: false, phamVi: ['K My'] };
-  const dvt = { laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'TT Châu'] };
+  const dvt = { laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'K Châu'] };
 
   kiem('Chủ xem được mọi khu vực', KHU_VUC.every((k) => AUTH.duocXemKhuVuc(chu, k)));
   kiem('KVT xem được khu vực MÌNH', AUTH.duocXemKhuVuc(kvt, 'K My') === true);
   kiem('KVT KHÔNG xem được khu vực khác', AUTH.duocXemKhuVuc(kvt, 'K Long') === false);
   kiem('Địa vực trưởng xem được cả 3 khu vực trong địa vực',
-    ['Đ Uyên', 'K Thành', 'TT Châu'].every((k) => AUTH.duocXemKhuVuc(dvt, k)));
+    ['Đ Uyên', 'K Thành', 'K Châu'].every((k) => AUTH.duocXemKhuVuc(dvt, k)));
   kiem('Địa vực trưởng KHÔNG xem được ngoài địa vực', AUTH.duocXemKhuVuc(dvt, 'K My') === false);
   kiem('chưa gán -> chặn hết', AUTH.duocXemKhuVuc({ laChu: false, phamVi: [] }, 'K My') === false);
   kiem('khu vực rỗng -> chặn', AUTH.duocXemKhuVuc(kvt, '') === false);
@@ -191,16 +191,16 @@ console.log('\n6) setPhamVi — gán khu vực (chạy thật trên CSDL)');
   kiem('lưu đúng vào CSDL',
     sqlite.prepare('SELECT pham_vi p FROM access_control WHERE email=?').get('my@x.com').p === 'K My');
 
-  await TC.setPhamVi({ db }, 'uyen@x.com', ['Đ Uyên', 'K Thành', 'TT Châu']);
+  await TC.setPhamVi({ db }, 'uyen@x.com', ['Đ Uyên', 'K Thành', 'K Châu']);
   kiem('gán nhiều khu vực (địa vực trưởng)',
-    sqlite.prepare('SELECT pham_vi p FROM access_control WHERE email=?').get('uyen@x.com').p === 'Đ Uyên,K Thành,TT Châu');
+    sqlite.prepare('SELECT pham_vi p FROM access_control WHERE email=?').get('uyen@x.com').p === 'Đ Uyên,K Thành,K Châu');
 
   kiem('gán khu vực KHÔNG tồn tại -> báo lỗi rõ tên',
     (await nem(() => TC.setPhamVi({ db }, 'my@x.com', ['K Mỹ']))).includes('K Mỹ'));
   kiem('gán sai KHÔNG làm hỏng giá trị cũ',
     sqlite.prepare('SELECT pham_vi p FROM access_control WHERE email=?').get('my@x.com').p === 'K My');
-  kiem('TT Châu (chỉ có trong Cấu hình, không có trong hằng số) vẫn hợp lệ',
-    (await nem(() => TC.setPhamVi({ db }, 'my@x.com', ['TT Châu']))) === '');
+  kiem('K Châu (chỉ có trong Cấu hình, không có trong hằng số) vẫn hợp lệ',
+    (await nem(() => TC.setPhamVi({ db }, 'my@x.com', ['K Châu']))) === '');
   kiem('gán cho người CHƯA được duyệt -> chặn',
     (await nem(() => TC.setPhamVi({ db }, 'cho@x.com', ['K My']))).includes('duyệt'));
   kiem('email không có trong hệ thống -> chặn',
@@ -228,14 +228,14 @@ console.log('\n7) getApprovedAccess / checkAccess phải TRẢ VỀ phạm vi');
   taoCSDL();
   themNguoi('rise.shine1948@gmail.com', { laChu: 1, ten: 'Rise' });
   themNguoi('my@x.com', { ten: 'K My', phamVi: 'K My' });
-  themNguoi('uyen@x.com', { ten: 'Đ Uyên', phamVi: 'Đ Uyên,K Thành,TT Châu' });
+  themNguoi('uyen@x.com', { ten: 'Đ Uyên', phamVi: 'Đ Uyên,K Thành,K Châu' });
   themNguoi('moi@x.com', { ten: 'Chưa gán' });
 
   const ds = await TC.getApprovedAccess({ db });
   const tim = (e) => ds.find((x) => x.email === e);
   kiem('danh sách đủ 4 người', ds.length === 4);
   kiem('KVT trả về đúng 1 khu vực', bang(tim('my@x.com').phamVi, ['K My']));
-  kiem('Địa vực trưởng trả về đủ 3', bang(tim('uyen@x.com').phamVi, ['Đ Uyên', 'K Thành', 'TT Châu']));
+  kiem('Địa vực trưởng trả về đủ 3', bang(tim('uyen@x.com').phamVi, ['Đ Uyên', 'K Thành', 'K Châu']));
   kiem('người chưa gán -> mảng rỗng', bang(tim('moi@x.com').phamVi, []));
   kiem('mọi dòng đều CÓ trường phamVi (giao diện khỏi phải kiểm null)',
     ds.every((x) => Array.isArray(x.phamVi)));
@@ -295,7 +295,7 @@ console.log('\n9) ⚠️ CHẶN THEO KHU VỰC Ở ROUTER — khuVucBiChan');
   const NK = await import(join(goc, 'src/nhat-ky.js'));
   const chu = { laChu: true, phamVi: [] };
   const kvt = { laChu: false, phamVi: ['K My'] };
-  const dvt = { laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'TT Châu'] };
+  const dvt = { laChu: false, phamVi: ['Đ Uyên', 'K Thành', 'K Châu'] };
   const chuaGan = { laChu: false, phamVi: [] };
   // saveTPWeek(thang, khuVuc, ...) -> khuVuc ở vị trí 1
   const viTri = NK.VI_TRI_KHU_VUC;

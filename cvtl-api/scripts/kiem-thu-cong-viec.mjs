@@ -52,7 +52,7 @@ function taoCSDL() {
   sqlite = new DatabaseSync(':memory:');
   sqlite.exec(SQL_KHOI_TAO);
   db = bocSqlite(sqlite);
-  for (const [i, kv] of ['Đ Uyên', 'K Thành', 'TT Châu'].entries())
+  for (const [i, kv] of ['Đ Uyên', 'K Thành', 'K Châu'].entries())
     sqlite.prepare("INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('khu_vuc',?,?)").run(kv, i + 1);
   const them = (kv, ten, thuTu) =>
     sqlite.prepare('INSERT INTO diem_danh_roster (khu_vuc, ten, thu_tu) VALUES (?,?,?)').run(kv, ten, thuTu);
@@ -127,7 +127,7 @@ console.log('\n2) Danh sách người lấy từ bảng Điểm danh của ĐÚN
   kiem('K Thành KHÔNG thấy người của Đ Uyên',
     !r.result.thanhVien.some(x => x.ten === 'N Thị Ngân'), JSON.stringify(r.result.thanhVien.map(x => x.ten)));
 
-  r = await goi('getCVCongViec', ['TT Châu', '2026-08']);
+  r = await goi('getCVCongViec', ['K Châu', '2026-08']);
   kiem('khu vực chưa có ai -> danh sách rỗng, không báo lỗi',
     Array.isArray(r.result?.thanhVien) && r.result.thanhVien.length === 0, JSON.stringify(r));
 
@@ -267,14 +267,14 @@ console.log('\n8) Chuyển khu vực thì số liệu công việc ĐI THEO ngư
   await luu('Đ Uyên', 'N Thị Ngân', '2026-08', 4, 'chieu', 'T3', '127');
   await luu('Đ Uyên', 'N Thị Ngân', '2026-08', 5, 'toi', 'CN', '203');
 
-  const r = await goi('chuyenThanhVienKhuVuc', ['Đ Uyên', ['N Thị Ngân'], 'TT Châu'], CHU);
-  kiem('chuyển sang TT Châu thành công', r.result?.success === true, JSON.stringify(r));
+  const r = await goi('chuyenThanhVienKhuVuc', ['Đ Uyên', ['N Thị Ngân'], 'K Châu'], CHU);
+  kiem('chuyển sang K Châu thành công', r.result?.success === true, JSON.stringify(r));
 
   const chiTiet = r.result?.ketQua?.[0]?.chiTiet?.find((x) => x.bang === 'cv_cong_viec');
   kiem('cv_cong_viec nằm trong danh sách bảng được chuyển', !!chiTiet, JSON.stringify(r.result?.ketQua?.[0]?.chiTiet?.map(x => x.bang)));
   kiem('đã chuyển đúng 2 dòng', chiTiet?.daChuyen === 2, JSON.stringify(chiTiet));
 
-  let g = await goi('getCVCongViec', ['TT Châu', '2026-08']);
+  let g = await goi('getCVCongViec', ['K Châu', '2026-08']);
   const m = g.result.thanhVien.find(x => x.ten === 'N Thị Ngân');
   kiem('sang khu vực mới vẫn thấy đủ số liệu cũ',
     m && m.o.chieu['4-T3'] === '127' && m.o.toi['5-CN'] === '203', JSON.stringify(m && m.o));
@@ -388,14 +388,14 @@ console.log('\n9) Thêm / Ẩn / Hiện lại người — KHÔNG đụng bảng
   taoCSDL();
   await goi('addCVNguoi', ['Đ Uyên', 'Cô Duyên']);
   await luu('Đ Uyên', 'Cô Duyên', '2026-08', 3, 'chieu', 'T5', '77');
-  r = await goi('chuyenThanhVienKhuVuc', ['Đ Uyên', ['Cô Duyên'], 'TT Châu'], CHU);
+  r = await goi('chuyenThanhVienKhuVuc', ['Đ Uyên', ['Cô Duyên'], 'K Châu'], CHU);
   kiem('chuyển người TỰ THÊM sang khu vực khác thành công', r.result?.success === true, JSON.stringify(r));
   kiem('cv_nguoi nằm trong danh sách bảng được chuyển',
     !!r.result?.ketQua?.[0]?.chiTiet?.find(x => x.bang === 'cv_nguoi'),
     JSON.stringify(r.result?.ketQua?.[0]?.chiTiet?.map(x => x.bang)));
-  kiem('khu vực MỚI thấy người đó', (await tenTrongBang('TT Châu')).includes('Cô Duyên'));
+  kiem('khu vực MỚI thấy người đó', (await tenTrongBang('K Châu')).includes('Cô Duyên'));
   kiem('khu vực CŨ không còn', !(await tenTrongBang('Đ Uyên')).includes('Cô Duyên'));
-  g = await goi('getCVCongViec', ['TT Châu', '2026-08']);
+  g = await goi('getCVCongViec', ['K Châu', '2026-08']);
   kiem('số liệu theo sang khu vực mới',
     g.result.thanhVien.find(x => x.ten === 'Cô Duyên')?.o.chieu['3-T5'] === '77');
 }

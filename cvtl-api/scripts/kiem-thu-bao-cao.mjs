@@ -52,7 +52,7 @@ function bocSqlite(conn) {
   };
 }
 
-const KHU_VUC = ['Đ Uyên', 'K Thành', 'TT Châu', 'K My'];
+const KHU_VUC = ['Đ Uyên', 'K Thành', 'K Châu', 'K My'];
 
 function taoCSDL() {
   sqlite = new DatabaseSync(':memory:');
@@ -65,7 +65,7 @@ function taoCSDL() {
 // --- người gọi ---
 const CHU = { email: 'chu@gmail.com', ten: 'Trưởng phòng', laChu: true };
 const KVT = { email: 'kvt@gmail.com', ten: 'KVT K My', laChu: false, phamVi: 'K My' };
-const DVT = { email: 'dvt@gmail.com', ten: 'Địa vực', laChu: false, phamVi: 'Đ Uyên,K Thành,TT Châu' };
+const DVT = { email: 'dvt@gmail.com', ten: 'Địa vực', laChu: false, phamVi: 'Đ Uyên,K Thành,K Châu' };
 const THANH_DO = { email: 'td@gmail.com', ten: 'Thánh đồ', laChu: false, phamVi: '' };
 
 let tinNhan = [];
@@ -451,7 +451,7 @@ console.log('\n13) ⚠️ PHÂN QUYỀN — khoá ở MÁY CHỦ, không chỉ g
     String(r.error).includes('K My'), r.error);
 
   kiem('địa vực trưởng xem được cả 3 khu vực của mình',
-    !!(await goi('getBaoCaoTuan', ['2026-08', 'TT Châu'], DVT)).result);
+    !!(await goi('getBaoCaoTuan', ['2026-08', 'K Châu'], DVT)).result);
   kiem('địa vực trưởng KHÔNG xem được ngoài địa vực',
     !!(await goi('getBaoCaoTuan', ['2026-08', 'K My'], DVT)).error);
   kiem('Trưởng phòng / Admin xem được mọi khu vực',
@@ -606,7 +606,7 @@ console.log('\n16) ⭐⭐ TÍCH V từng hạng mục — cơ chế mới thay n
   g = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
   kiem('⚠️ ô tích của Đ Uyên KHÔNG lẫn sang K My',
     oTP(g.result, 3).daTich === true, 'K My tự tích tuần 3 nên vẫn true');
-  const gDU = await goi('getBaoCaoTuan', ['2026-08', 'TT Châu'], CHU);
+  const gDU = await goi('getBaoCaoTuan', ['2026-08', 'K Châu'], CHU);
   kiem('khu vực chưa ai tích thì sạch trơn',
     gDU.result.tuan.every((t) => t.hangMuc.every((h) => h.daTich === false)));
 }

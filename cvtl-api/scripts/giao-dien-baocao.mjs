@@ -41,7 +41,7 @@ const { DANH_MUC } = await import(join(GOC, 'cvtl-api/src/registry.js'));
 
 // --- dữ liệu mẫu, chép theo số thật tháng 8/2026 ---
 // ⚠️ "Đ Uyên" cố ý để ĐẦU danh sách — đó chính là cái bẫy đã bắt được ở phần 3.
-const KV = ['Đ Uyên', 'K Thành', 'TT Châu', 'K My'];
+const KV = ['Đ Uyên', 'K Thành', 'K Châu', 'K My'];
 KV.forEach((k, i) => sqlite.prepare("INSERT INTO config_list (loai, gia_tri, thu_tu) VALUES ('khu_vuc',?,?)").run(k, i + 1));
 for (const t of [1, 2, 3, 4]) sqlite.prepare('INSERT INTO tp_tho_phuong (thang,khu_vuc,loai,tuan,so_luong) VALUES (?,?,?,?,?)').run('2026-08', 'K Thành', '1lan', t, 5);
 for (const t of [1, 2, 3]) sqlite.prepare('INSERT INTO giao_duc_thanh_vien (thang,khu_vuc,ten,tuan,edu_lms,tt127_ngay) VALUES (?,?,?,?,?,0)').run('2026-08', 'K Thành', 'Cô C', t, 'x');
@@ -49,9 +49,9 @@ for (const d of ['2026-08-02', '2026-08-14', '2026-08-23']) sqlite.prepare('INSE
 sqlite.prepare("INSERT INTO le_hoi_cau_hinh (ma_le_hoi,ten_le_hoi,ngay_bat_dau,ngay_ket_thuc,danh_sach_bai,so_lan_yeu_cau) VALUES ('2026-08-loi','Lễ hội Lời','2026-08-01','2026-08-30','4-6,4-7',3)").run();
 // ⭐ Mục tiêu cá nhân — CỐ Ý chỉ gieo cho 2/4 khu vực, và K Thành cố ý để
 // mt_bt = 0. Nhờ vậy bảng Thi đua kiểm được ĐỦ ba nhánh của một ô:
-//   có mục tiêu + có số (K Thành ĐT 3/4) · có mục tiêu + chưa có số (TT Châu
+//   có mục tiêu + có số (K Thành ĐT 3/4) · có mục tiêu + chưa có số (K Châu
 //   0/10) · CHƯA đặt mục tiêu (K Thành BT, và cả Đ Uyên / K My).
-for (const [kv, ten, dt, hh, bt] of [['K Thành', 'Cô A', 4, 1, 0], ['TT Châu', 'Cô B', 10, 2, 1]]) {
+for (const [kv, ten, dt, hh, bt] of [['K Thành', 'Cô A', 4, 1, 0], ['K Châu', 'Cô B', 10, 2, 1]]) {
   sqlite.prepare('INSERT INTO muc_tieu_ca_nhan (thang,khu_vuc,ten,mt_don_thuan,mt_huu_hieu,mt_bt,mt_tt127_ngay) VALUES (?,?,?,?,?,?,0)')
     .run('2026-08', kv, ten, dt, hh, bt);
 }
@@ -114,7 +114,7 @@ async function vaoVai(vai, phamVi, laChu) {
     Object.keys(_apiCache).forEach((k) => delete _apiCache[k]);
     showPanel('kv');
     document.getElementById('kvMonth').value = '2026-08';
-    khuVucList = ['Đ Uyên', 'K Thành', 'TT Châu', 'K My'];
+    khuVucList = ['Đ Uyên', 'K Thành', 'K Châu', 'K My'];
     showUserBar_('ai@do.com');
     renderKVPills();
   }, [phamVi, laChu]);

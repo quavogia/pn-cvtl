@@ -1615,7 +1615,7 @@
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
           <div>
             <label style="font-size:12px;color:#64748b;display:block;">Tên khu vực mới</label>
-            <input type="text" id="kvNew_ten" placeholder="VD: TT Châu" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+            <input type="text" id="kvNew_ten" placeholder="VD: K Châu" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
           </div>
           <div>
             <label style="font-size:12px;color:#64748b;display:block;">Chèn ngay sau khu vực</label>
@@ -1649,7 +1649,7 @@
           </div>
           <div id="kvMove_dichMoiBox" style="display:none;">
             <label style="font-size:12px;color:#64748b;display:block;">Tên khu vực mới</label>
-            <input type="text" id="kvMove_dichMoi" placeholder="VD: TT Châu" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+            <input type="text" id="kvMove_dichMoi" placeholder="VD: K Châu" style="padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
           </div>
           <button type="button" onclick="chuyenThanhVienUI_()" style="padding:8px 16px;border-radius:6px;background:#16a34a;color:#fff;border:none;font-size:14px;cursor:pointer;">➡️ Chuyển đã chọn</button>
         </div>
@@ -8235,7 +8235,7 @@ function previewLocalUI(){
   if (loading) loading.style.display = 'none';
 
   // Danh sách các khu vực đầy đủ của Si-ôn
-  khuVucList = ['Đ Uyên', 'K Thành', 'TT Châu', 'K Trâm', 'K My', 'K Long', 'K Đức', 'SĐ'];
+  khuVucList = ['Đ Uyên', 'K Thành', 'K Châu', 'K Trâm', 'K My', 'K Long', 'K Đức', 'SĐ'];
   selectedKV = 'Đ Uyên';
   
   // Thiết lập tháng hiện tại cho các ô chọn tháng
@@ -8245,7 +8245,7 @@ function previewLocalUI(){
   const monthInput = document.getElementById('monthInput');
   if (monthInput) monthInput.value = curM;
 
-  // Render các chip khu vực: 📊 Tổng, Đ Uyên, K Thành, TT Châu...
+  // Render các chip khu vực: 📊 Tổng, Đ Uyên, K Thành, K Châu...
   renderKVPills();
 
   // Hiện tab con Báo cáo cho Admin

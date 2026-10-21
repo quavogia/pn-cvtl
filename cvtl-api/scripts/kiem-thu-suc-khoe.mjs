@@ -92,8 +92,8 @@ console.log('\n2) Đúng kiểu lỗi "K Thành" thật đã gặp — số lưu
 console.log('\n3) Khu vực chưa có thành viên nào trong roster (mới tạo, chưa ai chuyển vào)');
 {
   taoCSDL();
-  // TT Châu mới tạo, roster rỗng, nhưng lỡ có dòng TP > 0 sót lại thì vẫn phải bắt được.
-  themTP('2026-08', 'TT Châu', '1lan', 1, 3);
+  // K Châu mới tạo, roster rỗng, nhưng lỡ có dòng TP > 0 sót lại thì vẫn phải bắt được.
+  themTP('2026-08', 'K Châu', '1lan', 1, 3);
   const kq = await kiemTraSucKhoeDuLieu({ db });
   kiem('phát hiện bất thường khi roster rỗng nhưng có số TP > 0', kq.batThuong.length === 1);
   kiem('số thành viên hiện tại = 0', kq.batThuong[0].soThanhVienHienTai === 0);

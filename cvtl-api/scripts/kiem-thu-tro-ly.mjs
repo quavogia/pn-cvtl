@@ -36,7 +36,7 @@ function bocSqlite(conn) {
   };
 }
 
-const KV = ['K My', 'Đ Uyên', 'TT Châu'];
+const KV = ['K My', 'Đ Uyên', 'K Châu'];
 function taoCSDL() {
   sqlite = new DatabaseSync(':memory:');
   sqlite.exec(SQL_KHOI_TAO);
@@ -254,7 +254,7 @@ console.log('\n10) Tỉ lệ trong tháng + chặn tháng sai');
   kiem('⭐ Báp-têm/"đi tiếp" = bt/huuHieu = 1/3 = 33%',
     k.tyLeTrongThang.btTrenDiTiep === 33, String(k.tyLeTrongThang.btTrenDiTiep));
   kiem('⭐ mẫu số = 0 thì trả null chứ không phải 0%',
-    tl.khuVuc.find((x) => x.khuVuc === 'TT Châu').tyLeTrongThang.btTrenDiTiep === null);
+    tl.khuVuc.find((x) => x.khuVuc === 'K Châu').tyLeTrongThang.btTrenDiTiep === null);
 
   // Ca kiểm thử mới T-010 (Điều kiện 1d): học viên nhảy thẳng B1 lên BT trong tháng
   // chỉ được đếm MỘT lần vào "đi tiếp", và btTrenDiTiep = 100% (không phải 50%).
