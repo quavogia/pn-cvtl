@@ -2213,9 +2213,9 @@ function renderStudents(list){
     body.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#94a3b8;padding:18px;">Chưa có học viên nào trong tháng này.</td></tr>';
     return;
   }
-  body.innerHTML = list.map(function(s){
+  body.innerHTML = list.map(function(s, i){
     return '<tr>' +
-      '<td>' + esc(s.stt) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.ngayDau) + '</td><td>' + esc(s.diaChi) + '</td>' +
+      '<td>' + (i + 1) + '</td><td>' + esc(s.ten) + '</td><td>' + esc(s.ngay) + '</td><td>' + esc(s.ngayDau) + '</td><td>' + esc(s.diaChi) + '</td>' +
       '<td>' + esc(s.ndd1) + '</td><td>' + esc(s.ndd2) + '</td><td>' + esc(s.ndd3) + '</td>' +
       '<td>' + esc(s.to) + '</td><td>' + esc(s.tienDo) + '</td>' +
       '<td class="danhgia-cell">' + danhGiaCellHtml_(s.danhGia, s.row) + '</td>' +
@@ -2313,7 +2313,12 @@ function kiemTraKhopBoLoc_(s){
 function applyFilter(){
   const list = allStudents.filter(kiemTraKhopBoLoc_);
   list.sort(function(a, b){
-    return (Number(a.stt) || 0) - (Number(b.stt) || 0);
+    const da = parseVNDate(a.ngay);
+    const db = parseVNDate(b.ngay);
+    const ta = da ? da.getTime() : -Infinity;
+    const tb = db ? db.getTime() : -Infinity;
+    if (tb !== ta) return tb - ta;
+    return (Number(b.stt) || 0) - (Number(a.stt) || 0);
   });
   renderStudents(list);
 }
