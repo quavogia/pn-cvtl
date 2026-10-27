@@ -64,6 +64,11 @@ export const DANH_MUC = {
   // --- Cấu hình dùng chung ---
   getDropdownOptions:     { doc: true,  fn: cauHinh.getDropdownOptions },
 
+  // Quản lý Người dẫn dắt (T-020, 27/10/2026) — chỉ tài khoản chủ
+  getDanhSachNguoiDanDat: { doc: true,  chuThoi: true, fn: cauHinh.getDanhSachNguoiDanDat },
+  addNguoiDanDat:         { doc: false, chuThoi: true, fn: cauHinh.addNguoiDanDat },
+  deleteNguoiDanDat:      { doc: false, chuThoi: true, fn: cauHinh.deleteNguoiDanDat },
+
   // --- Điểm danh ---
   getDiemDanhRoster:      { doc: true,  fn: diemDanh.getDiemDanhRoster },
   getDiemDanhTPGoiY:      { doc: true,  fn: diemDanh.getDiemDanhTPGoiY },

@@ -552,7 +552,7 @@ console.log('\n14) Độ phủ — chạm hết các hàm của tru-do.js');
   const thieu = canPhu.filter((t) => !hamNoiBo.includes(t) && !trongDanhMuc.includes(t));
   kiem('mọi hàm đều đã nối vào danh mục (trừ hàm nội bộ)',
     thieu.length === 0, 'còn thiếu: ' + thieu.join(', '));
-  kiem('danh mục có đủ 106 hàm', trongDanhMuc.length === 106, 'thực tế: ' + trongDanhMuc.length);
+  kiem('danh mục có đủ 109 hàm', trongDanhMuc.length === 109, 'thực tế: ' + trongDanhMuc.length);
 }
 
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);

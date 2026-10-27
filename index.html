@@ -1681,6 +1681,23 @@
         </p>
         <button type="button" onclick="donDepTPTatCaUI_()" style="padding:8px 16px;border-radius:6px;background:#b91c1c;color:#fff;border:none;font-size:14px;cursor:pointer;">🧹🧹 Dọn dẹp TẤT CẢ khu vực</button>
       </div>
+
+      <div class="card" id="nddManageCard">
+        <h3>4. Quản lý người dẫn dắt (<span id="nddManageCount">0</span> người)</h3>
+        <p style="font-size:12px;color:#64748b;">
+          Danh sách gợi ý cho các ô <b>Người dẫn dắt 1/2/3</b> (phiếu Học viên, Đơn thuần, Sổ mốc), <b>Người phụ trách / tham gia</b> (Lịch làm việc) và thêm thành viên mới ở tab <b>Giáo dục</b>.
+          Thêm hoặc xoá tại đây sẽ có hiệu lực ngay lập tức mà không cần tải lại trang.
+          <br>🔒 <b>Rào an toàn khi xoá:</b> nếu tên vẫn đang đứng ở <b>Học viên</b> hoặc <b>Lịch làm việc</b> thì hệ thống chặn xoá (để tránh lỗi không lưu được khi sửa học viên / lịch đó về sau).
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+          <div style="flex:1;min-width:220px;max-width:360px;">
+            <label for="nddNew_ten" style="font-size:12px;color:#64748b;display:block;">Tên người dẫn dắt mới (tối đa 60 ký tự, không chứa dấu phẩy)</label>
+            <input type="text" id="nddNew_ten" maxlength="60" placeholder="VD: Nguyễn Văn An" onkeydown="if(event.key==='Enter'){event.preventDefault();themNguoiDanDatUI_();}" style="width:100%;box-sizing:border-box;padding:8px;border:1px solid #cbd5e1;border-radius:6px;font-size:14px;">
+          </div>
+          <button type="button" id="nddNew_btn" onclick="themNguoiDanDatUI_()" style="padding:8px 16px;border-radius:6px;background:#2563eb;color:#fff;border:none;font-size:14px;cursor:pointer;">➕ Thêm người dẫn dắt</button>
+        </div>
+        <div id="nddManageBox" style="overflow-x:auto;color:#94a3b8;font-size:13px;">Đang tải danh sách…</div>
+      </div>
     </div>
 
   </div>
@@ -1762,7 +1779,7 @@ const API_BASE = MAY_CHU_MOI;
 // phòng đã dùng ổn định nhiều ngày, không còn ở giai đoạn "thử" nữa nên bỏ hẳn cho gọn.
 // Từ 22/08/2026 không còn máy chủ cũ để quay về nữa — xem _mayChuDangDung ở trên.
 console.log('[CVTL] Máy chủ đang dùng: MỚI (Cloudflare) —', API_BASE, '| _mayChuDangDung =', _mayChuDangDung);
-const API_READ_FNS = new Set(['getDropdownOptions', 'getStudents', 'getStats', 'getProgressBreakdown',
+const API_READ_FNS = new Set(['getDropdownOptions', 'getDanhSachNguoiDanDat', 'getStudents', 'getStats', 'getProgressBreakdown',
   'getMonthlySummaryByKV', 'getMonthlySummaryOverall', 'getKhuVucOverview', 'getAllKhuVucOverview', 'getAllKhuVucWeekly', 'getDonThuanLogs', 'getTopNguoiDanDat',
   'getTPSummary', 'getGiaoDucMembers', 'getGiaoDucWeekly', 'getGiaoDucWeeklyAll', 'getLichTuan', 'getPersonalGoalsAllKhuVuc',
   'getDaoTaoTienDoAll', 'getDaoTaoViecList', 'getLeHoiActive', 'getLeHoiTienDoAll', 'getLeHoiBanner', 'getLeHoiXepHang', 'checkAccess',
@@ -5663,6 +5680,139 @@ function loadQuanLyKhuVuc_(){
     '<option value="__moi__">+ Khu vực mới...</option>';
   document.getElementById('kvMove_dichMoiBox').style.display = 'none';
   document.getElementById('kvMoveRosterBox').innerHTML = '<p style="color:#94a3b8;font-size:13px;">Chọn Khu vực nguồn để hiện danh sách thành viên.</p>';
+  loadQuanLyNdd_();
+}
+
+window._qlNddList = [];
+
+function capNhatNddToanTrang_(danhSach){
+  const ds = Array.isArray(danhSach) ? danhSach : [];
+  window._qlNddList = ds;
+  nddList = ds.map(function(x){ return x.ten; });
+  const dl = document.getElementById('nddDatalist');
+  if (dl) fillDatalist(dl, nddList);
+  renderQuanLyNdd_(ds);
+}
+
+function loadQuanLyNdd_(){
+  if (!isChuTaiKhoan_()) return;
+  const box = document.getElementById('nddManageBox');
+  if (box) box.innerHTML = '<span style="color:#94a3b8;">Đang tải danh sách…</span>';
+  google.script.run.withSuccessHandler(function(ds){
+    capNhatNddToanTrang_(ds);
+  }).withFailureHandler(function(err){
+    if (box) box.innerHTML = '<span style="color:#dc2626;">Không tải được danh sách: ' + esc(err.message) + '</span>';
+  }).getDanhSachNguoiDanDat();
+}
+
+function renderQuanLyNdd_(ds){
+  const box = document.getElementById('nddManageBox');
+  const cnt = document.getElementById('nddManageCount');
+  const list = Array.isArray(ds) ? ds : [];
+  if (cnt) cnt.textContent = list.length;
+  if (!box) return;
+  if (!list.length) {
+    box.innerHTML = '<div style="color:#94a3b8;">Chưa có người dẫn dắt nào trong danh sách.</div>';
+    return;
+  }
+  let h = '<table style="width:100%;border-collapse:collapse;font-size:13px;min-width:480px;">' +
+    '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">' +
+    '<th style="padding:7px 8px;width:44px;text-align:center;">STT</th>' +
+    '<th style="padding:7px 8px;">Họ và tên</th>' +
+    '<th style="padding:7px 8px;">Đang dùng (Học viên / Lịch)</th>' +
+    '<th style="padding:7px 8px;">Lịch sử / Giáo dục</th>' +
+    '<th style="padding:7px 8px;width:110px;text-align:right;">Thao tác</th>' +
+    '</tr></thead><tbody>';
+  list.forEach(function(m, idx){
+    const dangDung = [];
+    if (m.soHocVien > 0) dangDung.push(m.soHocVien + ' học viên');
+    if (m.soLichLamViec > 0) dangDung.push(m.soLichLamViec + ' lịch làm việc');
+    const lichSu = [];
+    if (m.soDonThuan > 0) lichSu.push(m.soDonThuan + ' đơn thuần');
+    if (m.soSoMoc > 0) lichSu.push(m.soSoMoc + ' sổ mốc');
+    if (m.soGiaoDuc > 0) lichSu.push(m.soGiaoDuc + ' KV giáo dục');
+    const biChan = dangDung.length > 0;
+    const nutXoa = biChan
+      ? '<button type="button" class="secondary" id="nddDelBtn_' + idx + '" onclick="xoaNguoiDanDatUI_(' + idx + ')" title="Đang dùng ở ' + esc(dangDung.join(', ')) + ' — sửa các mục đó trước khi xoá" style="opacity:.6;font-size:12px;padding:4px 10px;">🔒 Đang dùng</button>'
+      : '<button type="button" class="danger" id="nddDelBtn_' + idx + '" onclick="xoaNguoiDanDatUI_(' + idx + ')" style="font-size:12px;padding:4px 10px;">Xoá</button>';
+    h += '<tr style="border-bottom:1px solid #f1f5f9;">' +
+      '<td style="padding:7px 8px;text-align:center;color:#64748b;">' + (idx + 1) + '</td>' +
+      '<td style="padding:7px 8px;font-weight:600;color:#0f172a;">' + esc(m.ten) + '</td>' +
+      '<td style="padding:7px 8px;">' + (biChan ? '<span style="color:#b45309;font-weight:600;">' + esc(dangDung.join(', ')) + '</span>' : '<span style="color:#94a3b8;">0</span>') + '</td>' +
+      '<td style="padding:7px 8px;color:#64748b;">' + (lichSu.length ? esc(lichSu.join(' · ')) : '—') + '</td>' +
+      '<td style="padding:7px 8px;text-align:right;">' + nutXoa + '</td>' +
+      '</tr>';
+  });
+  h += '</tbody></table>';
+  box.innerHTML = h;
+}
+
+function themNguoiDanDatUI_(){
+  if (!isChuTaiKhoan_()) return;
+  const inp = document.getElementById('nddNew_ten');
+  const btn = document.getElementById('nddNew_btn');
+  const tho = inp ? String(inp.value || '') : '';
+  if (tho.indexOf(',') !== -1) {
+    showMsg('Tên không được chứa dấu phẩy.', false);
+    if (inp) inp.focus();
+    return;
+  }
+  const ten = tho.normalize('NFC').trim().replace(/\s+/g, ' ');
+  if (!ten) {
+    showMsg('Vui lòng nhập tên người dẫn dắt.', false);
+    if (inp) inp.focus();
+    return;
+  }
+  if (ten.length > 60) {
+    showMsg('Tên người dẫn dắt không được dài quá 60 ký tự.', false);
+    if (inp) inp.focus();
+    return;
+  }
+  if (btn) { btn.disabled = true; btn.textContent = 'Đang thêm…'; }
+  google.script.run.withSuccessHandler(function(r){
+    if (btn) { btn.disabled = false; btn.textContent = '➕ Thêm người dẫn dắt'; }
+    if (inp) { inp.value = ''; inp.focus(); }
+    if (r && Array.isArray(r.danhSach)) capNhatNddToanTrang_(r.danhSach);
+    else { loadQuanLyNdd_(); loadDropdowns(); }
+    showMsg('Đã thêm người dẫn dắt "' + ((r && r.ten) || ten) + '".', true);
+  }).withFailureHandler(function(err){
+    if (btn) { btn.disabled = false; btn.textContent = '➕ Thêm người dẫn dắt'; }
+    showMsg('Không thêm được: ' + err.message, false);
+  }).addNguoiDanDat(ten);
+}
+
+function xoaNguoiDanDatUI_(idx){
+  if (!isChuTaiKhoan_()) return;
+  const muc = (window._qlNddList || [])[idx];
+  if (!muc) return;
+  if ((muc.soHocVien || 0) > 0 || (muc.soLichLamViec || 0) > 0) {
+    const chiTiet = [];
+    if (muc.soHocVien > 0) chiTiet.push(muc.soHocVien + ' học viên');
+    if (muc.soLichLamViec > 0) chiTiet.push(muc.soLichLamViec + ' lịch làm việc');
+    showMsg('Không thể xoá "' + muc.ten + '" vì còn đang dùng ở: ' + chiTiet.join(', ') + '. Vui lòng sửa các dòng đó trước.', false);
+    return;
+  }
+  const lichSu = [];
+  if (muc.soDonThuan > 0) lichSu.push(muc.soDonThuan + ' nhật ký đơn thuần');
+  if (muc.soSoMoc > 0) lichSu.push(muc.soSoMoc + ' sổ mốc');
+  if (muc.soGiaoDuc > 0) lichSu.push(muc.soGiaoDuc + ' khu vực giáo dục');
+  let hoi = 'Xoá "' + muc.ten + '" khỏi danh sách Người dẫn dắt?';
+  if (lichSu.length) {
+    hoi += '\n\n⚠️ Lưu ý: Người này không còn đứng tên ở Học viên hay Lịch làm việc, nhưng có trong lịch sử (' +
+      lichSu.join(', ') + '). Xoá khỏi danh sách gợi ý sẽ KHÔNG làm mất số liệu lịch sử đó.';
+  }
+  if (!confirm(hoi)) return;
+  const btn = document.getElementById('nddDelBtn_' + idx);
+  if (btn) { btn.disabled = true; btn.textContent = 'Đang xoá…'; }
+  google.script.run.withSuccessHandler(function(r){
+    if (r && Array.isArray(r.danhSach)) capNhatNddToanTrang_(r.danhSach);
+    else { loadQuanLyNdd_(); loadDropdowns(); }
+    showMsg('Đã xoá "' + muc.ten + '" khỏi danh sách Người dẫn dắt.', true);
+  }).withFailureHandler(function(err){
+    if (btn) { btn.disabled = false; btn.textContent = 'Xoá'; }
+    showMsg('Không xoá được: ' + err.message, false);
+    loadQuanLyNdd_();
+  }).deleteNguoiDanDat(muc.ten);
 }
 
 function themKhuVucMoiUI_(){
@@ -8139,7 +8289,17 @@ function showUserBar_(email){
   }
   // Chỉ tài khoản chủ mới thấy mục "Quản lý khu vực" (thêm 19/08/2026).
   const navKhuVuc = document.getElementById('navKhuVuc');
-  if (navKhuVuc) navKhuVuc.style.display = isChuTaiKhoan_() ? 'flex' : 'none';
+  if (navKhuVuc) {
+    if (isChuTaiKhoan_()) navKhuVuc.style.display = 'flex';
+    else {
+      navKhuVuc.style.display = 'none';
+      window._qlNddList = [];
+      const nddBox = document.getElementById('nddManageBox');
+      if (nddBox) nddBox.innerHTML = '';
+      const pKhuVuc = document.getElementById('panel-khuvuc');
+      if (pKhuVuc && pKhuVuc.classList.contains('active')) showPanel('stats');
+    }
+  }
   // Tab con "📋 Báo cáo" chỉ dành cho người CÓ khu vực phụ trách + Admin.
   // ⚠️ Cũng phải ĐẨY HỌ RA khỏi tab đó nếu đang mở mà bị gỡ phạm vi — giấu
   // mỗi cái nút thì bảng cũ vẫn nằm nguyên trên màn hình (bài học #49).

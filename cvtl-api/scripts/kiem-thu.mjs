@@ -475,7 +475,7 @@ console.log('\n7) Đã chuyển xong toàn bộ — không còn hàm nào báo "
   // chỉ tài khoản chủ — thêm 19/08/2026)
   // + getKeHoachThang/saveKeHoachThang/getAllKeHoachThang (Kế hoạch Tin Lành tháng — thêm 04/10/2026)
   // + getKetQuaMuc/saveKetQuaMuc/getAllKetQuaMuc (Thực hiện kế hoạch — thêm 20/10/2026).
-  kiem('danh mục đủ 106 hàm', ten.length === 106, 'thực tế: ' + ten.length);
+  kiem('danh mục đủ 109 hàm', ten.length === 109, 'thực tế: ' + ten.length);
   const chuaNoi = ten.filter((t) => typeof DM[t].fn !== 'function' || DM[t].chuaChuyen);
   kiem('mọi hàm đều đã nối vào mã thật', chuaNoi.length === 0, chuaNoi.join(', '));
 
