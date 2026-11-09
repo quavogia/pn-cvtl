@@ -92,7 +92,7 @@ export function tuanCuaNgay(ngayKey) {
 
 /**
  * Trạng thái thời gian của một tuần so với HÔM NAY.
- *   'da_qua'    — tuần đã kết thúc (kể cả 2 ngày ân hạn thì mới tính trễ)
+ *   'da_qua'    — tuần đã kết thúc (sau ngày cuối tuần)
  *   'dang_dien' — tuần đang diễn ra
  *   'chua_toi'  — tuần chưa bắt đầu
  * `homNayKey` dạng 'yyyy-MM-dd'.

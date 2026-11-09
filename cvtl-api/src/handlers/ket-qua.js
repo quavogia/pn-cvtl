@@ -22,6 +22,54 @@ import { duocXemKhuVuc, tachPhamVi } from '../auth.js';
 
 export const CAC_MUC_HOP_LE = ['tp', 'trudo', 'edu', 'daotao', 'lehoi'];
 
+export const TEN_MUC_KET_QUA = {
+  tp: 'Thờ phượng',
+  trudo: 'Trudo',
+  edu: 'Giáo dục',
+  daotao: 'Đào tạo',
+  lehoi: 'Lễ hội',
+};
+
+/**
+ * Định nghĩa DUY NHẤT "một mảng đã nhập kết quả" cho (thang, khu_vuc, tuan):
+ * dòng có ít nhất một trong hai ô da_lam / chua_lam khác rỗng sau khi trim.
+ * Dùng chung cho cả ket-qua.js và cột Kế hoạch tuần ở bao-cao.js (T-021).
+ */
+export function daNhapKetQuaMuc(dong) {
+  if (!dong) return false;
+  const da = chuoi(dong.da_lam !== undefined ? dong.da_lam : dong.daLam);
+  const chua = chuoi(dong.chua_lam !== undefined ? dong.chua_lam : dong.chuaLam);
+  return da !== '' || chua !== '';
+}
+
+/**
+ * Tóm tắt tiến độ nhập 5 mảng thực hiện kế hoạch của một (thang, khu_vuc, tuan).
+ * Duyệt theo đúng thứ tự CAC_MUC_HOP_LE để danh sách mảng thiếu/đã nhập ổn định.
+ */
+export function tomTatKetQuaTuan(dsDongCuaTuan) {
+  const daCoMuc = new Set();
+  for (const r of (dsDongCuaTuan || [])) {
+    const m = chuoi(r && r.muc);
+    if (CAC_MUC_HOP_LE.includes(m) && daNhapKetQuaMuc(r)) {
+      daCoMuc.add(m);
+    }
+  }
+  const dsMucDaNhap = [];
+  const dsMucThieu = [];
+  for (const m of CAC_MUC_HOP_LE) {
+    const ten = TEN_MUC_KET_QUA[m] || m;
+    if (daCoMuc.has(m)) dsMucDaNhap.push(ten);
+    else dsMucThieu.push(ten);
+  }
+  return {
+    soMucDaNhap: dsMucDaNhap.length,
+    tongSoMuc: CAC_MUC_HOP_LE.length,
+    daNhapDu: dsMucDaNhap.length === CAC_MUC_HOP_LE.length,
+    dsMucDaNhap,
+    dsMucThieu,
+  };
+}
+
 /**
  * Chuẩn hoá đối tượng người gọi để tương thích cả định dạng từ router
  * ({ laChu, phamVi }) lẫn đối tượng truyền trực tiếp trong kiểm thử
@@ -118,10 +166,11 @@ async function damBaoBang_(db) {
 /**
  * Nhận diện lỗi "chưa có bảng ket_qua_muc" khi CSDL chưa kịp chạy lệnh tạo bảng.
  */
-function laLoiChuaCoBang_(err) {
+export function laLoiChuaCoBangKetQuaMuc(err) {
   const msg = String((err && err.message) || err || '');
   return /no such table/i.test(msg) && /ket_qua_muc/i.test(msg);
 }
+const laLoiChuaCoBang_ = laLoiChuaCoBangKetQuaMuc;
 
 /**
  * Đọc kết quả thực hiện của 1 khu vực trong 1 tháng và 1 mảng công việc

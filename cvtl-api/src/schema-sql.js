@@ -67,7 +67,10 @@ export const CAU_LENH_TAO_BANG = [
   "CREATE INDEX IF NOT EXISTS ix_khm_thang ON ke_hoach_muc (thang)",
   // Thực hiện kế hoạch theo từng mảng và từng tuần (20/10/2026) — xem handlers/ket-qua.js
   "CREATE TABLE IF NOT EXISTS ket_qua_muc ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, muc TEXT NOT NULL, tuan INTEGER NOT NULL, da_lam TEXT NOT NULL DEFAULT '', chua_lam TEXT NOT NULL DEFAULT '', nguoi_cap_nhat TEXT, cap_nhat_luc TEXT, PRIMARY KEY (thang, khu_vuc, muc, tuan) )",
-  "CREATE INDEX IF NOT EXISTS ix_kqm_thang ON ket_qua_muc (thang)"
+  "CREATE INDEX IF NOT EXISTS ix_kqm_thang ON ket_qua_muc (thang)",
+  // Báo cáo kế hoạch tuần (09/11/2026 — T-021) — xem handlers/bao-cao.js
+  "CREATE TABLE IF NOT EXISTS bc_ke_hoach_tuan ( thang TEXT NOT NULL, khu_vuc TEXT NOT NULL, tuan INTEGER NOT NULL, da_bao_cao INTEGER NOT NULL DEFAULT 1, da_gui_tele INTEGER NOT NULL DEFAULT 1, nguoi_bao_cao TEXT, thoi_gian_ms INTEGER NOT NULL, PRIMARY KEY (thang, khu_vuc, tuan) )",
+  "CREATE INDEX IF NOT EXISTS ix_bckht_thang ON bc_ke_hoach_tuan (thang)"
 ];
 
 // =====================================================================

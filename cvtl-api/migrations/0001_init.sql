@@ -563,4 +563,20 @@ CREATE TABLE IF NOT EXISTS ket_qua_muc (
 );
 CREATE INDEX IF NOT EXISTS ix_kqm_thang ON ket_qua_muc (thang);
 
+-- ---------------------------------------------------------------------
+-- 27. Báo cáo kế hoạch tuần (09/11/2026 — T-021)
+-- ---------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS bc_ke_hoach_tuan (
+  thang          TEXT NOT NULL,
+  khu_vuc        TEXT NOT NULL,
+  tuan           INTEGER NOT NULL,
+  da_bao_cao     INTEGER NOT NULL DEFAULT 1,
+  da_gui_tele    INTEGER NOT NULL DEFAULT 1,
+  nguoi_bao_cao  TEXT,
+  thoi_gian_ms   INTEGER NOT NULL,
+  PRIMARY KEY (thang, khu_vuc, tuan)
+);
+CREATE INDEX IF NOT EXISTS ix_bckht_thang ON bc_ke_hoach_tuan (thang);
+
+
 

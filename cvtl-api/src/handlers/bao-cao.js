@@ -21,16 +21,30 @@ import { kiemTraThang, chuoi, homNay } from '../tien-ich.js';
 import { cacTuanCuaThang } from '../lich-tuan.js';
 import { phamViKhuVuc, duocXemKhuVuc } from '../auth.js';
 import { guiTelegramNgam, thoatHtml } from '../telegram.js';
+import {
+  daNhapKetQuaMuc,
+  laLoiChuaCoBangKetQuaMuc,
+  tomTatKetQuaTuan,
+} from './ket-qua.js';
 
 // ---------------------------------------------------------------------
 // Hằng số
 // ---------------------------------------------------------------------
 
 /**
- * Số ngày ân hạn sau khi tuần kết thúc mới tính là TRỄ (anh Rise chốt
- * 25/08/2026: "hết tuần + 2 ngày ân hạn, quá thì hiện ❌").
+ * Số ngày ân hạn sau khi tuần kết thúc mới tính là TRỄ (cập nhật 09/11/2026 — T-021):
+ *   - 4 cột nhập liệu đầu (cùng lễ hội): hạn hết Thứ Bảy -> AN_HAN_NGAY = 0.
+ *   - Cột thứ 5 "Kế hoạch tuần": hạn hết Chủ nhật -> AN_HAN_KE_HOACH_NGAY = 1.
  */
-export const AN_HAN_NGAY = 2;
+export const AN_HAN_NGAY = 0;
+export const AN_HAN_KE_HOACH_NGAY = 1;
+
+/**
+ * Ngày bắt đầu áp dụng cột thứ 5 "Kế hoạch tuần" (09/11/2026 — T-021):
+ * các dòng tuần có ngày đầu tuần < '2026-11-08' (gồm các tháng 8–10 và Tuần 1
+ * tháng 11) trả 'khong_ap_dung' để không báo trễ oan khi tính năng mới ra mắt.
+ */
+export const NGAY_BAT_DAU_KE_HOACH_TUAN = '2026-11-08';
 
 /**
  * Tuần lớn nhất mà các bảng NHẬP TAY chấp nhận (và trần áp dụng cho Trudo, Đào tạo).
@@ -68,18 +82,24 @@ export const HAM_LE_HOI = ['toggleLeHoiLan'];
  * Chỉ bỏ khỏi phần CHẤM ĐIỂM.
  */
 export const HANG_MUC = [
-  { ma: 'tho_phuong', ten: 'Thờ phượng', nhom: 'Thờ phượng' },
-  { ma: 'trudo_truyen_dao', ten: 'Trudo — truyền đạo', nhom: 'Trudo' },
-  { ma: 'giao_duc', ten: 'Giáo dục', nhom: 'Giáo dục' },
-  { ma: 'dao_tao', ten: 'Đào tạo 70 bài', nhom: 'Đào tạo' },
-  { ma: 'le_hoi', ten: 'Lễ hội Lời', nhom: 'Lễ hội' },
+  { ma: 'tho_phuong', ten: 'Thờ phượng', nhom: 'Thờ phượng', anHanNgay: AN_HAN_NGAY, kieu: 'tich' },
+  { ma: 'trudo_truyen_dao', ten: 'Trudo — truyền đạo', nhom: 'Trudo', anHanNgay: AN_HAN_NGAY, kieu: 'tich' },
+  { ma: 'giao_duc', ten: 'Giáo dục', nhom: 'Giáo dục', anHanNgay: AN_HAN_NGAY, kieu: 'tich' },
+  { ma: 'dao_tao', ten: 'Đào tạo 70 bài', nhom: 'Đào tạo', anHanNgay: AN_HAN_NGAY, kieu: 'tich' },
+  { ma: 'le_hoi', ten: 'Lễ hội Lời', nhom: 'Lễ hội', anHanNgay: AN_HAN_NGAY, kieu: 'tich' },
+  { ma: 'ke_hoach_tuan', ten: 'Kế hoạch tuần', nhom: 'Kế hoạch', anHanNgay: AN_HAN_KE_HOACH_NGAY, kieu: 'bao_cao' },
 ];
+
+export function anHanCuaHangMuc(maHangMuc) {
+  const h = HANG_MUC.find((x) => x.ma === maHangMuc);
+  return h && Number.isInteger(h.anHanNgay) ? h.anHanNgay : AN_HAN_NGAY;
+}
 
 /**
  * BỐN trạng thái của một ô trong bảng kiểm (27/08/2026 — trước là năm).
- *   du               ✅ người đã TÍCH V
- *   chua             ⬜ chưa tích, nhưng CHƯA quá hạn -> KHÔNG phải lỗi
- *   tre              ⬜ chưa tích và ĐÃ quá hạn (hết tuần + 2 ngày ân hạn)
+ *   du               ✅ người đã TÍCH V (hoặc đã bấm Báo cáo với cột Kế hoạch tuần)
+ *   chua             ⬜ chưa tích/báo cáo, nhưng CHƯA quá hạn -> KHÔNG phải lỗi
+ *   tre              ⬜ chưa tích/báo cáo và ĐÃ quá hạn (4 cột đầu: hết Thứ Bảy; Kế hoạch tuần: hết Chủ nhật)
  *   khong_ap_dung    ➖ tuần đó không có buổi / không áp dụng
  *
  * ⭐ ĐÃ BỎ trạng thái thứ năm (❓ "chưa đủ dữ liệu"): trước đây Đào tạo và Lễ
@@ -178,7 +198,7 @@ async function layDanhSachKhuVuc(db) {
 // việc khác hẳn nhau, và lẫn hai thứ đó lại chính là báo thiếu oan.
 // ---------------------------------------------------------------------
 async function gomDuLieuThang(db, thang) {
-  const [tp, gd, dt, moc, nk, mocNhatKy] = await Promise.all([
+  const [tp, gd, dt, moc, nk, mocNhatKy, kqMuc] = await Promise.all([
     // 1. Thờ phượng — CHỈ CẦN CÓ ÍT NHẤT MỘT DÒNG cho (tháng, kv, tuần).
     //    ⚠️ Cố ý KHÔNG đòi đủ cả hai loại '1lan' và '4lan'. Kiểm chứng số
     //    thật 26/08/2026: TUẦN 1 tháng 8/2026 chỉ có ĐÚNG MỘT buổi (Thứ Bảy
@@ -222,6 +242,13 @@ async function gomDuLieuThang(db, thang) {
     //    mốc này thì hệ thống KHÔNG CÓ CÁCH NÀO biết Đào tạo / Lễ hội có
     //    được nhập hay không → phải hiện ❓, tuyệt đối không hiện ⚠️.
     db.first('SELECT MIN(thoi_gian_ms) AS m FROM nhat_ky_thay_doi', []),
+
+    // 7. Thực hiện kế hoạch tuần (T-021) — đọc một lần theo tháng, chịu được
+    //    "no such table: ket_qua_muc" và tuyệt đối không phát sinh lệnh ghi.
+    db.all(
+      'SELECT khu_vuc, muc, tuan, da_lam, chua_lam FROM ket_qua_muc WHERE thang = ? AND tuan >= 1',
+      [thang]
+    ).catch((err) => (laLoiChuaCoBangKetQuaMuc(err) ? [] : Promise.reject(err))),
   ]);
 
   const co = {}; // ma -> Set('<kv>|<tuần>')
@@ -251,7 +278,18 @@ async function gomDuLieuThang(db, thang) {
     themTheoNgay(ma, r.khu_vuc, ngay);
   }
 
-  return { co, mocNhatKyMs: (mocNhatKy && Number(mocNhatKy.m)) || 0 };
+  const ketQuaTheoKvTuan = {};
+  for (const r of kqMuc || []) {
+    const k = chuoi(r.khu_vuc);
+    const t = Number(r.tuan);
+    if (!k || !t) continue;
+    const khoa = k + '|' + t;
+    if (!ketQuaTheoKvTuan[khoa]) ketQuaTheoKvTuan[khoa] = [];
+    ketQuaTheoKvTuan[khoa].push(r);
+    if (daNhapKetQuaMuc(r)) them('ke_hoach_tuan', k, t);
+  }
+
+  return { co, ketQuaTheoKvTuan, mocNhatKyMs: (mocNhatKy && Number(mocNhatKy.m)) || 0 };
 }
 
 /** '2026-08-23' -> 5 (tuần trong CHÍNH tháng của ngày đó). */
@@ -296,6 +334,30 @@ function tenHangMuc(h, leHoi) {
 }
 
 // ---------------------------------------------------------------------
+// Bảng bc_ke_hoach_tuan — chỉ tạo lười trong hàm GHI, hàm ĐỌC chịu "no such table"
+// ---------------------------------------------------------------------
+function laLoiChuaCoBangBcKeHoach(err) {
+  const msg = String((err && err.message) || err || '');
+  return /no such table/i.test(msg) && /bc_ke_hoach_tuan/i.test(msg);
+}
+
+async function damBaoBangBcKeHoach(db) {
+  await db.run(
+    'CREATE TABLE IF NOT EXISTS bc_ke_hoach_tuan ('
+    + ' thang TEXT NOT NULL,'
+    + ' khu_vuc TEXT NOT NULL,'
+    + ' tuan INTEGER NOT NULL,'
+    + ' da_bao_cao INTEGER NOT NULL DEFAULT 1,'
+    + ' da_gui_tele INTEGER NOT NULL DEFAULT 1,'
+    + ' nguoi_bao_cao TEXT,'
+    + ' thoi_gian_ms INTEGER NOT NULL,'
+    + ' PRIMARY KEY (thang, khu_vuc, tuan)'
+    + ' )'
+  );
+  await db.run('CREATE INDEX IF NOT EXISTS ix_bckht_thang ON bc_ke_hoach_tuan (thang)');
+}
+
+// ---------------------------------------------------------------------
 // CHẤM MỘT Ô — trái tim của bảng kiểm
 // ---------------------------------------------------------------------
 function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
@@ -314,6 +376,11 @@ function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
   ) {
     return 'khong_ap_dung';
   }
+  if (maHangMuc === 'ke_hoach_tuan') {
+    if (t.tuan > TUAN_TOI_DA_NHAP_TAY) return 'khong_ap_dung';
+    const dauTuan = ngayKey(thang, t.tuNgay);
+    if (dauTuan < NGAY_BAT_DAU_KE_HOACH_TUAN) return 'khong_ap_dung';
+  }
   if (maHangMuc === 'le_hoi') {
     if (!leHoi) return 'khong_ap_dung';
     const dauTuan = ngayKey(thang, t.tuNgay);
@@ -322,31 +389,31 @@ function chamMotO(maHangMuc, tuanInfo, boiCanhTuan) {
     if (leHoi.tuNgay && leHoi.tuNgay > cuoiTuan) return 'khong_ap_dung';
   }
 
-  // --- (2) ĐÃ TÍCH V thì xong, khỏi xét gì thêm ---
+  // --- (2) ĐÃ TÍCH V (hoặc đã bấm Báo cáo kế hoạch tuần) thì xong ---
   // ⭐ 27/08/2026 — chấm theo LỜI KHAI của người dùng, KHÔNG theo dữ liệu máy
   // dò được. Anh Rise chọn "người tích hết, máy chỉ gợi ý": máy vẫn dò xem web
   // đã có số chưa (trường `goiY`) để NHẮC, nhưng không tự tích thay.
   if (daTich) return 'du';
 
-  // --- (3) Chưa tích. Đã QUÁ HẠN chưa? ---
-  // ⚠️ Chỗ chống "báo thiếu oan" quan trọng nhất: hạn là HẾT TUẦN cộng 2 ngày
-  // ân hạn. Tuần đang diễn ra thì chưa ai trễ cả.
-  //
-  // ⭐⭐ TRẠNG THÁI 'chua_du_du_lieu' (❓) ĐÃ BỎ HẲN 27/08/2026. Trước đây Đào
-  // tạo và Lễ hội phải đoán qua nhật ký thay đổi (chỉ có từ 26/08/2026) nên
-  // mọi tuần trước đó phải hiện ❓. Nay người tích tay, máy không phải đoán
-  // nữa — bớt được một trạng thái mà ai nhìn cũng thấy khó hiểu.
-  const hanChot = congNgay(ngayKey(thang, t.denNgay), AN_HAN_NGAY);
+  // --- (3) Chưa tích/báo cáo. Đã QUÁ HẠN chưa? ---
+  // ⚠️ Chỗ chống "báo thiếu oan" quan trọng nhất: hạn tính theo từng hạng mục
+  // (4 cột đầu: hết Thứ Bảy = denNgay + 0; Kế hoạch tuần: hết Chủ nhật = denNgay + 1).
+  // Tuần đang diễn ra hoặc còn trong hạn thì chưa ai trễ cả.
+  const hanChot = congNgay(ngayKey(thang, t.denNgay), anHanCuaHangMuc(maHangMuc));
   return hom > hanChot ? 'tre' : 'chua';
 }
 
 // ---------------------------------------------------------------------
 // Dựng bảng kiểm đầy đủ cho MỘT khu vực trong MỘT tháng
 // ---------------------------------------------------------------------
-function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao, dsTich) {
+export function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao, dsTich, dsBcKeHoach = []) {
   const dsTuan = cacTuanCuaThang(thang);
   const banBaoCao = {};
   for (const b of dsBaoCao || []) banBaoCao[Number(b.tuan)] = b;
+  const banBcKeHoach = {};
+  for (const b of dsBcKeHoach || []) {
+    if (Number(b.da_bao_cao) === 1) banBcKeHoach[Number(b.tuan)] = b;
+  }
   // Ô đã tích V — khoá "<tuần>|<mã hạng mục>". Không có dòng = chưa tích.
   const daTichSet = new Set();
   for (const x of dsTich || []) {
@@ -362,14 +429,47 @@ function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao, dsTich) {
     else if (hom > cuoiTuan) thoiDiem = 'da_qua';
 
     const hangMuc = HANG_MUC.map((h) => {
+      const hanChotO = congNgay(cuoiTuan, h.anHanNgay);
+      if (h.ma === 'ke_hoach_tuan') {
+        const bcKH = banBcKeHoach[t.tuan] || null;
+        const daTich = !!bcKH;
+        const dsKetQuaTuan =
+          (goi && goi.ketQuaTheoKvTuan && goi.ketQuaTheoKvTuan[khuVuc + '|' + t.tuan]) || [];
+        const tomTat = tomTatKetQuaTuan(dsKetQuaTuan);
+        const goiY = tomTat.soMucDaNhap > 0;
+        return {
+          ma: h.ma,
+          ten: tenHangMuc(h, leHoi),
+          nhom: h.nhom,
+          kieu: h.kieu,
+          anHanNgay: h.anHanNgay,
+          hanChot: hanChotO,
+          daTich,
+          goiY,
+          trangThai: chamMotO(h.ma, t, { thang, hom, daTich, leHoi }),
+          soMucDaNhap: tomTat.soMucDaNhap,
+          tongSoMuc: tomTat.tongSoMuc,
+          dsMucThieu: tomTat.dsMucThieu,
+          baoCao: bcKH ? {
+            daBaoCao: true,
+            nguoi: chuoi(bcKH.nguoi_bao_cao),
+            thoiGianMs: Number(bcKH.thoi_gian_ms) || 0,
+            nhan: dinhDangThoiGian(bcKH.thoi_gian_ms),
+          } : { daBaoCao: false },
+        };
+      }
+
       const daTich = daTichSet.has(t.tuan + '|' + h.ma);
       // ⚠️ `goiY` KHÔNG dùng để chấm — chỉ để giao diện nhắc "web đã có số rồi,
       // nhớ tích V". Anh Rise chốt "người tích hết, máy chỉ gợi ý" (27/08/2026).
-      const goiY = goi.co[h.ma].has(khuVuc + '|' + t.tuan);
+      const goiY = !!(goi && goi.co && goi.co[h.ma] && goi.co[h.ma].has(khuVuc + '|' + t.tuan));
       return {
         ma: h.ma,
         ten: tenHangMuc(h, leHoi),
         nhom: h.nhom,
+        kieu: h.kieu,
+        anHanNgay: h.anHanNgay,
+        hanChot: hanChotO,
         daTich,
         goiY,
         trangThai: chamMotO(h.ma, t, { thang, hom, daTich, leHoi }),
@@ -412,7 +512,7 @@ function dungBangKiem(thang, khuVuc, goi, leHoi, hom, dsBaoCao, dsTich) {
 // ---------------------------------------------------------------------
 
 /**
- * Bảng kiểm 5 hạng mục × mọi tuần của tháng, cho MỘT khu vực.
+ * Bảng kiểm các hạng mục × mọi tuần của tháng, cho MỘT khu vực.
  *
  * ⚠️ Khoá quyền ngay tại đây (bài học #49 — giấu nút không phải là khoá):
  * chỉ khu vực trưởng của khu vực đó, địa vực trưởng, hoặc Admin. Anh Rise
@@ -425,7 +525,7 @@ export async function getBaoCaoTuan({ db, nguoiGoi }, thang, khuVuc) {
   if (!kv) throw new Error('Thiếu Khu vực.');
   if (!duocXemKhuVuc(nguoiGoi, kv)) throw new Error(loiKhongCoQuyen(nguoiGoi, kv));
 
-  const [goi, leHoi, dsBaoCao, dsTich] = await Promise.all([
+  const [goi, leHoi, dsBaoCao, dsTich, dsBcKeHoach] = await Promise.all([
     gomDuLieuThang(db, th),
     leHoiCuaThang(db, th),
     db.all(
@@ -437,9 +537,14 @@ export async function getBaoCaoTuan({ db, nguoiGoi }, thang, khuVuc) {
       'SELECT khu_vuc, tuan, hang_muc FROM bao_cao_tich WHERE thang = ? AND khu_vuc = ?',
       [th, kv]
     ),
+    db.all(
+      'SELECT tuan, da_bao_cao, da_gui_tele, nguoi_bao_cao, thoi_gian_ms FROM bc_ke_hoach_tuan'
+      + ' WHERE thang = ? AND khu_vuc = ?',
+      [th, kv]
+    ).catch((err) => (laLoiChuaCoBangBcKeHoach(err) ? [] : Promise.reject(err))),
   ]);
 
-  return dungBangKiem(th, kv, goi, leHoi, homNay(), dsBaoCao, dsTich);
+  return dungBangKiem(th, kv, goi, leHoi, homNay(), dsBaoCao, dsTich, dsBcKeHoach);
 }
 
 /**
@@ -471,8 +576,12 @@ export async function toggleBaoCaoTich({ db, nguoiGoi }, thang, khuVuc, tuan, ha
   }
 
   const ma = chuoi(hangMuc);
-  if (!HANG_MUC.some((h) => h.ma === ma)) {
+  const hmObj = HANG_MUC.find((h) => h.ma === ma);
+  if (!hmObj) {
     throw new Error('Không có hạng mục "' + hangMuc + '".');
+  }
+  if (hmObj.kieu === 'bao_cao') {
+    throw new Error('Hạng mục "' + hmObj.ten + '" dùng nút Báo cáo riêng, không tích V.');
   }
 
   if (tich) {
@@ -523,7 +632,7 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
     throw new Error(NHAC_CHUA_GAN);
   }
 
-  const [goi, leHoi, dsBaoCao, dsTich] = await Promise.all([
+  const [goi, leHoi, dsBaoCao, dsTich, dsBcKeHoach] = await Promise.all([
     gomDuLieuThang(db, th),
     leHoiCuaThang(db, th),
     db.all(
@@ -531,6 +640,10 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
       [th]
     ),
     db.all('SELECT khu_vuc, tuan, hang_muc FROM bao_cao_tich WHERE thang = ?', [th]),
+    db.all(
+      'SELECT khu_vuc, tuan, da_bao_cao, da_gui_tele, nguoi_bao_cao, thoi_gian_ms FROM bc_ke_hoach_tuan WHERE thang = ?',
+      [th]
+    ).catch((err) => (laLoiChuaCoBangBcKeHoach(err) ? [] : Promise.reject(err))),
   ]);
 
   const theoKV = {};
@@ -539,10 +652,16 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
     if (!theoKV[k]) theoKV[k] = [];
     theoKV[k].push(b);
   }
+  const theoKVKHT = {};
+  for (const b of dsBcKeHoach || []) {
+    const k = chuoi(b.khu_vuc);
+    if (!theoKVKHT[k]) theoKVKHT[k] = [];
+    theoKVKHT[k].push(b);
+  }
 
   const hom = homNay();
   const dong = dsKhuVuc.map((kv) => {
-    const bang = dungBangKiem(th, kv, goi, leHoi, hom, theoKV[kv] || [], dsTich);
+    const bang = dungBangKiem(th, kv, goi, leHoi, hom, theoKV[kv] || [], dsTich, theoKVKHT[kv] || []);
     // Tổng theo hạng mục cho cả tháng — để cột bên phải nói được
     // "Giáo dục: đủ 3/5 tuần" chứ không chỉ có dấu tick từng tuần.
     const theoHangMuc = {};
@@ -589,7 +708,7 @@ export async function getBaoCaoLuoi({ db, nguoiGoi }, thang) {
 }
 
 // ---------------------------------------------------------------------
-// HÀM CÔNG KHAI 3 — bấm Báo cáo
+// HÀM CÔNG KHAI 3 — bấm Báo cáo số liệu nhập tay (cột cuối)
 // ---------------------------------------------------------------------
 
 /**
@@ -626,7 +745,7 @@ export async function saveBaoCaoTuan(ctx, thang, khuVuc, tuan) {
       [th, kv]),
   ]);
 
-  const bang = dungBangKiem(th, kv, goi, leHoi, homNay(), [], dsTich);
+  const bang = dungBangKiem(th, kv, goi, leHoi, homNay(), [], dsTich, []);
   const oTuan = bang.tuan.find((x) => x.tuan === soTuan);
   const bay = Date.now();
   const email = chuoi(nguoiGoi && nguoiGoi.email);
@@ -641,8 +760,12 @@ export async function saveBaoCaoTuan(ctx, thang, khuVuc, tuan) {
   );
 
   if (!daCo) {
+    // ⚠️ Không đếm cột "Kế hoạch tuần" (kieu === 'bao_cao') vào danh sách
+    // "Còn chưa tích" của nút Báo cáo số liệu tối thứ Bảy (T-021).
     const thieu = oTuan
-      ? oTuan.hangMuc.filter((x) => x.trangThai === 'tre' || x.trangThai === 'chua')
+      ? oTuan.hangMuc.filter(
+        (x) => x.kieu !== 'bao_cao' && (x.trangThai === 'tre' || x.trangThai === 'chua')
+      )
       : [];
     const dong = [
       '<b>BÁO CÁO TUẦN ' + soTuan + '</b>',
@@ -672,5 +795,136 @@ export async function huyBaoCaoTuan({ db }, thang, khuVuc, tuan) {
   if (!soTuan) throw new Error('Thiếu Tuần.');
   await db.run('DELETE FROM bao_cao_tuan WHERE thang=? AND khu_vuc=? AND tuan=?',
     [th, kv, soTuan]);
+  return { success: true, thang: th, khuVuc: kv, tuan: soTuan };
+}
+
+// ---------------------------------------------------------------------
+// HÀM CÔNG KHAI 4 — Báo cáo kế hoạch tuần (cột thứ 5 — T-021)
+// ---------------------------------------------------------------------
+
+/**
+ * Chốt báo cáo kế hoạch tuần của một khu vực (cột thứ 5 "Kế hoạch tuần").
+ *
+ * - Chỉ áp dụng cho các tuần từ NGAY_BAT_DAU_KE_HOACH_TUAN ('2026-11-08')
+ *   và tuần <= TUAN_TOI_DA_NHAP_TAY (1..5).
+ * - Chặn cả tuần tương lai (chưa bắt đầu: hom < dauTuan).
+ * - Cảnh báo mềm ở giao diện khi soMucDaNhap < 5; máy chủ không khoá cứng.
+ * - Telegram CHỈ gửi LẦN ĐẦU cho mỗi (thang, khu_vuc, tuan): bấm lại hoặc
+ *   hủy (huyBaoCaoKeHoachTuan) rồi bấm lại đều không gửi lại (nhờ cờ da_gui_tele).
+ * - Nếu lần báo cáo đầu tiên xảy ra sau hạn Chủ nhật (hom > hanChot) thì thêm
+ *   dòng "⚠️ Báo cáo trễ hạn (hạn hết CN dd/mm)".
+ */
+export async function saveBaoCaoKeHoachTuan(ctx, thang, khuVuc, tuan) {
+  const { db, nguoiGoi } = ctx;
+  const th = kiemThangChat(thang);
+  const kv = chuoi(khuVuc);
+  if (!kv) throw new Error('Thiếu Khu vực.');
+  if (!duocXemKhuVuc(nguoiGoi, kv)) throw new Error(loiKhongCoQuyen(nguoiGoi, kv));
+
+  const soTuan = Number(tuan);
+  const dsTuan = cacTuanCuaThang(th);
+  const oTuanLich = dsTuan.find((x) => x.tuan === soTuan);
+  if (!oTuanLich) {
+    throw new Error('Tháng ' + th + ' không có Tuần ' + tuan + '.');
+  }
+  if (soTuan > TUAN_TOI_DA_NHAP_TAY) {
+    throw new Error('Tuần ' + soTuan + ' không áp dụng báo cáo kế hoạch tuần.');
+  }
+
+  const dauTuan = ngayKey(th, oTuanLich.tuNgay);
+  const cuoiTuan = ngayKey(th, oTuanLich.denNgay);
+  const nhan = nhanTuan(th, oTuanLich);
+  if (dauTuan < NGAY_BAT_DAU_KE_HOACH_TUAN) {
+    throw new Error(
+      'Tuần ' + soTuan + ' (' + nhan + ') trước mốc áp dụng báo cáo kế hoạch tuần ('
+      + NGAY_BAT_DAU_KE_HOACH_TUAN + ').'
+    );
+  }
+
+  const hom = homNay();
+  if (hom < dauTuan) {
+    throw new Error('Tuần ' + soTuan + ' (' + nhan + ') chưa bắt đầu nên chưa thể báo cáo kế hoạch tuần.');
+  }
+
+  await damBaoBangBcKeHoach(db);
+
+  const [dsKetQua, daCo] = await Promise.all([
+    db.all(
+      'SELECT muc, da_lam, chua_lam FROM ket_qua_muc WHERE thang=? AND khu_vuc=? AND tuan=?',
+      [th, kv, soTuan]
+    ).catch((err) => (laLoiChuaCoBangKetQuaMuc(err) ? [] : Promise.reject(err))),
+    db.first(
+      'SELECT da_bao_cao, da_gui_tele, thoi_gian_ms FROM bc_ke_hoach_tuan WHERE thang=? AND khu_vuc=? AND tuan=?',
+      [th, kv, soTuan]
+    ),
+  ]);
+
+  const tomTat = tomTatKetQuaTuan(dsKetQua);
+  const bay = Date.now();
+  const email = chuoi(nguoiGoi && nguoiGoi.email);
+  const daGuiTin = !(daCo && Number(daCo.da_gui_tele) === 1);
+
+  await db.run(
+    'INSERT INTO bc_ke_hoach_tuan (thang, khu_vuc, tuan, da_bao_cao, da_gui_tele, nguoi_bao_cao, thoi_gian_ms)'
+    + ' VALUES (?,?,?,1,1,?,?)'
+    + ' ON CONFLICT (thang, khu_vuc, tuan) DO UPDATE SET'
+    + ' da_bao_cao = 1, da_gui_tele = 1, nguoi_bao_cao = excluded.nguoi_bao_cao,'
+    + ' thoi_gian_ms = excluded.thoi_gian_ms',
+    [th, kv, soTuan, email, bay]
+  );
+
+  if (daGuiTin) {
+    const hanChotKH = congNgay(cuoiTuan, AN_HAN_KE_HOACH_NGAY);
+    const treHan = hom > hanChotKH;
+    const nhanHan = hanChotKH.slice(8, 10) + '/' + hanChotKH.slice(5, 7);
+    const dong = [
+      '<b>BÁO CÁO KẾ HOẠCH TUẦN ' + soTuan + '</b>',
+      'Khu vực: <b>' + thoatHtml(kv) + '</b>',
+      'Tháng: ' + thoatHtml(th) + ' (' + thoatHtml(nhan) + ')',
+      'Người báo cáo: ' + thoatHtml(email || '(không rõ)'),
+      'Lúc: ' + dinhDangThoiGian(bay),
+      tomTat.daNhapDu
+        ? 'Đã nhập đủ 5 mảng.'
+        : 'Đã nhập: ' + tomTat.soMucDaNhap + '/' + tomTat.tongSoMuc + ' mảng.  Còn thiếu: '
+          + thoatHtml(tomTat.dsMucThieu.join(', ')),
+    ];
+    if (treHan) {
+      dong.push('⚠️ Báo cáo trễ hạn (hạn hết CN ' + thoatHtml(nhanHan) + ')');
+    }
+    guiTelegramNgam(ctx.ctx, ctx.env, dong.join('\n'));
+  }
+
+  return {
+    success: true,
+    thang: th,
+    khuVuc: kv,
+    tuan: soTuan,
+    thoiGianMs: bay,
+    daGuiTin,
+    soMucDaNhap: tomTat.soMucDaNhap,
+    tongSoMuc: tomTat.tongSoMuc,
+    dsMucThieu: tomTat.dsMucThieu,
+  };
+}
+
+/**
+ * Gỡ báo cáo kế hoạch tuần. `chuThoi: true` — chỉ Trưởng phòng / Admin.
+ * Đặt da_bao_cao = 0 nhưng GIỮ da_gui_tele = 1 để nếu bấm Báo cáo lại
+ * thì không gửi lại Telegram lần hai.
+ */
+export async function huyBaoCaoKeHoachTuan({ db, nguoiGoi }, thang, khuVuc, tuan) {
+  if (!nguoiGoi || !nguoiGoi.laChu) {
+    throw new Error('Chỉ Trưởng phòng / Admin mới gỡ được báo cáo kế hoạch tuần.');
+  }
+  const th = kiemThangChat(thang);
+  const kv = chuoi(khuVuc);
+  if (!kv) throw new Error('Thiếu Khu vực.');
+  const soTuan = Number(tuan);
+  if (!soTuan) throw new Error('Thiếu Tuần.');
+  await damBaoBangBcKeHoach(db);
+  await db.run(
+    'UPDATE bc_ke_hoach_tuan SET da_bao_cao = 0 WHERE thang=? AND khu_vuc=? AND tuan=?',
+    [th, kv, soTuan]
+  );
   return { success: true, thang: th, khuVuc: kv, tuan: soTuan };
 }

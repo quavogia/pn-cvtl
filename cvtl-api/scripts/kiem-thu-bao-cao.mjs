@@ -262,16 +262,20 @@ console.log('\n5) ⚠️ BẪY 3 — chưa tới hạn thì KHÔNG phải "thi�
 }
 
 // =====================================================================
-console.log('\n6) ⚠️ BẪY 3b — ân hạn ĐÚNG 2 ngày, không hơn không kém');
+console.log('\n6) ⚠️ BẪY 3b — ân hạn theo từng hạng mục (T-021: 4 cột đầu = 0 ngày, Kế hoạch tuần = 1 ngày)');
 {
-  kiem('hằng số ân hạn = 2 ngày', BC.AN_HAN_NGAY === 2);
-  // Tự dựng lại phép tính hạn chót để chắc chắn "hết tuần + 2 ngày".
+  kiem('hằng số ân hạn 4 cột đầu = 0 ngày (hết Thứ Bảy)',
+    BC.AN_HAN_NGAY === 0 && BC.AN_HAN_KE_HOACH_NGAY === 1);
+  // Tự dựng lại phép tính hạn chót để chắc chắn 4 cột đầu = denNgay + 0, Kế hoạch tuần = denNgay + 1.
   taoCSDL();
   const r = await goi('getBaoCaoTuan', ['2020-01', 'K My'], KVT);
   const t1 = r.result.tuan[0];
   const cuoi = Number(String(t1.hanChot).slice(8, 10));
-  kiem('hạn chót = ngày cuối tuần + 2', cuoi === t1.denNgay + 2,
-    t1.hanChot + ' vs denNgay=' + t1.denNgay);
+  const oKH = t1.hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
+  const cuoiKH = Number(String(oKH.hanChot).slice(8, 10));
+  kiem('hạn chót 4 cột đầu = ngày cuối tuần + 0 (Kế hoạch tuần = +1)',
+    cuoi === t1.denNgay && cuoiKH === t1.denNgay + 1,
+    t1.hanChot + ' / ' + oKH.hanChot + ' vs denNgay=' + t1.denNgay);
 }
 
 // =====================================================================
@@ -387,8 +391,8 @@ console.log('\n10) ⭐ Định nghĩa "đã nhập" của từng hạng mục');
   kiem('⚠️ KHÔNG còn hạng mục "trudo_cong_viec" (nhập ở My Memo, không chấm ở web)',
     o(r.result, 4, 'trudo_cong_viec') === '(khong co hang muc)',
     String(o(r.result, 4, 'trudo_cong_viec')));
-  kiem('bảng kiểm còn ĐÚNG 5 hạng mục',
-    r.result.tuan[0].hangMuc.length === 5,
+  kiem('bảng kiểm có ĐÚNG 6 hạng mục (5 mục tích V gồm Lễ hội đang ẩn + Kế hoạch tuần)',
+    r.result.tuan[0].hangMuc.length === 6,
     r.result.tuan[0].hangMuc.map((x) => x.ma).join(','));
   kiem('vẫn có dòng "trudo_truyen_dao" (đừng bỏ nhầm cả nhóm Trudo)',
     r.result.tuan[0].hangMuc.some((x) => x.ma === 'trudo_truyen_dao'));
@@ -675,8 +679,8 @@ console.log('\n18) Chặn tháng hỏng — và KHÔNG được để màn hình
   // KHÔNG được trả rỗng (bài học #34: "chưa có" khác "màn hình trắng").
   const r = await goi('getBaoCaoTuan', ['2026-09', 'K My'], KVT);
   kiem('tháng chưa nhập gì vẫn trả đủ tuần', r.result.tuan.length >= 4);
-  kiem('và mỗi tuần vẫn đủ 5 dòng hạng mục',
-    r.result.tuan.every((t) => t.hangMuc.length === 5));
+  kiem('và mỗi tuần vẫn đủ 6 dòng hạng mục',
+    r.result.tuan.every((t) => t.hangMuc.length === 6));
 }
 
 // =====================================================================
@@ -741,7 +745,7 @@ console.log('\n21) Tổng theo hạng mục trong lưới');
     d.theoHangMuc.trudo_truyen_dao.apDung === 5, JSON.stringify(d.theoHangMuc.trudo_truyen_dao));
   kiem('...và chưa ai tích thì du = 0',
     d.theoHangMuc.dao_tao.du === 0, JSON.stringify(d.theoHangMuc.dao_tao));
-  kiem('lưới liệt kê đủ 5 hạng mục', r.result.hangMuc.length === 5);
+  kiem('lưới liệt kê đủ 6 hạng mục', r.result.hangMuc.length === 6);
 }
 
 // =====================================================================
@@ -780,4 +784,242 @@ console.log('\n22) Số liệu THẬT của tháng 8/2026 — chép nguyên từ
     r.result.tuan.every((t) => o(r.result, t.tuan, 'trudo_cong_viec') !== 'du'));
 }
 
+// =====================================================================
+console.log('\n23) ⭐⭐ T-021 — Cột thứ 5 "Kế hoạch tuần", hạn riêng theo hạng mục & gửi Telegram lần đầu');
+{
+  const NK = await import(join(goc, 'src/nhat-ky.js'));
+  const { laGhiAnToanThuLai } = await import(join(goc, 'src/db.js'));
+
+  // 23.1 Đăng ký hàm & phân quyền trong registry + nhat-ky
+  kiem('có saveBaoCaoKeHoachTuan', !!DANH_MUC.saveBaoCaoKeHoachTuan);
+  kiem('có huyBaoCaoKeHoachTuan', !!DANH_MUC.huyBaoCaoKeHoachTuan);
+  kiem('saveBaoCaoKeHoachTuan là hàm GHI', DANH_MUC.saveBaoCaoKeHoachTuan.doc !== true);
+  kiem('saveBaoCaoKeHoachTuan KHÔNG chuThoi (KVT bấm được)', !DANH_MUC.saveBaoCaoKeHoachTuan.chuThoi);
+  kiem('huyBaoCaoKeHoachTuan CHỈ chủ/Admin (chuThoi = true)', DANH_MUC.huyBaoCaoKeHoachTuan.chuThoi === true);
+  kiem('saveBaoCaoKeHoachTuan khai đúng vị trí khuVuc = 1', NK.VI_TRI_KHU_VUC.saveBaoCaoKeHoachTuan === 1);
+  kiem('huyBaoCaoKeHoachTuan khai đúng vị trí khuVuc = 1', NK.VI_TRI_KHU_VUC.huyBaoCaoKeHoachTuan === 1);
+
+  // 23.2 Bảng bc_ke_hoach_tuan trong migration và schema-sql.js
+  taoCSDL();
+  const b = sqlite.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='bc_ke_hoach_tuan'"
+  ).get();
+  kiem('migration tạo được bảng bc_ke_hoach_tuan', !!b);
+  const cols = sqlite.prepare('PRAGMA table_info(bc_ke_hoach_tuan)').all().map((x) => x.name);
+  kiem('bc_ke_hoach_tuan đủ 7 cột',
+    ['thang', 'khu_vuc', 'tuan', 'da_bao_cao', 'da_gui_tele', 'nguoi_bao_cao', 'thoi_gian_ms']
+      .every((c) => cols.includes(c)),
+    cols.join(','));
+  const sqlSchema = readFileSync(join(goc, 'src/schema-sql.js'), 'utf8');
+  kiem('schema-sql.js CŨNG có bc_ke_hoach_tuan', sqlSchema.includes('bc_ke_hoach_tuan'));
+
+  // 23.3 Kiểm mốc áp dụng NGAY_BAT_DAU_KE_HOACH_TUAN = '2026-11-08' (cả hai phía mốc: 07/11 vs 08/11)
+  kiem('NGAY_BAT_DAU_KE_HOACH_TUAN = 2026-11-08', BC.NGAY_BAT_DAU_KE_HOACH_TUAN === '2026-11-08');
+  const r08 = await goi('getBaoCaoTuan', ['2026-08', 'K My'], KVT);
+  kiem('tháng 2026-08 trước mốc ra mắt -> mọi tuần ke_hoach_tuan đều khong_ap_dung',
+    r08.result.tuan.every((t) => o(r08.result, t.tuan, 'ke_hoach_tuan') === 'khong_ap_dung'));
+  const r11 = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
+  kiem('Tuần 1 tháng 2026-11 (1–7/11, tuNgay=01/11 < 08/11) -> ke_hoach_tuan là khong_ap_dung (tránh đỏ oan ngày ra mắt)',
+    o(r11.result, 1, 'ke_hoach_tuan') === 'khong_ap_dung', o(r11.result, 1, 'ke_hoach_tuan'));
+  kiem('Tuần 2 tháng 2026-11 (8–14/11, tuNgay=08/11 >= 08/11) -> ke_hoach_tuan ĐƯỢC áp dụng',
+    o(r11.result, 2, 'ke_hoach_tuan') !== 'khong_ap_dung', o(r11.result, 2, 'ke_hoach_tuan'));
+
+  // 23.4 Hạn riêng theo hạng mục (Thứ Bảy vs Chủ nhật) & tuần cắt ngang cuối tháng
+  const goiRong = { co: Object.fromEntries(BC.HANG_MUC.map((h) => [h.ma, new Set()])), ketQuaTheoKvTuan: {} };
+  // Tuần 2 tháng 2026-11 kết thúc Thứ Bảy 2026-11-14:
+  // - Vào Chủ nhật 2026-11-15: 4 cột đầu chưa tích đã là 'tre', nhưng ke_hoach_tuan vẫn là 'chua'.
+  const bangCN = BC.dungBangKiem('2026-11', 'K My', goiRong, null, '2026-11-15', [], [], []);
+  kiem('tối Chủ nhật 15/11: 4 cột đầu của Tuần 2 (8–14/11) chưa tích -> đã là "tre"',
+    o(bangCN, 2, 'tho_phuong') === 'tre' && o(bangCN, 2, 'trudo_truyen_dao') === 'tre');
+  kiem('tối Chủ nhật 15/11: cột Kế hoạch tuần của Tuần 2 (hạn hết CN 15/11) -> vẫn là "chua", CHƯA trễ',
+    o(bangCN, 2, 'ke_hoach_tuan') === 'chua', o(bangCN, 2, 'ke_hoach_tuan'));
+  // - Sang Thứ Hai 2026-11-16: cột Kế hoạch tuần chưa báo cáo -> chuyển sang 'tre'.
+  const bangT2 = BC.dungBangKiem('2026-11', 'K My', goiRong, null, '2026-11-16', [], [], []);
+  kiem('sang Thứ Hai 16/11: cột Kế hoạch tuần của Tuần 2 chưa báo cáo -> chuyển sang "tre"',
+    o(bangT2, 2, 'ke_hoach_tuan') === 'tre', o(bangT2, 2, 'ke_hoach_tuan'));
+  // - Tuần 5 tháng 2026-11 cắt ngang cuối tháng (29–30/11, denNgay = 30):
+  const t5 = bangT2.tuan.find((x) => x.tuan === 5);
+  const oTP5 = t5.hangMuc.find((x) => x.ma === 'tho_phuong');
+  const oKH5 = t5.hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
+  kiem('tuần cắt ngang cuối tháng (Tuần 5 tháng 11 = 29–30/11): hạn 4 cột đầu = 2026-11-30, hạn Kế hoạch tuần = 2026-12-01',
+    oTP5.hanChot === '2026-11-30' && oKH5.hanChot === '2026-12-01',
+    oTP5.hanChot + ' / ' + oKH5.hanChot);
+  // - Tuần 6 của tháng sau mốc (ví dụ tháng 2027-01 có 6 tuần, tuần 6 = 31/01): ke_hoach_tuan là khong_ap_dung
+  const bang2027 = BC.dungBangKiem('2027-01', 'K My', goiRong, null, '2027-02-05', [], [], []);
+  kiem('Tuần 6 (tháng 2027-01): ke_hoach_tuan là khong_ap_dung (T-008)',
+    o(bang2027, 6, 'ke_hoach_tuan') === 'khong_ap_dung', o(bang2027, 6, 'ke_hoach_tuan'));
+
+  // 23.5 Định nghĩa "đã nhập n/5 mảng" dùng chung từ ket-qua.js
+  taoCSDL();
+  // Dòng cả da_lam và chua_lam đều chỉ khoảng trắng -> KHÔNG tính là đã nhập
+  sqlite.prepare(
+    'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
+  ).run('2026-11', 'K My', 'tp', 2, '   ', '  ');
+  let g = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
+  let cellKH2 = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
+  kiem('dòng ket_qua_muc rỗng/khoảng trắng -> soMucDaNhap = 0, goiY = false',
+    cellKH2.soMucDaNhap === 0 && cellKH2.goiY === false && cellKH2.dsMucThieu.length === 5,
+    JSON.stringify(cellKH2));
+
+  // Nhập 3/5 mảng: tp (chỉ da_lam), trudo (chỉ chua_lam), edu (cả hai)
+  sqlite.prepare(
+    'UPDATE ket_qua_muc SET da_lam = ? WHERE thang=? AND khu_vuc=? AND muc=? AND tuan=?'
+  ).run('Đã nhóm lại', '2026-11', 'K My', 'tp', 2);
+  sqlite.prepare(
+    'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
+  ).run('2026-11', 'K My', 'trudo', 2, '', 'Chưa đi đủ');
+  sqlite.prepare(
+    'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
+  ).run('2026-11', 'K My', 'edu', 2, 'Học 3 bài', 'Còn 1 người bận');
+
+  g = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
+  cellKH2 = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
+  kiem('nhập 3/5 mảng -> goiY = true, soMucDaNhap = 3, dsMucThieu = ["Đào tạo", "Lễ hội"]',
+    cellKH2.goiY === true
+    && cellKH2.soMucDaNhap === 3
+    && cellKH2.dsMucThieu.join(', ') === 'Đào tạo, Lễ hội',
+    JSON.stringify(cellKH2));
+
+  // 23.6 Tách bạch với toggleBaoCaoTich và nút Báo cáo số liệu cũ (saveBaoCaoTuan)
+  const errTichKH = await goi('toggleBaoCaoTich', ['2026-11', 'K My', 2, 'ke_hoach_tuan', true], KVT);
+  kiem('toggleBaoCaoTich chặn hạng mục ke_hoach_tuan (dùng nút Báo cáo riêng)',
+    !!errTichKH.error && /Báo cáo riêng/.test(errTichKH.error), JSON.stringify(errTichKH));
+
+  // Tích đủ 4 cột đầu của Tuần 2 tháng 2026-11 (trong khi ke_hoach_tuan CHƯA báo cáo)
+  for (const ma of ['tho_phuong', 'trudo_truyen_dao', 'giao_duc', 'dao_tao']) {
+    await goi('toggleBaoCaoTich', ['2026-11', 'K My', 2, ma, true], KVT);
+  }
+  const fetchGoc = globalThis.fetch;
+  const dsTinTele = [];
+  globalThis.fetch = async (url, opts) => {
+    const body = opts && opts.body ? JSON.parse(opts.body) : {};
+    dsTinTele.push(String(body.text || ''));
+    return { ok: true, status: 200, async text() { return 'ok'; } };
+  };
+  try {
+    await goi('saveBaoCaoTuan', ['2026-11', 'K My', 2], KVT);
+    kiem('⭐ nút Báo cáo số liệu cũ (saveBaoCaoTuan) KHÔNG đếm cột Kế hoạch tuần vào "Còn chưa tích"',
+      dsTinTele.length === 1
+      && dsTinTele[0].includes('Đã tích đủ mọi hạng mục.')
+      && !dsTinTele[0].includes('Kế hoạch tuần'),
+      dsTinTele[0]);
+
+    // 23.7 Chặn tuần không hợp lệ / trước mốc / tuần 6 / tuần tương lai chưa bắt đầu
+    kiem('chặn saveBaoCaoKeHoachTuan cho tuần không có trong tháng (Tuần 7)',
+      !!(await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 7], KVT)).error);
+    kiem('chặn saveBaoCaoKeHoachTuan cho Tuần 6 (không áp dụng)',
+      !!(await goi('saveBaoCaoKeHoachTuan', ['2027-01', 'K My', 6], KVT)).error);
+    kiem('chặn saveBaoCaoKeHoachTuan cho tuần trước mốc 2026-11-08 (Tuần 1 tháng 2026-11)',
+      /trước mốc áp dụng/.test((await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 1], KVT)).error || ''));
+    kiem('chặn saveBaoCaoKeHoachTuan cho tháng trước mốc (2026-10)',
+      /trước mốc áp dụng/.test((await goi('saveBaoCaoKeHoachTuan', ['2026-10', 'K My', 2], KVT)).error || ''));
+    kiem('⭐ chặn ở máy chủ cả tuần chưa bắt đầu (tuần tương lai: Tuần 4 tháng 2026-11 và tháng 2099-01)',
+      /chưa bắt đầu/.test((await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 4], KVT)).error || '')
+      && /chưa bắt đầu/.test((await goi('saveBaoCaoKeHoachTuan', ['2099-01', 'K My', 1], KVT)).error || ''));
+    kiem('phân quyền: KVT KHÔNG báo cáo kế hoạch tuần hộ khu vực khác được',
+      !!(await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'Đ Uyên', 2], KVT)).error);
+    kiem('phân quyền: Thánh đồ chưa gán khu vực bị chặn',
+      !!(await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 2], THANH_DO)).error);
+
+    // 23.8 Bấm Báo cáo kế hoạch tuần lần đầu (đúng hạn: hôm nay 09/11 <= hạn CN 15/11 của Tuần 2)
+    dsTinTele.length = 0;
+    const bc1 = await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 2], KVT);
+    kiem('saveBaoCaoKeHoachTuan lần đầu thành công & daGuiTin = true',
+      bc1.result?.success === true && bc1.result?.daGuiTin === true, JSON.stringify(bc1));
+    kiem('fetch Telegram được gọi ĐÚNG 1 lần ở lần báo cáo đầu tiên', dsTinTele.length === 1);
+    kiem('tin Telegram đúng định dạng: tiêu đề, khu vực, tháng + nhãn tuần, 3/5 mảng + còn thiếu Đào tạo, Lễ hội',
+      dsTinTele[0].includes('BÁO CÁO KẾ HOẠCH TUẦN 2')
+      && dsTinTele[0].includes('Khu vực: <b>K My</b>')
+      && dsTinTele[0].includes('Tháng: 2026-11 (8–14/11)')
+      && dsTinTele[0].includes('Người báo cáo: kvt@gmail.com')
+      && dsTinTele[0].includes('Đã nhập: 3/5 mảng.  Còn thiếu: Đào tạo, Lễ hội'),
+      dsTinTele[0]);
+    kiem('báo cáo ĐÚNG HẠN thì KHÔNG có dòng "⚠️ Báo cáo trễ hạn"',
+      !dsTinTele[0].includes('Báo cáo trễ hạn'), dsTinTele[0]);
+
+    // Kiểm tra trạng thái sau khi báo cáo
+    g = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
+    cellKH2 = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
+    kiem('sau khi báo cáo: trangThai = "du", daTich = true, baoCao.daBaoCao = true',
+      cellKH2.trangThai === 'du' && cellKH2.daTich === true && cellKH2.baoCao?.daBaoCao === true,
+      JSON.stringify(cellKH2));
+
+    // Bấm lại lần 2 -> KHÔNG gửi lại Telegram, chỉ 1 dòng trong CSDL
+    const bc2 = await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 2], KVT);
+    kiem('bấm lại lần 2: daGuiTin = false, fetch KHÔNG gọi thêm',
+      bc2.result?.success === true && bc2.result?.daGuiTin === false && dsTinTele.length === 1);
+    kiem('bảng bc_ke_hoach_tuan chỉ có ĐÚNG 1 dòng cho (2026-11, K My, 2)',
+      sqlite.prepare('SELECT COUNT(*) n FROM bc_ke_hoach_tuan').get().n === 1);
+
+    // 23.9 Hủy rồi báo cáo lại -> VẪN KHÔNG gửi lại Telegram (nhờ da_gui_tele = 1)
+    kiem('KVT không tự gỡ báo cáo kế hoạch tuần được (chỉ Chủ/Admin)',
+      !!(await goi('huyBaoCaoKeHoachTuan', ['2026-11', 'K My', 2], KVT)).error);
+    const huy = await goi('huyBaoCaoKeHoachTuan', ['2026-11', 'K My', 2], CHU);
+    kiem('Chủ gỡ báo cáo kế hoạch tuần thành công', huy.result?.success === true);
+    g = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
+    cellKH2 = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
+    kiem('sau khi gỡ: daBaoCao = false, daTich = false, trangThai quay về "chua"',
+      cellKH2.baoCao?.daBaoCao === false && cellKH2.daTich === false && cellKH2.trangThai === 'chua',
+      JSON.stringify(cellKH2));
+
+    const bc3 = await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K My', 2], KVT);
+    kiem('⭐⭐ hủy rồi báo cáo lại: thành công nhưng KHÔNG gửi lại Telegram (daGuiTin = false, fetch vẫn = 1)',
+      bc3.result?.success === true && bc3.result?.daGuiTin === false && dsTinTele.length === 1,
+      JSON.stringify(bc3));
+    kiem('hủy rồi báo cáo lại vẫn chỉ 1 dòng trong bc_ke_hoach_tuan',
+      sqlite.prepare('SELECT COUNT(*) n FROM bc_ke_hoach_tuan').get().n === 1);
+
+    // 23.10 Báo cáo lần đầu khi đủ 5/5 mảng VÀ trễ hạn (giả lập thời gian sang Thứ Hai 16/11/2026 > hạn CN 15/11)
+    for (const m of ['tp', 'trudo', 'edu', 'daotao', 'lehoi']) {
+      sqlite.prepare(
+        'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
+      ).run('2026-11', 'K Thành', m, 2, 'Đã làm đủ ' + m, '');
+    }
+    const dateNowGoc = Date.now;
+    Date.now = () => msGiuaNgayVN('2026-11-16');
+    try {
+      const bcTre = await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K Thành', 2], DVT);
+      kiem('K Thành báo cáo lần đầu vào Thứ Hai 16/11 (sau hạn CN 15/11): daGuiTin = true',
+        bcTre.result?.daGuiTin === true && dsTinTele.length === 2);
+      kiem('tin Telegram khi đủ 5/5 mảng và trễ hạn: có "Đã nhập đủ 5 mảng." VÀ "⚠️ Báo cáo trễ hạn (hạn hết CN 15/11)"',
+        dsTinTele[1].includes('Đã nhập đủ 5 mảng.')
+        && dsTinTele[1].includes('⚠️ Báo cáo trễ hạn (hạn hết CN 15/11)'),
+        dsTinTele[1]);
+    } finally {
+      Date.now = dateNowGoc;
+    }
+  } finally {
+    globalThis.fetch = fetchGoc;
+  }
+
+  // 23.11 Hàm ĐỌC tuyệt đối không phát sinh lệnh ghi & chịu được "no such table"
+  sqlite.exec('DROP TABLE bc_ke_hoach_tuan; DROP TABLE ket_qua_muc;');
+  let soLanGhiKhiDoc = 0;
+  const dbSpy = {
+    all: (...a) => db.all(...a),
+    first: (...a) => db.first(...a),
+    async run(...a) { soLanGhiKhiDoc++; return db.run(...a); },
+    async batch(...a) { soLanGhiKhiDoc++; return db.batch(...a); },
+  };
+  const docTuan = await BC.getBaoCaoTuan({ db: dbSpy, nguoiGoi: KVT }, '2026-11', 'K My');
+  const docLuoi = await BC.getBaoCaoLuoi({ db: dbSpy, nguoiGoi: KVT }, '2026-11');
+  kiem('chịu được "no such table" cho cả bc_ke_hoach_tuan và ket_qua_muc ở getBaoCaoTuan & getBaoCaoLuoi',
+    Array.isArray(docTuan.tuan) && Array.isArray(docLuoi.dong));
+  kiem('⭐⭐ hàm ĐỌC tuyệt đối KHÔNG phát sinh lệnh ghi (soLanGhiKhiDoc === 0)',
+    soLanGhiKhiDoc === 0, 'soLanGhiKhiDoc=' + soLanGhiKhiDoc);
+
+  // 23.12 Câu lệnh SQL ghi & gỡ của bc_ke_hoach_tuan qua được danh sách trắng laGhiAnToanThuLai
+  const sqlUpsert =
+    'INSERT INTO bc_ke_hoach_tuan (thang, khu_vuc, tuan, da_bao_cao, da_gui_tele, nguoi_bao_cao, thoi_gian_ms)'
+    + ' VALUES (?,?,?,1,1,?,?)'
+    + ' ON CONFLICT (thang, khu_vuc, tuan) DO UPDATE SET'
+    + ' da_bao_cao = 1, da_gui_tele = 1, nguoi_bao_cao = excluded.nguoi_bao_cao,'
+    + ' thoi_gian_ms = excluded.thoi_gian_ms';
+  const sqlHuy =
+    'UPDATE bc_ke_hoach_tuan SET da_bao_cao = 0 WHERE thang=? AND khu_vuc=? AND tuan=?';
+  kiem('câu lệnh upsert bc_ke_hoach_tuan qua được laGhiAnToanThuLai', laGhiAnToanThuLai(sqlUpsert) === true);
+  kiem('câu lệnh gỡ bc_ke_hoach_tuan qua được laGhiAnToanThuLai', laGhiAnToanThuLai(sqlHuy) === true);
+}
+
 console.log(`\n=== KẾT QUẢ: ${dat} đạt, ${hong} hỏng ===\n`);
+process.exit(hong ? 1 : 0);

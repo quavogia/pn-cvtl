@@ -934,14 +934,15 @@
           <h3 style="margin-top:0;">📋 Bảng kiểm tuần — <span id="bc_kvLabel"></span> · <span id="bc_monthLabel"></span></h3>
           <div id="bc_noiDung" style="color:#94a3b8;">Đang tải…</div>
           <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
-            <b>Cách dùng:</b> nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô của hạng mục đó.
-            Tích đủ cả tuần rồi bấm <b>📋 Báo cáo</b>.
+            <b>Cách dùng:</b>
+            4 cột đầu (Thờ phượng, Trudo — truyền đạo, Giáo dục, Đào tạo 70 bài): nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô đó, tích đủ cả tuần rồi bấm <b>📋 Báo cáo</b> ở cột cuối.
+            Cột thứ 5 <b>Kế hoạch tuần</b>: nhập Thực hiện kế hoạch (Đã làm / Chưa làm) ở 5 mảng rồi bấm nút <b>📨 Báo cáo</b> riêng ngay trong ô.
             <br><b>Cách đọc ô:</b>
-            <span title="đã tích">✅ đã tích</span> ·
-            <span title="viền xanh nét đứt: web đã có số rồi, chỉ còn thiếu cái tích">⬜ viền xanh nét đứt = <b>web đã có số, nhớ tích</b></span> ·
-            <span title="viền đỏ: quá hạn mà chưa tích">⬜ viền đỏ = <b>quá hạn chưa tích</b></span> ·
+            <span title="đã tích hoặc đã báo cáo">✅ đã tích / đã báo cáo</span> ·
+            <span title="viền xanh nét đứt: web đã có số / đã nhập kết quả, chỉ còn thiếu tích V hoặc bấm Báo cáo">⬜ viền xanh nét đứt = <b>web đã có số (hoặc n/5 mảng), nhớ tích / báo cáo</b></span> ·
+            <span title="viền đỏ: quá hạn mà chưa tích / chưa báo cáo">⬜ viền đỏ = <b>quá hạn chưa tích / chưa báo cáo</b></span> ·
             <span title="tuần đó không có buổi / không áp dụng hạng mục này">➖ không áp dụng</span>
-            <br>Hạn là <b>hết tuần + 2 ngày ân hạn</b>. Tuần đang diễn ra thì chưa tính là trễ.
+            <br><b>Hạn:</b> 4 cột đầu hạn <b>hết Thứ Bảy</b> của tuần; cột <b>Kế hoạch tuần</b> hạn <b>hết Chủ nhật</b> (ân hạn 1 ngày). Tuần đang diễn ra hoặc còn trong hạn thì chưa tính là trễ.
             <br>👉 Bấm vào <b>tên cột</b> để mở thẳng nơi nhập, vẫn giữ nguyên khu vực và tháng đang xem.
             <br>⚠️ <b>Trudo — truyền đạo cần ĐỦ BỐN thứ:</b> Đơn thuần · Hữu hiệu · Báp-têm · Điểm danh công việc.
             <br>&nbsp;&nbsp;&nbsp;&nbsp;Ba thứ đầu nhập ở <b>menu 🏛️ Trudo</b> bên trái (bấm tên cột);
@@ -4358,6 +4359,10 @@ var BC_NOI = {
   le_hoi: {
     di: 'kv:lehoi', o: 'tab con 🎉 Lễ hội',
     nhap: 'số lần phát biểu'
+  },
+  ke_hoach_tuan: {
+    di: 'kv:tp', o: '5 tab con TP · Trudo · Giáo dục · Đào tạo · Lễ hội',
+    nhap: 'Thực hiện kế hoạch (5 mảng) · hạn hết Chủ nhật'
   }
 };
 
@@ -4396,6 +4401,58 @@ function bcO_(hm, tuan, choSua){
     + '>' + (hm.daTich ? '✓' : '') + '</span>';
 }
 
+/**
+ * Vẽ ô cột thứ 5 "Kế hoạch tuần" (T-021 — 09/11/2026).
+ * - Có nút "📨 Báo cáo" riêng (bấm lần đầu gửi Telegram).
+ * - Gợi ý viền xanh nét đứt + "n/5 mảng" khi đã có ít nhất 1 mảng nhập kết quả.
+ * - Hạn hết Chủ nhật (denNgay + 1): sang Thứ Hai chưa bấm báo cáo -> trạng thái 'tre'.
+ */
+function bcOKeHoachTuan_(hm, w, choSua){
+  var k = BC_KYHIEU[hm.trangThai] || BC_KYHIEU.chua;
+  if (hm.trangThai === 'khong_ap_dung') {
+    return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">➖</span>';
+  }
+  var daNhap = Number(hm.soMucDaNhap) || 0;
+  var tong = Number(hm.tongSoMuc) || 5;
+  var thieuTxt = (hm.dsMucThieu && hm.dsMucThieu.length)
+    ? 'Còn thiếu: ' + hm.dsMucThieu.join(', ')
+    : 'Đã nhập đủ 5 mảng';
+  if (hm.baoCao && hm.baoCao.daBaoCao) {
+    var s = '<div style="display:inline-block;text-align:center;line-height:1.35;">'
+      + '<span style="color:#16a34a;font-weight:600;font-size:12px;" title="Người báo cáo: '
+      + esc(hm.baoCao.nguoi || '') + ' · ' + esc(thieuTxt) + '">✅ ' + esc(hm.baoCao.nhan) + '</span>'
+      + '<div style="font-size:11px;color:#64748b;">' + daNhap + '/' + tong + ' mảng</div>';
+    if (isChuTaiKhoan_()) {
+      s += '<button type="button" class="secondary" style="margin-top:3px;padding:3px 8px;font-size:11px;"'
+        + ' onclick="huyBaoCaoKeHoachTuan_(' + w.tuan + ')">Gỡ</button>';
+    }
+    s += '</div>';
+    return s;
+  }
+  if (w.thoiDiem === 'chua_toi') {
+    return '<span style="color:#cbd5e1;" title="Tuần chưa bắt đầu">—</span>';
+  }
+  var boxStyle = 'display:inline-block;padding:4px 8px;border-radius:6px;font-size:11px;line-height:1.35;';
+  var nhanGoiY = daNhap + '/' + tong + ' mảng';
+  if (hm.goiY) {
+    boxStyle += 'border:1.5px dashed #2563eb;background:#eff6ff;color:#1d4ed8;font-weight:600;';
+    nhanGoiY += ' · nhớ báo cáo';
+  } else if (hm.trangThai === 'tre') {
+    boxStyle += 'border:1.5px solid #dc2626;background:#fef2f2;color:#dc2626;font-weight:600;';
+    nhanGoiY += ' · quá hạn CN';
+  } else {
+    boxStyle += 'border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;';
+  }
+  var html = '<div style="display:inline-flex;flex-direction:column;align-items:center;gap:4px;">'
+    + '<span style="' + boxStyle + '" title="' + esc(thieuTxt) + '">' + esc(nhanGoiY) + '</span>';
+  if (choSua) {
+    html += '<button type="button" class="done" style="margin:0;padding:4px 10px;font-size:12px;"'
+      + ' onclick="bamBaoCaoKeHoachTuan_(' + w.tuan + ', this)">📨 Báo cáo</button>';
+  }
+  html += '</div>';
+  return html;
+}
+
 // Nhảy tới ĐÚNG nơi nhập. GIỮ NGUYÊN khu vực và tháng đang xem — người ta
 // đang đứng ở tháng 8 của khu vực mình thì phải rơi đúng vào đó (bài học #38).
 function bcToiTab_(di){
@@ -4421,17 +4478,24 @@ function bcTich_(tuan, hangMuc, tich){
   }).toggleBaoCaoTich(monthKey, kv, tuan, hangMuc, !!tich);
 }
 
+var _bcReqSeq = 0;
+var _bcLastData = null;
+
 // Bảng kiểm của MỘT khu vực. Gọi khi mở tab con hoặc đổi khu vực/tháng.
 function loadBaoCaoPanel(){
   var monthKey = kvMonthKey();
   var kv = selectedKV;
+  var reqId = ++_bcReqSeq;
   document.getElementById('bc_kvLabel').textContent = kv || '';
   document.getElementById('bc_monthLabel').textContent = monthKey;
   var box = document.getElementById('bc_noiDung');
   box.innerHTML = '<span style="color:#94a3b8;">Đang tải…</span>';
   google.script.run.withSuccessHandler(function(d){
+    if (reqId !== _bcReqSeq || kv !== selectedKV || monthKey !== kvMonthKey()) return;
+    _bcLastData = d;
     veBaoCaoPanel_(d);
   }).withFailureHandler(function(err){
+    if (reqId !== _bcReqSeq || kv !== selectedKV || monthKey !== kvMonthKey()) return;
     // ⚠️ Lỗi ở đây gần như luôn là "chưa được gán khu vực" — câu chữ máy chủ
     // đã viết sẵn bằng tiếng Việt dễ hiểu, cứ hiện nguyên văn (bài học #32).
     box.innerHTML = '<div style="padding:12px;background:#fef3c7;border-radius:8px;color:#92400e;">'
@@ -4492,7 +4556,10 @@ function veBaoCaoPanel_(d){
       + '</td>';
     for (var j = 0; j < w.hangMuc.length; j++) {
       if (BC_AN_TAM[w.hangMuc[j].ma]) continue;
-      h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j], w.tuan, choSua) + '</td>';
+      var oHtml = (w.hangMuc[j].kieu === 'bao_cao')
+        ? bcOKeHoachTuan_(w.hangMuc[j], w, choSua)
+        : bcO_(w.hangMuc[j], w.tuan, choSua);
+      h += '<td style="padding:8px;text-align:center;">' + oHtml + '</td>';
     }
     h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcNutBaoCao_(d, w) + '</td>';
     h += '</tr>';
@@ -4512,7 +4579,7 @@ function veBaoCaoPanel_(d){
   }
   if (tongTre > 0) {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#fef2f2;border-radius:8px;color:#991b1b;">'
-      + '⚠️ Còn <b>' + tongTre + '</b> ô <b>quá hạn mà chưa tích</b> trong tháng này.</div>';
+      + '⚠️ Còn <b>' + tongTre + '</b> ô <b>quá hạn mà chưa tích / chưa báo cáo</b> trong tháng này.</div>';
   } else {
     h += '<div style="margin-top:12px;padding:10px 12px;background:#f0fdf4;border-radius:8px;color:#166534;">'
       + '✅ Không có ô nào quá hạn. Tốt!</div>';
@@ -4547,7 +4614,7 @@ function bamBaoCaoTuan_(tuan){
     for (var i = 0; i < d.tuan.length; i++) if (d.tuan[i].tuan === tuan) w = d.tuan[i];
     if (w) {
       for (var j = 0; j < w.hangMuc.length; j++) {
-        if (BC_AN_TAM[w.hangMuc[j].ma]) continue;
+        if (BC_AN_TAM[w.hangMuc[j].ma] || w.hangMuc[j].kieu === 'bao_cao') continue;
         var tt = w.hangMuc[j].trangThai;
         if (tt === 'tre' || tt === 'chua') thieu.push(w.hangMuc[j].ten);
       }
@@ -4580,6 +4647,69 @@ function huyBaoCaoTuan_(tuan){
   }).withFailureHandler(function(err){
     showMsg('Không gỡ được: ' + err.message, false);
   }).huyBaoCaoTuan(kvMonthKey(), kv, tuan);
+}
+
+/**
+ * Bấm nút "📨 Báo cáo" trong cột thứ 5 "Kế hoạch tuần" (T-021 — 09/11/2026).
+ * Cảnh báo mềm nếu chưa đủ 5/5 mảng; khoá nút trong lúc đang gửi.
+ */
+function bamBaoCaoKeHoachTuan_(tuan, btn){
+  var kv = selectedKV;
+  var monthKey = kvMonthKey();
+  if (btn) btn.disabled = true;
+  google.script.run.withSuccessHandler(function(d){
+    if (kv !== selectedKV || monthKey !== kvMonthKey()) {
+      if (btn) btn.disabled = false;
+      return;
+    }
+    var w = null;
+    for (var i = 0; i < d.tuan.length; i++) if (d.tuan[i].tuan === tuan) w = d.tuan[i];
+    var hm = null;
+    if (w && w.hangMuc) {
+      for (var j = 0; j < w.hangMuc.length; j++) {
+        if (w.hangMuc[j].ma === 'ke_hoach_tuan') hm = w.hangMuc[j];
+      }
+    }
+    var daNhap = hm ? (Number(hm.soMucDaNhap) || 0) : 0;
+    var tong = hm ? (Number(hm.tongSoMuc) || 5) : 5;
+    var thieu = (hm && hm.dsMucThieu) ? hm.dsMucThieu : [];
+    var hoi = 'BÁO CÁO KẾ HOẠCH Tuần ' + tuan + ' cho khu vực ' + kv + '?';
+    if (thieu.length > 0) {
+      hoi += '\n\nĐã nhập: ' + daNhap + '/' + tong + ' mảng.'
+        + '\nCòn thiếu: ' + thieu.join(', ') + '.'
+        + '\n\nVẫn báo cáo kế hoạch tuần này?'
+        + '\n(Bấm OK = xác nhận gửi báo cáo. Bấm Cancel = để nhập thêm.)';
+    } else {
+      hoi += '\n\nĐã nhập đủ ' + tong + '/' + tong + ' mảng.';
+    }
+    if (!confirm(hoi)) {
+      if (btn) btn.disabled = false;
+      return;
+    }
+    google.script.run.withSuccessHandler(function(){
+      if (btn) btn.disabled = false;
+      showMsg('Đã báo cáo kế hoạch Tuần ' + tuan + ' — ' + kv, true);
+      loadBaoCaoPanel();
+    }).withFailureHandler(function(err){
+      if (btn) btn.disabled = false;
+      showMsg('Không báo cáo được kế hoạch tuần: ' + err.message, false);
+    }).saveBaoCaoKeHoachTuan(monthKey, kv, tuan);
+  }).withFailureHandler(function(err){
+    if (btn) btn.disabled = false;
+    showMsg('Lỗi: ' + err.message, false);
+  }).getBaoCaoTuan(monthKey, kv);
+}
+
+function huyBaoCaoKeHoachTuan_(tuan){
+  var kv = selectedKV;
+  if (!confirm('Gỡ báo cáo kế hoạch Tuần ' + tuan + ' của khu vực ' + kv + '?\n\n'
+    + 'Nội dung Thực hiện kế hoạch KHÔNG bị xoá — chỉ gỡ dấu "đã báo cáo".')) return;
+  google.script.run.withSuccessHandler(function(){
+    showMsg('Đã gỡ báo cáo kế hoạch Tuần ' + tuan, true);
+    loadBaoCaoPanel();
+  }).withFailureHandler(function(err){
+    showMsg('Không gỡ được: ' + err.message, false);
+  }).huyBaoCaoKeHoachTuan(kvMonthKey(), kv, tuan);
 }
 
 // ---------------------------------------------------------------------
@@ -5066,13 +5196,23 @@ function veNhacBaoCaoXong_(box, d){
       + esc(d.khuVuc) + ' · ' + esc(w.baoCao.nhan) + link;
     return;
   }
-  if (w.soApDung === 0) {
+  var apDungTich = 0;
+  var conThieu = 0;
+  if (w && w.hangMuc) {
+    for (let j = 0; j < w.hangMuc.length; j++) {
+      const hm = w.hangMuc[j];
+      if (BC_AN_TAM[hm.ma] || hm.kieu === 'bao_cao') continue;
+      if (hm.trangThai === 'khong_ap_dung') continue;
+      apDungTich++;
+      if (hm.trangThai === 'tre' || hm.trangThai === 'chua') conThieu++;
+    }
+  }
+  if (apDungTich === 0) {
     box.style.background = '#f8fafc';
     box.style.color = '#475569';
     box.innerHTML = '📋 <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') không có hạng mục nào cần tích V.</b> · ' + esc(d.khuVuc) + link;
     return;
   }
-  const conThieu = w.soTre + w.soChua;
   box.style.background = '#fffbeb';
   box.style.color = '#92400e';
   box.innerHTML = '⏳ <b>Tuần ' + w.tuan + ' (' + esc(w.nhan) + ') chưa báo cáo</b> · ' + esc(d.khuVuc)

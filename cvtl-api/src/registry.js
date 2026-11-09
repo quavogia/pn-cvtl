@@ -216,6 +216,9 @@ export const DANH_MUC = {
   saveBaoCaoTuan:          { doc: false, fn: baoCao.saveBaoCaoTuan },
   // Gỡ báo cáo thì chỉ Trưởng phòng / Admin — giống nút "Hủy báo cáo" cũ.
   huyBaoCaoTuan:           { doc: false, chuThoi: true, fn: baoCao.huyBaoCaoTuan },
+  // ⭐ Báo cáo kế hoạch tuần (cột thứ 5 — T-021, 09/11/2026)
+  saveBaoCaoKeHoachTuan:   { doc: false, fn: baoCao.saveBaoCaoKeHoachTuan },
+  huyBaoCaoKeHoachTuan:    { doc: false, chuThoi: true, fn: baoCao.huyBaoCaoKeHoachTuan },
 
   // --- Điểm danh Lễ Trọng Thể (06/09/2026, xem handlers/le-trong-the.js) ---
   // Tab con riêng trong tab TP, cạnh "Theo tuần" — anh Rise duyệt bản phác
