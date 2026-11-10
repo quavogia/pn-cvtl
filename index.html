@@ -935,8 +935,8 @@
           <div id="bc_noiDung" style="color:#94a3b8;">Đang tải…</div>
           <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
             <b>Cách dùng:</b>
-            4 cột đầu (Thờ phượng, Trudo — truyền đạo, Giáo dục, Đào tạo 70 bài): nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô đó, tích đủ cả tuần rồi bấm <b>📋 Báo cáo</b> ở cột cuối.
-            Cột thứ 5 <b>Kế hoạch tuần</b>: nhập Thực hiện kế hoạch (Đã làm / Chưa làm) ở 5 mảng rồi bấm nút <b>📨 Báo cáo</b> riêng ngay trong ô.
+            4 cột đầu (Thờ phượng, Trudo — truyền đạo, Giáo dục, Đào tạo 70 bài): nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô đó, tích đủ cả tuần rồi bấm <b>📋 Báo cáo</b> ở cột <b>Báo cáo nhập liệu</b> ngay bên cạnh.
+            Cột cuối <b>Kế hoạch tuần</b> (tách riêng bên phải): nhập Thực hiện kế hoạch (Đã làm / Chưa làm) ở 5 mảng rồi bấm nút <b>📨 Báo cáo</b> riêng ngay trong ô.
             <br><b>Cách đọc ô:</b>
             <span title="đã tích hoặc đã báo cáo">✅ đã tích / đã báo cáo</span> ·
             <span title="viền xanh nét đứt: web đã có số / đã nhập kết quả, chỉ còn thiếu tích V hoặc bấm Báo cáo">⬜ viền xanh nét đứt = <b>web đã có số (hoặc n/5 mảng), nhớ tích / báo cáo</b></span> ·
@@ -4514,6 +4514,7 @@ function veBaoCaoPanel_(d){
   var h = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:14px;min-width:720px;">';
   h += '<thead><tr style="text-align:left;border-bottom:2px solid #e2e8f0;">';
   h += '<th style="padding:8px;white-space:nowrap;">Tuần</th>';
+  var thKeHoach = '';
   for (var i = 0; i < hm.length; i++) {
     if (BC_AN_TAM[hm[i].ma]) continue;
     // ⭐ TÊN CỘT bấm được -> nhảy sang ĐÚNG nơi nhập. Ô bên dưới để tích V nên
@@ -4540,9 +4541,14 @@ function veBaoCaoPanel_(d){
           + '>' + esc(noi.them.ten) + '</span></div>';
       }
     }
-    h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;">' + ten + '</th>';
+    if (hm[i].kieu === 'bao_cao') {
+      thKeHoach += '<th style="padding:8px 12px;text-align:center;font-size:12px;line-height:1.3;border-left:2px solid #cbd5e1;">' + ten + '</th>';
+    } else {
+      h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;">' + ten + '</th>';
+    }
   }
-  h += '<th style="padding:8px;text-align:center;white-space:nowrap;">Báo cáo</th>';
+  h += '<th style="padding:8px;text-align:center;font-size:12px;line-height:1.3;white-space:nowrap;">Báo cáo nhập liệu<div class="bc-canhap">4 cột đầu · hạn hết Thứ Bảy</div></th>';
+  h += thKeHoach;
   h += '</tr></thead><tbody>';
 
   for (var t = 0; t < d.tuan.length; t++) {
@@ -4554,14 +4560,18 @@ function veBaoCaoPanel_(d){
       + 'Tuần ' + w.tuan + ' <span style="color:#94a3b8;font-weight:400;">(' + esc(w.nhan) + ')</span>'
       + (laTuanNay ? ' <span style="color:#2563eb;font-size:11px;">← tuần này</span>' : '')
       + '</td>';
+    var tdKeHoach = '';
     for (var j = 0; j < w.hangMuc.length; j++) {
       if (BC_AN_TAM[w.hangMuc[j].ma]) continue;
-      var oHtml = (w.hangMuc[j].kieu === 'bao_cao')
-        ? bcOKeHoachTuan_(w.hangMuc[j], w, choSua)
-        : bcO_(w.hangMuc[j], w.tuan, choSua);
-      h += '<td style="padding:8px;text-align:center;">' + oHtml + '</td>';
+      if (w.hangMuc[j].kieu === 'bao_cao') {
+        tdKeHoach += '<td style="padding:8px 12px;text-align:center;border-left:2px solid #cbd5e1;">'
+          + bcOKeHoachTuan_(w.hangMuc[j], w, choSua) + '</td>';
+      } else {
+        h += '<td style="padding:8px;text-align:center;">' + bcO_(w.hangMuc[j], w.tuan, choSua) + '</td>';
+      }
     }
     h += '<td style="padding:8px;text-align:center;white-space:nowrap;">' + bcNutBaoCao_(d, w) + '</td>';
+    h += tdKeHoach;
     h += '</tr>';
   }
   h += '</tbody></table></div>';
