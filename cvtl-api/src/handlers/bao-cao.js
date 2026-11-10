@@ -22,6 +22,7 @@ import { cacTuanCuaThang } from '../lich-tuan.js';
 import { phamViKhuVuc, duocXemKhuVuc } from '../auth.js';
 import { guiTelegramNgam, thoatHtml } from '../telegram.js';
 import {
+  CAC_MUC_BAO_CAO_KE_HOACH,
   daNhapKetQuaMuc,
   laLoiChuaCoBangKetQuaMuc,
   tomTatKetQuaTuan,
@@ -286,7 +287,9 @@ async function gomDuLieuThang(db, thang) {
     const khoa = k + '|' + t;
     if (!ketQuaTheoKvTuan[khoa]) ketQuaTheoKvTuan[khoa] = [];
     ketQuaTheoKvTuan[khoa].push(r);
-    if (daNhapKetQuaMuc(r)) them('ke_hoach_tuan', k, t);
+    if (CAC_MUC_BAO_CAO_KE_HOACH.includes(chuoi(r.muc)) && daNhapKetQuaMuc(r)) {
+      them('ke_hoach_tuan', k, t);
+    }
   }
 
   return { co, ketQuaTheoKvTuan, mocNhatKyMs: (mocNhatKy && Number(mocNhatKy.m)) || 0 };
@@ -884,7 +887,7 @@ export async function saveBaoCaoKeHoachTuan(ctx, thang, khuVuc, tuan) {
       'Người báo cáo: ' + thoatHtml(email || '(không rõ)'),
       'Lúc: ' + dinhDangThoiGian(bay),
       tomTat.daNhapDu
-        ? 'Đã nhập đủ 5 mảng.'
+        ? 'Đã nhập đủ ' + tomTat.tongSoMuc + ' mảng.'
         : 'Đã nhập: ' + tomTat.soMucDaNhap + '/' + tomTat.tongSoMuc + ' mảng.  Còn thiếu: '
           + thoatHtml(tomTat.dsMucThieu.join(', ')),
     ];

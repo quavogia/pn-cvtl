@@ -22,6 +22,13 @@ import { duocXemKhuVuc, tachPhamVi } from '../auth.js';
 
 export const CAC_MUC_HOP_LE = ['tp', 'trudo', 'edu', 'daotao', 'lehoi'];
 
+/**
+ * Các mảng được tính vào tiến độ Báo cáo Kế hoạch tuần (cột "Kế hoạch tuần" ở Bảng kiểm tuần).
+ * ⭐ 10/11/2026 — Anh Rise: "mảng lễ hội thì ko có kế hoạch nên ko tính báo cáo,
+ * khi nào có anh báo sau" -> chỉ tính 4 mảng: Thờ phượng, Trudo, Giáo dục, Đào tạo.
+ */
+export const CAC_MUC_BAO_CAO_KE_HOACH = ['tp', 'trudo', 'edu', 'daotao'];
+
 export const TEN_MUC_KET_QUA = {
   tp: 'Thờ phượng',
   trudo: 'Trudo',
@@ -43,28 +50,29 @@ export function daNhapKetQuaMuc(dong) {
 }
 
 /**
- * Tóm tắt tiến độ nhập 5 mảng thực hiện kế hoạch của một (thang, khu_vuc, tuan).
- * Duyệt theo đúng thứ tự CAC_MUC_HOP_LE để danh sách mảng thiếu/đã nhập ổn định.
+ * Tóm tắt tiến độ nhập các mảng thực hiện kế hoạch của một (thang, khu_vuc, tuan).
+ * Duyệt theo đúng thứ tự CAC_MUC_BAO_CAO_KE_HOACH (4 mảng: tp, trudo, edu, daotao;
+ * tạm không tính lehoi theo chỉ đạo anh Rise 10/11/2026).
  */
 export function tomTatKetQuaTuan(dsDongCuaTuan) {
   const daCoMuc = new Set();
   for (const r of (dsDongCuaTuan || [])) {
     const m = chuoi(r && r.muc);
-    if (CAC_MUC_HOP_LE.includes(m) && daNhapKetQuaMuc(r)) {
+    if (CAC_MUC_BAO_CAO_KE_HOACH.includes(m) && daNhapKetQuaMuc(r)) {
       daCoMuc.add(m);
     }
   }
   const dsMucDaNhap = [];
   const dsMucThieu = [];
-  for (const m of CAC_MUC_HOP_LE) {
+  for (const m of CAC_MUC_BAO_CAO_KE_HOACH) {
     const ten = TEN_MUC_KET_QUA[m] || m;
     if (daCoMuc.has(m)) dsMucDaNhap.push(ten);
     else dsMucThieu.push(ten);
   }
   return {
     soMucDaNhap: dsMucDaNhap.length,
-    tongSoMuc: CAC_MUC_HOP_LE.length,
-    daNhapDu: dsMucDaNhap.length === CAC_MUC_HOP_LE.length,
+    tongSoMuc: CAC_MUC_BAO_CAO_KE_HOACH.length,
+    daNhapDu: dsMucDaNhap.length === CAC_MUC_BAO_CAO_KE_HOACH.length,
     dsMucDaNhap,
     dsMucThieu,
   };

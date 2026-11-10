@@ -849,19 +849,23 @@ console.log('\n23) ⭐⭐ T-021 — Cột thứ 5 "Kế hoạch tuần", hạn r
   kiem('Tuần 6 (tháng 2027-01): ke_hoach_tuan là khong_ap_dung (T-008)',
     o(bang2027, 6, 'ke_hoach_tuan') === 'khong_ap_dung', o(bang2027, 6, 'ke_hoach_tuan'));
 
-  // 23.5 Định nghĩa "đã nhập n/5 mảng" dùng chung từ ket-qua.js
+  // 23.5 Định nghĩa "đã nhập n/4 mảng" dùng chung từ ket-qua.js (mảng Lễ hội tạm không tính báo cáo kế hoạch)
   taoCSDL();
   // Dòng cả da_lam và chua_lam đều chỉ khoảng trắng -> KHÔNG tính là đã nhập
   sqlite.prepare(
     'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
   ).run('2026-11', 'K My', 'tp', 2, '   ', '  ');
+  // Nhập riêng mảng lehoi -> cũng KHÔNG tính vào báo cáo kế hoạch tuần (anh Rise chốt 10/11/2026)
+  sqlite.prepare(
+    'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
+  ).run('2026-11', 'K My', 'lehoi', 2, 'Có nhập lễ hội', '');
   let g = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
   let cellKH2 = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
-  kiem('dòng ket_qua_muc rỗng/khoảng trắng -> soMucDaNhap = 0, goiY = false',
-    cellKH2.soMucDaNhap === 0 && cellKH2.goiY === false && cellKH2.dsMucThieu.length === 5,
+  kiem('dòng ket_qua_muc rỗng/khoảng trắng (hoặc chỉ có mảng lehoi) -> soMucDaNhap = 0, tongSoMuc = 4, goiY = false',
+    cellKH2.soMucDaNhap === 0 && cellKH2.tongSoMuc === 4 && cellKH2.goiY === false && cellKH2.dsMucThieu.length === 4,
     JSON.stringify(cellKH2));
 
-  // Nhập 3/5 mảng: tp (chỉ da_lam), trudo (chỉ chua_lam), edu (cả hai)
+  // Nhập 3/4 mảng: tp (chỉ da_lam), trudo (chỉ chua_lam), edu (cả hai)
   sqlite.prepare(
     'UPDATE ket_qua_muc SET da_lam = ? WHERE thang=? AND khu_vuc=? AND muc=? AND tuan=?'
   ).run('Đã nhóm lại', '2026-11', 'K My', 'tp', 2);
@@ -874,10 +878,11 @@ console.log('\n23) ⭐⭐ T-021 — Cột thứ 5 "Kế hoạch tuần", hạn r
 
   g = await goi('getBaoCaoTuan', ['2026-11', 'K My'], KVT);
   cellKH2 = g.result.tuan.find((x) => x.tuan === 2).hangMuc.find((x) => x.ma === 'ke_hoach_tuan');
-  kiem('nhập 3/5 mảng -> goiY = true, soMucDaNhap = 3, dsMucThieu = ["Đào tạo", "Lễ hội"]',
+  kiem('nhập 3/4 mảng -> goiY = true, soMucDaNhap = 3, tongSoMuc = 4, dsMucThieu = ["Đào tạo"]',
     cellKH2.goiY === true
     && cellKH2.soMucDaNhap === 3
-    && cellKH2.dsMucThieu.join(', ') === 'Đào tạo, Lễ hội',
+    && cellKH2.tongSoMuc === 4
+    && cellKH2.dsMucThieu.join(', ') === 'Đào tạo',
     JSON.stringify(cellKH2));
 
   // 23.6 Tách bạch với toggleBaoCaoTich và nút Báo cáo số liệu cũ (saveBaoCaoTuan)
@@ -927,12 +932,12 @@ console.log('\n23) ⭐⭐ T-021 — Cột thứ 5 "Kế hoạch tuần", hạn r
     kiem('saveBaoCaoKeHoachTuan lần đầu thành công & daGuiTin = true',
       bc1.result?.success === true && bc1.result?.daGuiTin === true, JSON.stringify(bc1));
     kiem('fetch Telegram được gọi ĐÚNG 1 lần ở lần báo cáo đầu tiên', dsTinTele.length === 1);
-    kiem('tin Telegram đúng định dạng: tiêu đề, khu vực, tháng + nhãn tuần, 3/5 mảng + còn thiếu Đào tạo, Lễ hội',
+    kiem('tin Telegram đúng định dạng: tiêu đề, khu vực, tháng + nhãn tuần, 3/4 mảng + còn thiếu Đào tạo',
       dsTinTele[0].includes('BÁO CÁO KẾ HOẠCH TUẦN 2')
       && dsTinTele[0].includes('Khu vực: <b>K My</b>')
       && dsTinTele[0].includes('Tháng: 2026-11 (8–14/11)')
       && dsTinTele[0].includes('Người báo cáo: kvt@gmail.com')
-      && dsTinTele[0].includes('Đã nhập: 3/5 mảng.  Còn thiếu: Đào tạo, Lễ hội'),
+      && dsTinTele[0].includes('Đã nhập: 3/4 mảng.  Còn thiếu: Đào tạo'),
       dsTinTele[0]);
     kiem('báo cáo ĐÚNG HẠN thì KHÔNG có dòng "⚠️ Báo cáo trễ hạn"',
       !dsTinTele[0].includes('Báo cáo trễ hạn'), dsTinTele[0]);
@@ -969,8 +974,8 @@ console.log('\n23) ⭐⭐ T-021 — Cột thứ 5 "Kế hoạch tuần", hạn r
     kiem('hủy rồi báo cáo lại vẫn chỉ 1 dòng trong bc_ke_hoach_tuan',
       sqlite.prepare('SELECT COUNT(*) n FROM bc_ke_hoach_tuan').get().n === 1);
 
-    // 23.10 Báo cáo lần đầu khi đủ 5/5 mảng VÀ trễ hạn (giả lập thời gian sang Thứ Hai 16/11/2026 > hạn CN 15/11)
-    for (const m of ['tp', 'trudo', 'edu', 'daotao', 'lehoi']) {
+    // 23.10 Báo cáo lần đầu khi đủ 4/4 mảng VÀ trễ hạn (giả lập thời gian sang Thứ Hai 16/11/2026 > hạn CN 15/11)
+    for (const m of ['tp', 'trudo', 'edu', 'daotao']) {
       sqlite.prepare(
         'INSERT INTO ket_qua_muc (thang, khu_vuc, muc, tuan, da_lam, chua_lam) VALUES (?,?,?,?,?,?)'
       ).run('2026-11', 'K Thành', m, 2, 'Đã làm đủ ' + m, '');
@@ -981,8 +986,8 @@ console.log('\n23) ⭐⭐ T-021 — Cột thứ 5 "Kế hoạch tuần", hạn r
       const bcTre = await goi('saveBaoCaoKeHoachTuan', ['2026-11', 'K Thành', 2], DVT);
       kiem('K Thành báo cáo lần đầu vào Thứ Hai 16/11 (sau hạn CN 15/11): daGuiTin = true',
         bcTre.result?.daGuiTin === true && dsTinTele.length === 2);
-      kiem('tin Telegram khi đủ 5/5 mảng và trễ hạn: có "Đã nhập đủ 5 mảng." VÀ "⚠️ Báo cáo trễ hạn (hạn hết CN 15/11)"',
-        dsTinTele[1].includes('Đã nhập đủ 5 mảng.')
+      kiem('tin Telegram khi đủ 4/4 mảng và trễ hạn: có "Đã nhập đủ 4 mảng." VÀ "⚠️ Báo cáo trễ hạn (hạn hết CN 15/11)"',
+        dsTinTele[1].includes('Đã nhập đủ 4 mảng.')
         && dsTinTele[1].includes('⚠️ Báo cáo trễ hạn (hạn hết CN 15/11)'),
         dsTinTele[1]);
     } finally {

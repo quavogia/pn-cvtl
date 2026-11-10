@@ -936,10 +936,10 @@
           <div style="margin-top:12px;font-size:12px;color:#64748b;line-height:1.9;">
             <b>Cách dùng:</b>
             4 cột đầu (Thờ phượng, Trudo — truyền đạo, Giáo dục, Đào tạo 70 bài): nhập xong hạng mục nào trên web thì <b>tích V</b> vào ô đó, tích đủ cả tuần rồi bấm <b>📋 Báo cáo</b> ở cột <b>Báo cáo nhập liệu</b> ngay bên cạnh.
-            Cột cuối <b>Kế hoạch tuần</b> (tách riêng bên phải): nhập Thực hiện kế hoạch (Đã làm / Chưa làm) ở 5 mảng rồi bấm nút <b>📨 Báo cáo</b> riêng ngay trong ô.
+            Cột cuối <b>Kế hoạch tuần</b> (tách riêng bên phải): nhập Thực hiện kế hoạch (Đã làm / Chưa làm) ở 4 mảng rồi bấm nút <b>📨 Báo cáo</b> riêng ngay trong ô.
             <br><b>Cách đọc ô:</b>
             <span title="đã tích hoặc đã báo cáo">✅ đã tích / đã báo cáo</span> ·
-            <span title="viền xanh nét đứt: web đã có số / đã nhập kết quả, chỉ còn thiếu tích V hoặc bấm Báo cáo">⬜ viền xanh nét đứt = <b>web đã có số (hoặc n/5 mảng), nhớ tích / báo cáo</b></span> ·
+            <span title="viền xanh nét đứt: web đã có số / đã nhập kết quả, chỉ còn thiếu tích V hoặc bấm Báo cáo">⬜ viền xanh nét đứt = <b>web đã có số (hoặc n/4 mảng), nhớ tích / báo cáo</b></span> ·
             <span title="viền đỏ: quá hạn mà chưa tích / chưa báo cáo">⬜ viền đỏ = <b>quá hạn chưa tích / chưa báo cáo</b></span> ·
             <span title="tuần đó không có buổi / không áp dụng hạng mục này">➖ không áp dụng</span>
             <br><b>Hạn:</b> 4 cột đầu hạn <b>hết Thứ Bảy</b> của tuần; cột <b>Kế hoạch tuần</b> hạn <b>hết Chủ nhật</b> (ân hạn 1 ngày). Tuần đang diễn ra hoặc còn trong hạn thì chưa tính là trễ.
@@ -4361,8 +4361,8 @@ var BC_NOI = {
     nhap: 'số lần phát biểu'
   },
   ke_hoach_tuan: {
-    di: 'kv:tp', o: '5 tab con TP · Trudo · Giáo dục · Đào tạo · Lễ hội',
-    nhap: 'Thực hiện kế hoạch (5 mảng) · hạn hết Chủ nhật'
+    di: 'kv:tp', o: '4 tab con TP · Trudo · Giáo dục · Đào tạo',
+    nhap: 'Thực hiện kế hoạch (4 mảng) · hạn hết Chủ nhật'
   }
 };
 
@@ -4413,10 +4413,10 @@ function bcOKeHoachTuan_(hm, w, choSua){
     return '<span title="' + k.ten + '" style="color:' + k.mau + ';font-size:16px;">➖</span>';
   }
   var daNhap = Number(hm.soMucDaNhap) || 0;
-  var tong = Number(hm.tongSoMuc) || 5;
+  var tong = Number(hm.tongSoMuc) || 4;
   var thieuTxt = (hm.dsMucThieu && hm.dsMucThieu.length)
     ? 'Còn thiếu: ' + hm.dsMucThieu.join(', ')
-    : 'Đã nhập đủ 5 mảng';
+    : 'Đã nhập đủ ' + tong + ' mảng';
   if (hm.baoCao && hm.baoCao.daBaoCao) {
     var s = '<div style="display:inline-block;text-align:center;line-height:1.35;">'
       + '<span style="color:#16a34a;font-weight:600;font-size:12px;" title="Người báo cáo: '
@@ -4681,7 +4681,7 @@ function bamBaoCaoKeHoachTuan_(tuan, btn){
       }
     }
     var daNhap = hm ? (Number(hm.soMucDaNhap) || 0) : 0;
-    var tong = hm ? (Number(hm.tongSoMuc) || 5) : 5;
+    var tong = hm ? (Number(hm.tongSoMuc) || 4) : 4;
     var thieu = (hm && hm.dsMucThieu) ? hm.dsMucThieu : [];
     var hoi = 'BÁO CÁO KẾ HOẠCH Tuần ' + tuan + ' cho khu vực ' + kv + '?';
     if (thieu.length > 0) {
